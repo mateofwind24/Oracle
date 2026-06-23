@@ -13,6 +13,13 @@ except ImportError:
         pass
 
 
+_LLM_BASE_URL_ENV_NAMES = (
+    "ORACLE_LLM_BASE_URL",
+    "ORACLE_FACE_LLM_BASE_URL",
+    "ORACLE_REPORT_LLM_BASE_URL",
+)
+
+
 @dataclass(frozen=True)
 class CaptureConfig:
     camera_index: int
@@ -98,6 +105,7 @@ def load_app_config() -> AppConfig:
 
 def _load_llm_config(prefix: str, send_image_default: bool) -> LlmConfig:
     _load_dotenv()
+    _validate_configured_local_llm_urls()
     base_url = os.getenv(
         f"{prefix}_BASE_URL",
         os.getenv("ORACLE_LLM_BASE_URL", "http://127.0.0.1:8080/v1"),
@@ -127,6 +135,13 @@ def _load_llm_config(prefix: str, send_image_default: bool) -> LlmConfig:
         ),
     )
     return result
+
+
+def _validate_configured_local_llm_urls() -> None:
+    for name in _LLM_BASE_URL_ENV_NAMES:
+        configured_url = os.getenv(name)
+        if configured_url is not None and configured_url.strip() != "":
+            _validate_local_llm_url(configured_url)
 
 
 def _validate_local_llm_url(base_url: str) -> None:

@@ -16,8 +16,16 @@ def test_default_llm_config_uses_llama_cpp(monkeypatch) -> None:
     assert config.model == "local-model"
 
 
-def test_rejects_non_local_llm_url(monkeypatch) -> None:
-    monkeypatch.setenv("ORACLE_LLM_BASE_URL", "https://api.openai.com/v1")
+@pytest.mark.parametrize(
+    "env_name",
+    (
+        "ORACLE_LLM_BASE_URL",
+        "ORACLE_FACE_LLM_BASE_URL",
+        "ORACLE_REPORT_LLM_BASE_URL",
+    ),
+)
+def test_rejects_non_local_llm_url(monkeypatch, env_name: str) -> None:
+    monkeypatch.setenv(env_name, "https://example.com/v1")
 
     with pytest.raises(ValueError, match="local llama.cpp"):
         load_llm_config()
