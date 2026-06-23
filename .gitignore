@@ -8,3 +8,5 @@ runs/
 reports/
 captures/
 *.egg-info/
+models/model.gguf
+models/model.gguf.tmp

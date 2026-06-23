@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from oracle_report.config import LlmConfig, load_llm_config
+from oracle_report.config import LlmConfig, load_face_llm_config, load_llm_config
 from oracle_report.llm import LlamaCppChatClient, _extract_output_text
 
 
@@ -14,6 +14,15 @@ def test_default_llm_config_uses_llama_cpp(monkeypatch) -> None:
 
     assert config.base_url == "http://127.0.0.1:8080/v1"
     assert config.model == "local-model"
+
+
+def test_default_face_llm_config_uses_text_mode(monkeypatch) -> None:
+    monkeypatch.setenv("ORACLE_LLM_SEND_IMAGE", "")
+    monkeypatch.setenv("ORACLE_FACE_LLM_SEND_IMAGE", "")
+
+    config = load_face_llm_config()
+
+    assert config.send_image is False
 
 
 @pytest.mark.parametrize(

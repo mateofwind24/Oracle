@@ -84,7 +84,7 @@ def load_llm_config() -> LlmConfig:
 
 
 def load_face_llm_config() -> LlmConfig:
-    result = _load_llm_config("ORACLE_FACE_LLM", send_image_default=True)
+    result = _load_llm_config("ORACLE_FACE_LLM", send_image_default=False)
     return result
 
 

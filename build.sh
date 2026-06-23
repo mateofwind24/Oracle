@@ -7,6 +7,7 @@ cd "$ROOT_DIR"
 VENV_DIR="${ORACLE_VENV_DIR:-$ROOT_DIR/.venv}"
 DEPS_DIR="${ORACLE_DEPS_DIR:-$ROOT_DIR/.deps}"
 LLAMA_CPP_DIR="${ORACLE_LLAMA_CPP_DIR:-$DEPS_DIR/llama.cpp}"
+PACKAGED_MODEL_SHA256="60f84cb5b9512175f219506da4a5d98d30b112855c474a3a6f06f6596dc7fd9b"
 
 log() {
   printf '[build] %s\n' "$*"
@@ -193,6 +194,85 @@ ensure_runtime_dirs() {
   log "runtime directories ready"
 }
 
+is_lfs_pointer_file() {
+  local file_path
+  file_path="$1"
+  [[ -f "$file_path" ]] &&
+    head -n 1 "$file_path" 2>/dev/null |
+      grep -q 'version https://git-lfs.github.com/spec/v1'
+}
+
+git_lfs_ready() {
+  git lfs version >/dev/null 2>&1
+}
+
+verify_model_hash() {
+  local model_path
+  local actual_hash
+  model_path="$1"
+  if ! command_exists sha256sum; then
+    return
+  fi
+  actual_hash="$(sha256sum "$model_path" | awk '{print $1}')"
+  if [[ "$actual_hash" != "$PACKAGED_MODEL_SHA256" ]]; then
+    fail "model checksum mismatch for $model_path"
+  fi
+}
+
+packaged_model_parts_ready() {
+  local parts=("$ROOT_DIR"/models/model.gguf.part*)
+  local part
+  local result
+  result=0
+  if [[ ! -f "${parts[0]}" ]]; then
+    result=1
+  else
+    for part in "${parts[@]}"; do
+      if is_lfs_pointer_file "$part"; then
+        result=1
+      fi
+    done
+  fi
+  return "$result"
+}
+
+assemble_packaged_model() {
+  local model_path
+  local model_tmp_path
+  local parts=("$ROOT_DIR"/models/model.gguf.part*)
+  model_path="$1"
+  model_tmp_path="${model_path}.tmp"
+  packaged_model_parts_ready ||
+    fail "packaged model parts are missing; run git lfs pull --include 'models/model.gguf.part*'"
+  mkdir -p "$(dirname "$model_path")"
+  log "assembling packaged GGUF model at $model_path"
+  cat "${parts[@]}" >"$model_tmp_path"
+  mv "$model_tmp_path" "$model_path"
+  verify_model_hash "$model_path"
+}
+
+ensure_model_file() {
+  local model_path
+  model_path="${ORACLE_LLAMA_MODEL_PATH:-$ROOT_DIR/models/model.gguf}"
+  if [[ -f "$model_path" ]] && ! is_lfs_pointer_file "$model_path"; then
+    verify_model_hash "$model_path"
+    log "model file ready at $model_path"
+    return
+  fi
+
+  command_exists git || fail "git is required to pull the packaged GGUF model"
+  git_lfs_ready || fail "git-lfs is required to pull the packaged GGUF model"
+
+  log "pulling packaged GGUF model parts with git-lfs"
+  git lfs install --local
+  git lfs pull --include "models/model.gguf.part*"
+
+  if [[ ! -f "$model_path" ]] || is_lfs_pointer_file "$model_path"; then
+    assemble_packaged_model "$model_path"
+  fi
+  verify_model_hash "$model_path"
+}
+
 ensure_manse_db() {
   if [[ "${ORACLE_BUILD_MANSE_DB:-1}" != "1" ]]; then
     log "skipping manse DB build because ORACLE_BUILD_MANSE_DB is not 1"
@@ -231,6 +311,7 @@ main() {
     python3-pip \
     python3-opencv \
     opencv-data \
+    git-lfs \
     libatlas-base-dev \
     git \
     cmake \
@@ -242,6 +323,7 @@ main() {
   ensure_llama_cpp
   ensure_env_file
   ensure_runtime_dirs
+  ensure_model_file
   ensure_manse_db
   run_verification
   log "build complete"

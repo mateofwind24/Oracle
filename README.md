@@ -62,7 +62,9 @@ cd /home/willtek/work/oracle
 
 `run.sh` 맨 위의 설정 블록에서 Flask host/port, 로컬 LLM 서버 주소, 모델 경로, 카메라 해상도, DB 경로를 수정할 수 있습니다. 기본 UI 주소는 `http://0.0.0.0:8501`입니다.
 
-기본 모델 위치는 `/home/willtek/work/oracle/models/model.gguf`입니다. 다른 경로를 쓰려면 `run.sh` 상단의 `RUN_ORACLE_LLAMA_MODEL_PATH`를 수정합니다.
+기본 모델 위치는 `/home/willtek/work/oracle/models/model.gguf`입니다. 레포에는 Gemma 4 E2B 계열의 경량 GGUF인 `unsloth/gemma-4-E2B-it-GGUF`의 `gemma-4-E2B-it-UD-IQ2_M.gguf`를 Git LFS part 파일로 포함합니다. 다른 경로를 쓰려면 `run.sh` 상단의 `RUN_ORACLE_LLAMA_MODEL_PATH`를 수정합니다.
+
+모델 파일은 약 2.29GB라 GitHub LFS 단일 파일 한도를 넘습니다. 그래서 `models/model.gguf.part01`, `models/model.gguf.part02`를 LFS로 저장하고, `./build.sh` 또는 `./run.sh`가 `models/model.gguf`로 재조립합니다.
 
 llama.cpp 서버를 직접 실행하려면 아래처럼 실행합니다.
 
@@ -72,7 +74,7 @@ llama-server -m /home/willtek/work/oracle/models/model.gguf --host 127.0.0.1 --p
 
 또는 `.env`에 `ORACLE_LLAMA_MODEL_PATH`를 설정한 뒤 `./run.sh`를 실행하면 서버가 없을 때 자동으로 시작합니다.
 
-멀티모달 관상까지 사진을 직접 넣으려면 llama.cpp에서 지원하는 비전 모델과 projector 설정이 필요합니다. 텍스트 전용 모델을 쓸 때는 `.env`에서 `ORACLE_LLM_SEND_IMAGE=0`으로 두면 캡처 품질 정보와 사주 룰 해석만 LLM에 전달합니다.
+멀티모달 관상까지 사진을 직접 넣으려면 llama.cpp에서 지원하는 비전 모델과 projector 설정이 필요합니다. 기본 포함 모델은 가장 작은 텍스트 우선 GGUF이므로 `ORACLE_LLM_SEND_IMAGE=0`, `ORACLE_FACE_LLM_SEND_IMAGE=0`이 기본값입니다. 이 모드에서는 캡처 품질 정보와 사주 룰 해석만 LLM에 전달합니다.
 
 ## Face Detection 경량화
 
