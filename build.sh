@@ -126,7 +126,8 @@ ensure_python_env() {
 
   activate_venv
   if [[ "$venv_created" -eq 0 ]] && python_deps_ready &&
-    command_exists oracle-report; then
+    command_exists oracle-report &&
+    command_exists oracle-build-manse-db; then
     log "Python dependencies already installed"
     return
   fi
@@ -192,6 +193,26 @@ ensure_runtime_dirs() {
   log "runtime directories ready"
 }
 
+ensure_manse_db() {
+  if [[ "${ORACLE_BUILD_MANSE_DB:-1}" != "1" ]]; then
+    log "skipping manse DB build because ORACLE_BUILD_MANSE_DB is not 1"
+    return
+  fi
+
+  local db_path
+  local start_year
+  local end_year
+  db_path="${ORACLE_MANSE_DB_PATH:-$ROOT_DIR/data/manse.sqlite}"
+  start_year="${ORACLE_MANSE_START_YEAR:-1900}"
+  end_year="${ORACLE_MANSE_END_YEAR:-2100}"
+
+  log "ensuring manse DB at $db_path for $start_year-$end_year"
+  oracle-build-manse-db \
+    --db "$db_path" \
+    --start-year "$start_year" \
+    --end-year "$end_year"
+}
+
 run_verification() {
   if [[ "${ORACLE_SKIP_TESTS:-0}" == "1" ]]; then
     log "skipping tests because ORACLE_SKIP_TESTS=1"
@@ -220,6 +241,7 @@ main() {
   ensure_llama_cpp
   ensure_env_file
   ensure_runtime_dirs
+  ensure_manse_db
   run_verification
   log "build complete"
 }

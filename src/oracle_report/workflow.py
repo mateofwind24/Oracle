@@ -25,7 +25,7 @@ from oracle_report.report import (
     build_face_analysis_prompt,
     build_personal_final_prompt,
 )
-from oracle_report.saju.repository import SajuLookupResult, SajuRepository
+from oracle_report.saju.repository import ManseLookupResult, ManseRepository
 from oracle_report.vision.runtime import run_capture
 
 
@@ -66,7 +66,7 @@ class PersonalWorkflowResult:
     capture_path: Path
     recommendations: tuple[FaceRecommendation, ...]
     face_analysis: str
-    saju_cache_hit: bool
+    manse_status: str
 
 
 @dataclass(frozen=True)
@@ -76,8 +76,8 @@ class CompatibilityWorkflowResult:
     left_capture_path: Path
     right_capture_path: Path
     face_analysis: str
-    left_saju_cache_hit: bool
-    right_saju_cache_hit: bool
+    left_manse_status: str
+    right_manse_status: str
 
 
 @dataclass(frozen=True)
@@ -91,7 +91,7 @@ def run_personal_workflow(
     capture_config: CaptureConfig,
     face_llm_config: LlmConfig,
     report_llm_config: LlmConfig,
-    saju_db_path: Path,
+    manse_db_path: Path,
     recommendation_db_path: Path,
     face_client: TextGenerator | None = None,
     report_client: TextGenerator | None = None,
@@ -104,15 +104,15 @@ def run_personal_workflow(
         workflow_input.gender,
     )
     output_dir = _new_session_dir(capture_config.output_dir, "personal")
-    repository = SajuRepository(saju_db_path)
+    repository = ManseRepository(manse_db_path)
     active_face_client = face_client or LlamaCppChatClient(face_llm_config)
     active_report_client = report_client or LlamaCppChatClient(report_llm_config)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        saju_future = executor.submit(repository.lookup, profile)
+        manse_future = executor.submit(repository.lookup, profile)
         capture_future = executor.submit(capture_runner, capture_config, output_dir)
         capture_artifact = capture_future.result()
-        saju_lookup = saju_future.result()
+        manse_lookup = manse_future.result()
 
     face_analysis = _build_single_face_analysis(
         active_face_client,
@@ -122,12 +122,12 @@ def run_personal_workflow(
     recommendations = recommend_faces(
         recommendation_db_path,
         workflow_input.target_gender,
-        saju_lookup.reading,
+        manse_lookup.reading,
     )
     markdown = _build_personal_markdown(
         active_report_client,
         profile,
-        saju_lookup,
+        manse_lookup,
         face_analysis.text,
         recommendations,
     )
@@ -139,7 +139,7 @@ def run_personal_workflow(
         capture_path=capture_artifact.image_path,
         recommendations=recommendations,
         face_analysis=face_analysis.text,
-        saju_cache_hit=saju_lookup.cache_hit,
+        manse_status="조회 완료",
     )
     return result
 
@@ -149,7 +149,7 @@ def run_compatibility_workflow(
     capture_config: CaptureConfig,
     face_llm_config: LlmConfig,
     report_llm_config: LlmConfig,
-    saju_db_path: Path,
+    manse_db_path: Path,
     face_client: TextGenerator | None = None,
     report_client: TextGenerator | None = None,
     capture_runner=run_capture,
@@ -169,13 +169,13 @@ def run_compatibility_workflow(
         workflow_input.right_gender,
     )
     output_dir = _new_session_dir(capture_config.output_dir, "compatibility")
-    repository = SajuRepository(saju_db_path)
+    repository = ManseRepository(manse_db_path)
     active_face_client = face_client or LlamaCppChatClient(face_llm_config)
     active_report_client = report_client or LlamaCppChatClient(report_llm_config)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        saju_future = executor.submit(
-            _lookup_pair_saju,
+        manse_future = executor.submit(
+            _lookup_pair_manse,
             repository,
             left_profile,
             right_profile,
@@ -186,7 +186,7 @@ def run_compatibility_workflow(
             output_dir,
             inter_capture_delay_seconds,
         )
-        left_saju, right_saju = saju_future.result()
+        left_manse, right_manse = manse_future.result()
 
     face_analysis = _build_pair_face_analysis(
         active_face_client,
@@ -199,8 +199,8 @@ def run_compatibility_workflow(
         left_profile,
         right_profile,
         mode,
-        left_saju,
-        right_saju,
+        left_manse,
+        right_manse,
         face_analysis.text,
     )
     output_path = output_dir / "compatibility_report.md"
@@ -211,8 +211,8 @@ def run_compatibility_workflow(
         left_capture_path=capture_artifact.left.image_path,
         right_capture_path=capture_artifact.right.image_path,
         face_analysis=face_analysis.text,
-        left_saju_cache_hit=left_saju.cache_hit,
-        right_saju_cache_hit=right_saju.cache_hit,
+        left_manse_status="조회 완료",
+        right_manse_status="조회 완료",
     )
     return result
 
@@ -270,14 +270,14 @@ def _build_pair_face_analysis(
 def _build_personal_markdown(
     client: TextGenerator,
     profile: BirthProfile,
-    saju_lookup: SajuLookupResult,
+    manse_lookup: ManseLookupResult,
     face_analysis: str,
     recommendations: tuple[FaceRecommendation, ...],
 ) -> str:
     recommendation_text = format_recommendations(recommendations)
     prompt = build_personal_final_prompt(
         profile,
-        saju_lookup.formatted_text,
+        manse_lookup.formatted_text,
         face_analysis,
         recommendation_text,
     )
@@ -291,7 +291,7 @@ def _build_personal_markdown(
     if generated.error:
         markdown = _fallback_personal_markdown(
             profile,
-            saju_lookup.formatted_text,
+            manse_lookup.formatted_text,
             face_analysis,
             recommendation_text,
             generated.error,
@@ -305,16 +305,16 @@ def _build_compatibility_markdown(
     left_profile: BirthProfile,
     right_profile: BirthProfile,
     mode: str,
-    left_saju: SajuLookupResult,
-    right_saju: SajuLookupResult,
+    left_manse: ManseLookupResult,
+    right_manse: ManseLookupResult,
     face_analysis: str,
 ) -> str:
     prompt = build_compatibility_final_prompt(
         left_profile,
         right_profile,
         mode,
-        left_saju.formatted_text,
-        right_saju.formatted_text,
+        left_manse.formatted_text,
+        right_manse.formatted_text,
         face_analysis,
     )
     generated = _safe_generate(
@@ -329,8 +329,8 @@ def _build_compatibility_markdown(
             left_profile,
             right_profile,
             mode,
-            left_saju.formatted_text,
-            right_saju.formatted_text,
+            left_manse.formatted_text,
+            right_manse.formatted_text,
             face_analysis,
             generated.error,
         )
@@ -338,11 +338,11 @@ def _build_compatibility_markdown(
     return result
 
 
-def _lookup_pair_saju(
-    repository: SajuRepository,
+def _lookup_pair_manse(
+    repository: ManseRepository,
     left_profile: BirthProfile,
     right_profile: BirthProfile,
-) -> tuple[SajuLookupResult, SajuLookupResult]:
+) -> tuple[ManseLookupResult, ManseLookupResult]:
     left_result = repository.lookup(left_profile)
     right_result = repository.lookup(right_profile)
     result = (left_result, right_result)
@@ -391,6 +391,9 @@ def _build_birth_profile(
     birth_time: str,
     gender: str,
 ) -> BirthProfile:
+    cleaned_gender = gender.strip()
+    if cleaned_gender == "":
+        raise ValueError("성별은 남성 또는 여성으로 입력해야 합니다.")
     cleaned_time = birth_time.strip()
     birth_time_known = cleaned_time != ""
     time_text = cleaned_time
@@ -403,7 +406,7 @@ def _build_birth_profile(
     result = BirthProfile(
         name=name.strip(),
         birth_datetime=birth_datetime,
-        gender=gender.strip(),
+        gender=cleaned_gender,
         birth_time_known=birth_time_known,
     )
     return result

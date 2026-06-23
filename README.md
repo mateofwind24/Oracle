@@ -9,8 +9,8 @@
 - 사주 룰엔진: 양력 기준 간지 산출, 오행 분포, 일간 중심 룰 해석
 - 경량 UI: Flask 기반 로컬 웹 앱으로 개인 리포트와 두 사람 궁합 메뉴 제공
 - 리포트 생성: localhost의 llama.cpp 로컬 LLM을 관상 분석 LLM과 최종 리포트 LLM 역할로 분리
-- 내부 DB: SQLite 사주 캐시와 얼굴 추천 DB를 로컬 파일로 사용
-- 테스트 하네스: 실제 카메라/LLM 없이 상태 머신과 사주 계산을 검증
+- 내부 DB: 사전 생성된 SQLite 만세력 DB와 얼굴 추천 DB를 로컬 파일로 사용
+- 테스트 하네스: 실제 카메라/LLM 없이 상태 머신과 만세력 DB 조회를 검증
 
 현재 전체 플로우는 `docs/oracle_flow.puml`의 PlantUML 다이어그램과 `docs/oracle_service_blueprint.md`에 정리되어 있습니다.
 
@@ -39,8 +39,18 @@ cd /home/willtek/work/oracle
 - `llama-server`가 PATH에 있거나 `.deps/llama.cpp/build/bin/llama-server`가 있으면 llama.cpp clone/build 생략
 - `.env`가 있으면 덮어쓰지 않음
 - `data`, `models`, `runs` 디렉터리가 없으면 생성
+- `data/manse.sqlite` 만세력 DB가 설정 범위 기준으로 준비되어 있으면 재생성 생략
 
 테스트까지 생략해야 하는 빠른 재빌드는 `ORACLE_SKIP_TESTS=1 ./build.sh`를 사용할 수 있습니다.
+
+레포에는 기본 만세력 DB인 `data/manse.sqlite`가 포함됩니다. 라즈베리파이에서 `/home/willtek/work/oracle`로 클론한 뒤 별도 DB 복사 없이 바로 조회할 수 있고, `./build.sh`는 파일의 범위와 행 수가 맞으면 생성을 건너뜁니다.
+
+`ORACLE_MANSE_START_YEAR`와 `ORACLE_MANSE_END_YEAR`는 만세력 DB 생성 범위입니다. 기본값은 1900-2100년입니다. 스키마는 각 날짜의 12개 시지를 행으로 저장하고, 성별에 따라 달라지는 대운 방향은 남성/여성 컬럼에 함께 저장합니다. 런타임에서는 DB에 없는 생년월일/시간/성별을 사주 엔진으로 즉석 계산하지 않고 오류로 처리합니다.
+
+용어는 아래처럼 구분합니다.
+
+- 만세력 DB: 생년월일, 태어난 시간, 성별 기준으로 년주/월주/일주/시주, 오행, 대운 방향을 미리 저장한 원천 데이터
+- 사주정보: 만세력 DB에서 조회한 값을 리포트 생성용으로 가공한 해석 입력
 
 ## 실행
 

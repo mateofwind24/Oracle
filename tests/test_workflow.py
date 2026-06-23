@@ -9,6 +9,7 @@ from oracle_report.models import (
     FaceBox,
     FaceQuality,
 )
+from oracle_report.saju.repository import build_manse_database
 from oracle_report.workflow import (
     CompatibilityWorkflowInput,
     PersonalWorkflowInput,
@@ -31,6 +32,7 @@ class FakeLlmClient:
 
 def test_personal_workflow_runs_without_real_camera_or_llm(tmp_path: Path) -> None:
     capture_config = _capture_config(tmp_path)
+    manse_db_path = _build_test_manse_db(tmp_path)
     workflow_input = PersonalWorkflowInput(
         name="홍길동",
         birth_date="1995-03-15",
@@ -44,7 +46,7 @@ def test_personal_workflow_runs_without_real_camera_or_llm(tmp_path: Path) -> No
         capture_config=capture_config,
         face_llm_config=_llm_config(),
         report_llm_config=_llm_config(),
-        saju_db_path=tmp_path / "saju.sqlite",
+        manse_db_path=manse_db_path,
         recommendation_db_path=tmp_path / "faces.sqlite",
         face_client=FakeLlmClient(),
         report_client=FakeLlmClient(),
@@ -58,6 +60,7 @@ def test_personal_workflow_runs_without_real_camera_or_llm(tmp_path: Path) -> No
 
 def test_compatibility_workflow_runs_without_real_camera_or_llm(tmp_path: Path) -> None:
     capture_config = _capture_config(tmp_path)
+    manse_db_path = _build_test_manse_db(tmp_path)
     workflow_input = CompatibilityWorkflowInput(
         left_name="갑",
         left_birth_date="1995-03-15",
@@ -75,7 +78,7 @@ def test_compatibility_workflow_runs_without_real_camera_or_llm(tmp_path: Path) 
         capture_config=capture_config,
         face_llm_config=_llm_config(),
         report_llm_config=_llm_config(),
-        saju_db_path=tmp_path / "saju.sqlite",
+        manse_db_path=manse_db_path,
         face_client=FakeLlmClient(),
         report_client=FakeLlmClient(),
         capture_runner=_fake_single_capture,
@@ -86,6 +89,13 @@ def test_compatibility_workflow_runs_without_real_camera_or_llm(tmp_path: Path) 
     assert "궁합 리포트" in result.markdown
     assert result.left_capture_path.parent.name == "person_1"
     assert result.right_capture_path.parent.name == "person_2"
+
+
+def _build_test_manse_db(tmp_path: Path) -> Path:
+    db_path = tmp_path / "manse.sqlite"
+    build_manse_database(db_path, start_year=1995, end_year=1997)
+    result = db_path
+    return result
 
 
 def _capture_config(tmp_path: Path) -> CaptureConfig:
@@ -133,4 +143,3 @@ def _fake_single_capture(
         quality=FaceQuality(ready=True, eye_count=2, eyebrow_score=0.05),
     )
     return result
-

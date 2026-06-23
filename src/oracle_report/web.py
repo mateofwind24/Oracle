@@ -58,7 +58,7 @@ def create_app() -> Flask:
                     capture_config=load_capture_config(),
                     face_llm_config=load_face_llm_config(),
                     report_llm_config=load_report_llm_config(),
-                    saju_db_path=_saju_db_path(),
+                    manse_db_path=_manse_db_path(),
                     recommendation_db_path=_face_db_path(),
                 )
                 body = _personal_result(workflow_result.markdown, workflow_result)
@@ -88,7 +88,7 @@ def create_app() -> Flask:
                     capture_config=load_capture_config(),
                     face_llm_config=load_face_llm_config(),
                     report_llm_config=load_report_llm_config(),
-                    saju_db_path=_saju_db_path(),
+                    manse_db_path=_manse_db_path(),
                 )
                 body = _compatibility_result(
                     workflow_result.markdown,
@@ -119,8 +119,8 @@ def _form_value(name: str) -> str:
     return result
 
 
-def _saju_db_path() -> Path:
-    result = Path(os.getenv("ORACLE_SAJU_DB_PATH", "data/saju_cache.sqlite"))
+def _manse_db_path() -> Path:
+    result = Path(os.getenv("ORACLE_MANSE_DB_PATH", "data/manse.sqlite"))
     return result
 
 
@@ -138,7 +138,7 @@ def _personal_form() -> str:
       <label>이름<input name="name" required></label>
       <label>생년월일<input name="birth_date" type="date" required></label>
       <label>태어난 시간<span class="hint">선택</span><input name="birth_time" type="time"></label>
-      <label>성별<input name="gender" placeholder="예: 남성, 여성, 미입력"></label>
+      <label>성별<input name="gender" placeholder="예: 남성 또는 여성" required></label>
       <label>추천받고 싶은 이성 얼굴<input name="target_gender" placeholder="예: 남성 또는 여성"></label>
       <button type="submit">개인 리포트 촬영 시작</button>
     </form>
@@ -160,14 +160,14 @@ def _compatibility_form() -> str:
           <label>이름<input name="left_name" required></label>
           <label>생년월일<input name="left_birth_date" type="date" required></label>
           <label>태어난 시간<span class="hint">선택</span><input name="left_birth_time" type="time"></label>
-          <label>성별<input name="left_gender" placeholder="예: 남성, 여성, 미입력"></label>
+          <label>성별<input name="left_gender" placeholder="예: 남성 또는 여성" required></label>
         </fieldset>
         <fieldset>
           <legend>두 번째 사람</legend>
           <label>이름<input name="right_name" required></label>
           <label>생년월일<input name="right_birth_date" type="date" required></label>
           <label>태어난 시간<span class="hint">선택</span><input name="right_birth_time" type="time"></label>
-          <label>성별<input name="right_gender" placeholder="예: 남성, 여성, 미입력"></label>
+          <label>성별<input name="right_gender" placeholder="예: 남성 또는 여성" required></label>
         </fieldset>
       </div>
       <label>궁합 모드<select name="mode">{mode_options}</select></label>
@@ -188,7 +188,7 @@ def _personal_result(markdown: str, workflow_result) -> str:
       <h2>개인 리포트 결과</h2>
       <p>캡처 이미지: <code>{escape(str(workflow_result.capture_path))}</code></p>
       <p>리포트 파일: <code>{escape(str(workflow_result.output_path))}</code></p>
-      <p>사주 DB 캐시: {escape("hit" if workflow_result.saju_cache_hit else "miss")}</p>
+      <p>만세력 DB: {escape(workflow_result.manse_status)}</p>
       <h3>추천 후보</h3>
       <ul>{recommendation_items}</ul>
       <pre>{escape(markdown)}</pre>
@@ -205,8 +205,8 @@ def _compatibility_result(markdown: str, workflow_result) -> str:
       <p>첫 번째 사람 캡처 이미지: <code>{escape(str(workflow_result.left_capture_path))}</code></p>
       <p>두 번째 사람 캡처 이미지: <code>{escape(str(workflow_result.right_capture_path))}</code></p>
       <p>리포트 파일: <code>{escape(str(workflow_result.output_path))}</code></p>
-      <p>첫 번째 사람 사주 DB 캐시: {escape("hit" if workflow_result.left_saju_cache_hit else "miss")}</p>
-      <p>두 번째 사람 사주 DB 캐시: {escape("hit" if workflow_result.right_saju_cache_hit else "miss")}</p>
+      <p>첫 번째 사람 만세력 DB: {escape(workflow_result.left_manse_status)}</p>
+      <p>두 번째 사람 만세력 DB: {escape(workflow_result.right_manse_status)}</p>
       <pre>{escape(markdown)}</pre>
     </section>
     <p><a href="/">처음으로</a></p>
