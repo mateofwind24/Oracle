@@ -415,7 +415,7 @@ require_wrapped_command() {
   mode="$1"
   shift
   if [[ "$#" -eq 0 ]]; then
-    fail "usage: ./run.sh $mode <capture|prompt|prompt-run|report|run|serve> [args...]"
+    fail "usage: ./run.sh $mode <capture|prompt|prompt-run|serve> [args...]"
   fi
 }
 

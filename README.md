@@ -1,26 +1,24 @@
 # Oracle Report
 
-Raspberry Pi에서 얼굴 캡처, 관상 보조 분석, 사주/만세력 조회, 개인/궁합 리포트를 실행하는 로컬 앱입니다. 실행은 기본적으로 `./run.sh` 하나로 합니다.
+Raspberry Pi에서 얼굴 캡처, 관상 보조 분석, 사주/만세력 조회, 개인/궁합 리포트를 실행하는 로컬 앱입니다. 기본 실행은 `./run.sh` 하나로 합니다.
 
 ## Modes
 
 - `debug`: 출력 로그와 산출물을 `runs/debug/<timestamp>/` 아래에 저장하고 화면에도 출력합니다.
-- `release`: 산출물을 임시 디렉터리에만 만들고 실행 후 삭제합니다. 화면 출력만 남습니다.
-- `release`에서는 `--output`, `--output-dir`을 사용할 수 없습니다.
+- `release`: 산출물을 임시 디렉터리에만 만들고 실행 뒤 삭제합니다.
+- `release`에서는 `--output`, `--output-dir`를 사용할 수 없습니다.
 
 ## Build
-
-전체 빌드:
 
 ```bash
 ./run.sh build
 ```
 
-이미 `models/*.gguf`가 있으면 모델 다운로드는 건너뜁니다.
+이미 `models/*.gguf`가 있으면 모델 다운로드를 건너뜁니다.
 
 ## Full Run
 
-웹 UI 전체 실행:
+웹 UI 실행:
 
 ```bash
 ./run.sh
@@ -32,34 +30,28 @@ Raspberry Pi에서 얼굴 캡처, 관상 보조 분석, 사주/만세력 조회,
 http://<raspberry-pi-ip>:8501
 ```
 
-CLI 전체 워크플로우 디버그 실행, 결과 저장:
-
-```bash
-./run.sh debug run \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30
-```
-
-CLI 전체 워크플로우 릴리즈 실행, 화면 출력만:
-
-```bash
-./run.sh release run \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30
-```
-
 ## Prompt Debugging
 
-관상 분석 LLM 프롬프트만 확인:
+개인 리포트 관상 분석 LLM 프롬프트 확인:
 
 ```bash
-./run.sh prompt face-analysis \
+./run.sh prompt personal-face-analysis \
   --name "홍길동" \
   --birth-date 1995-03-15 \
   --birth-time 14:30 \
   --gender male
+```
+
+궁합 리포트 관상 분석 LLM 프롬프트 확인:
+
+```bash
+./run.sh prompt compatibility-face-analysis \
+  --name "홍길동" \
+  --birth-date 1995-03-15 \
+  --birth-time 14:30 \
+  --gender male \
+  --mode 연인 \
+  --person-label "첫 번째 사람"
 ```
 
 사주/만세력 조회 결과가 최종 리포트에 어떤 텍스트로 들어가는지 확인:
@@ -72,7 +64,7 @@ CLI 전체 워크플로우 릴리즈 실행, 화면 출력만:
   --gender male
 ```
 
-사주/만세력 정보, 관상정보, 추천 정보를 함께 넣은 개인 최종 리포트 프롬프트 확인:
+개인 최종 리포트 프롬프트 확인:
 
 ```bash
 ./run.sh prompt personal-final \
@@ -85,13 +77,26 @@ CLI 전체 워크플로우 릴리즈 실행, 화면 출력만:
   --recommendation-text "추천 후보 예시"
 ```
 
-`personal-final`은 최종 화면 UI의 각 영역에 들어갈 JSON 객체를 요청합니다.
-`essence`, `face_blocks`, `saju_blocks`, `convergence`, `tags`, `recommendation_*` 필드를 확인하면 샘플 리포트 화면에 어떤 내용이 들어갈지 디버깅할 수 있습니다.
-
-관상 분석 프롬프트를 실제 LLM에 보내고 결과 확인:
+궁합 최종 리포트 프롬프트 확인:
 
 ```bash
-./run.sh prompt-run face-analysis \
+./run.sh prompt compatibility-final \
+  --name "홍길동" \
+  --birth-date 1995-03-15 \
+  --birth-time 14:30 \
+  --gender male \
+  --right-name "김영희" \
+  --right-birth-date 1997-05-20 \
+  --right-birth-time 09:00 \
+  --right-gender female \
+  --mode 연인 \
+  --face-analysis "두 사람 관상 분석 결과 예시"
+```
+
+개인 관상 분석 프롬프트를 실제 LLM에 보내고 결과 확인:
+
+```bash
+./run.sh prompt-run personal-face-analysis \
   --name "홍길동" \
   --birth-date 1995-03-15 \
   --birth-time 14:30 \
@@ -99,7 +104,20 @@ CLI 전체 워크플로우 릴리즈 실행, 화면 출력만:
   --image runs/session-001/capture.jpg
 ```
 
-사주/만세력 정보가 포함된 개인 최종 리포트 프롬프트를 실제 LLM에 보내고 결과 확인:
+궁합 관상 분석 프롬프트를 실제 LLM에 보내고 결과 확인:
+
+```bash
+./run.sh prompt-run compatibility-face-analysis \
+  --name "홍길동" \
+  --birth-date 1995-03-15 \
+  --birth-time 14:30 \
+  --gender male \
+  --mode 연인 \
+  --person-label "첫 번째 사람" \
+  --image runs/session-001/capture.jpg
+```
+
+개인 최종 리포트 프롬프트를 실제 LLM에 보내고 결과 확인:
 
 ```bash
 ./run.sh prompt-run personal-final \
@@ -112,9 +130,9 @@ CLI 전체 워크플로우 릴리즈 실행, 화면 출력만:
   --recommendation-text "추천 후보 예시"
 ```
 
-위 명령의 출력 JSON은 Flask 결과 화면과 `runs/.../personal_report.html`에 같은 섹션 구조로 렌더링됩니다.
+`personal-final` 출력 JSON은 Flask 결과 화면과 `runs/.../personal_report.html`에 같은 섹션 구조로 렌더링됩니다.
 
-정리하면 `face-analysis`는 관상 분석 LLM 입력만 확인하고, `saju-reading`은 LLM에 넣기 전 사주/만세력 텍스트 블록만 확인합니다. `personal-final`은 사주/만세력 정보와 관상정보를 함께 넣은 최종 리포트 프롬프트를 확인합니다.
+정리하면 `personal-face-analysis`와 `compatibility-face-analysis`는 LLM 관상 모드에서만 쓰는 입력입니다. 랜드마크 모드는 프롬프트 없이 rule-based 관상 텍스트를 사용합니다. `saju-reading`은 LLM에 넣기 전 사주/만세력 텍스트 블록만 확인합니다. `personal-final`과 `compatibility-final`은 사주/만세력 정보와 관상정보를 함께 넣은 최종 리포트 프롬프트입니다.
 
 프롬프트 템플릿 수정:
 
@@ -124,13 +142,13 @@ configs/prompts.json
 
 ## Capture Debugging
 
-얼굴 캡처만 디버그 실행, 이미지와 로그 저장:
+얼굴 캡처만 디버그 실행:
 
 ```bash
 ./run.sh debug capture
 ```
 
-얼굴 캡처만 릴리즈 실행, 임시 캡처 후 삭제:
+얼굴 캡처만 릴리즈 실행:
 
 ```bash
 ./run.sh release capture
@@ -173,8 +191,7 @@ python -m pytest
 ├── build.sh
 ├── run.sh
 ├── configs/
-│   ├── prompts.json
-│   └── raspberry_pi.env
+│   └── prompts.json
 ├── data/
 │   └── manse.sqlite
 ├── docs/

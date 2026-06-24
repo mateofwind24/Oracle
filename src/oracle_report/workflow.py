@@ -19,10 +19,11 @@ from oracle_report.recommender import (
     format_recommendations,
     recommend_faces,
 )
+from oracle_report.physiognomy import FaceReadingInput
 from oracle_report.report import (
-    FaceReadingInput,
     build_compatibility_final_prompt,
-    build_face_analysis_prompt,
+    build_compatibility_face_analysis_prompt,
+    build_personal_face_analysis_prompt,
     build_personal_final_prompt,
 )
 from oracle_report.report_html import render_personal_report_html
@@ -345,6 +346,7 @@ def run_compatibility_workflow(
         left_profile,
         right_profile,
         capture_artifact,
+        mode,
         face_analysis_mode,
     )
     markdown = timing_recorder.run(
@@ -447,7 +449,7 @@ def _build_single_face_analysis(
             image_path=artifact.image_path,
             quality=artifact.quality,
         )
-        prompt = build_face_analysis_prompt(profile, face_input)
+        prompt = build_personal_face_analysis_prompt(profile, face_input)
         result = _safe_generate(
             client,
             prompt,
@@ -462,20 +464,37 @@ def _build_pair_face_analysis(
     left_profile: BirthProfile,
     right_profile: BirthProfile,
     artifact: SequentialPairCaptureArtifact,
+    mode: str,
     face_analysis_mode: int = FACE_ANALYSIS_MODE_LLM_IMAGE,
 ) -> _GeneratedText:
-    left_analysis = _build_single_face_analysis(
-        client,
-        left_profile,
-        artifact.left,
-        face_analysis_mode,
-    )
-    right_analysis = _build_single_face_analysis(
-        client,
-        right_profile,
-        artifact.right,
-        face_analysis_mode,
-    )
+    if face_analysis_mode == FACE_ANALYSIS_MODE_LANDMARK_RULE:
+        left_analysis = _build_single_face_analysis(
+            client,
+            left_profile,
+            artifact.left,
+            face_analysis_mode,
+        )
+        right_analysis = _build_single_face_analysis(
+            client,
+            right_profile,
+            artifact.right,
+            face_analysis_mode,
+        )
+    else:
+        left_analysis = _build_compatibility_face_analysis(
+            client,
+            left_profile,
+            artifact.left,
+            "첫 번째 사람",
+            mode,
+        )
+        right_analysis = _build_compatibility_face_analysis(
+            client,
+            right_profile,
+            artifact.right,
+            "두 번째 사람",
+            mode,
+        )
     error = ""
     if left_analysis.error or right_analysis.error:
         error = " / ".join(
@@ -488,6 +507,34 @@ def _build_pair_face_analysis(
         ),
     )
     result = _GeneratedText(text=text, error=error)
+    return result
+
+
+def _build_compatibility_face_analysis(
+    client: TextGenerator | None,
+    profile: BirthProfile,
+    artifact: CaptureArtifact,
+    person_label: str,
+    mode: str,
+) -> _GeneratedText:
+    if client is None:
+        raise ValueError("face analysis client is required for mode 1.")
+    face_input = FaceReadingInput(
+        image_path=artifact.image_path,
+        quality=artifact.quality,
+    )
+    prompt = build_compatibility_face_analysis_prompt(
+        profile,
+        face_input,
+        person_label,
+        mode,
+    )
+    result = _safe_generate(
+        client,
+        prompt,
+        artifact.image_path,
+        "관상정보를 생성하지 못했습니다.",
+    )
     return result
 
 

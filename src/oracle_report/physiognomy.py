@@ -4,24 +4,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from oracle_report.models import FaceQuality
-from oracle_report.prompt_templates import render_prompt_template
 
 
 @dataclass(frozen=True)
 class FaceReadingInput:
     image_path: Path | None
     quality: FaceQuality | None
-
-
-def build_face_prompt(face_input: FaceReadingInput) -> str:
-    quality_text = format_face_quality(face_input.quality)
-    result = render_prompt_template(
-        "face_prompt",
-        {
-            "quality_text": quality_text,
-        },
-    )
-    return result
 
 
 def format_face_quality(quality: FaceQuality | None) -> str:
