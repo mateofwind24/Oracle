@@ -16,11 +16,16 @@ class FakeClock:
 
 
 class FakeDetector:
-    def __init__(self, face: FaceBox | None) -> None:
+    def __init__(self, face: FaceBox | list[FaceBox] | None) -> None:
         self.face = face
 
     def detect(self, frame: np.ndarray) -> list[FaceBox]:
-        result = [] if self.face is None else [self.face]
+        if self.face is None:
+            result = []
+        elif isinstance(self.face, list):
+            result = self.face
+        else:
+            result = [self.face]
         return result
 
 
@@ -73,6 +78,25 @@ def test_quality_warning_blocks_capture() -> None:
     assert decision.should_capture is False
     assert decision.state == "warning"
     assert "눈" in decision.message
+
+
+def test_multiple_faces_are_warning() -> None:
+    clock = FakeClock()
+    detector = FakeDetector(
+        [
+            FaceBox(10, 10, 120, 120),
+            FaceBox(160, 10, 120, 120),
+        ],
+    )
+    analyzer = FakeAnalyzer(FaceQuality(ready=True, eye_count=2, eyebrow_score=0.05))
+    harness = FaceCaptureHarness(detector, analyzer, clock=clock)
+    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+
+    decision = harness.observe(frame)
+
+    assert decision.should_capture is False
+    assert decision.state == "warning"
+    assert "한 명" in decision.message
 
 
 def test_tracking_resets_when_face_disappears() -> None:

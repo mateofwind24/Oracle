@@ -104,6 +104,7 @@ modules = (
     "mediapipe",
     "numpy",
     "oracle_report",
+    "PIL",
     "pytest",
     "requests",
 )
@@ -458,7 +459,8 @@ main() {
     cmake \
     build-essential \
     curl \
-    ca-certificates
+    ca-certificates \
+    fonts-noto-cjk
 
   ensure_python_env
   ensure_llama_cpp

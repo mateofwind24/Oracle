@@ -4,6 +4,11 @@ import sqlite3
 from pathlib import Path
 
 from oracle_report.vision.landmarks import (
+    _FRONT_EYE_LEVEL_TOLERANCE,
+    _FRONT_MOUTH_LEVEL_TOLERANCE,
+    _FRONT_NOSE_CENTER_TOLERANCE,
+    _MIN_POSE_SCORE,
+    _score_from_delta,
     LandmarkMetrics,
     build_rule_based_face_analysis,
 )
@@ -60,6 +65,20 @@ def test_rule_database_queries_ranges_by_ratio(tmp_path: Path) -> None:
     assert match.tag == "미간 균형형"
     assert row is not None
     assert row[0] == "미간 균형형"
+
+
+def test_frontality_threshold_allows_slight_head_roll() -> None:
+    eye_y_delta = 0.045
+    nose_center_delta = 0.16
+    mouth_y_delta = 0.045
+
+    score = (
+        _score_from_delta(eye_y_delta, _FRONT_EYE_LEVEL_TOLERANCE)
+        + _score_from_delta(nose_center_delta, _FRONT_NOSE_CENTER_TOLERANCE)
+        + _score_from_delta(mouth_y_delta, _FRONT_MOUTH_LEVEL_TOLERANCE)
+    ) / 3.0
+
+    assert score >= _MIN_POSE_SCORE
 
 
 def test_rule_based_face_analysis_includes_auxiliary_interpretation() -> None:

@@ -52,7 +52,7 @@ def run_capture(
                 frame,
                 latest_decision.message,
                 faces,
-                latest_decision.state in {"searching", "warning"},
+                latest_decision.state == "warning",
                 latest_decision.landmark_points,
             )
             if frame_callback is not None:

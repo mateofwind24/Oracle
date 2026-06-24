@@ -15,8 +15,11 @@ from oracle_report.vision.physiognomy_rule_repository import (
 
 
 _LANDMARK_MODE_NAME = "랜드마크 룰 기반"
-_MIN_POSE_SCORE = 0.68
-_MIN_OCCLUSION_SCORE = 0.82
+_MIN_POSE_SCORE = 0.50
+_MIN_OCCLUSION_SCORE = 0.70
+_FRONT_EYE_LEVEL_TOLERANCE = 0.09
+_FRONT_NOSE_CENTER_TOLERANCE = 0.35
+_FRONT_MOUTH_LEVEL_TOLERANCE = 0.09
 _EYE_OPEN_THRESHOLD = 0.18
 _KEY_LANDMARK_INDICES = (
     2,
@@ -338,9 +341,9 @@ def _compute_landmark_metrics(
     eye_span = max(0.001, abs(right_eye.x - left_eye.x))
     lower_height = max(0.001, abs(chin.y - nose_base.y))
     frontality = (
-        _score_from_delta(eye_y_delta, 0.045)
-        + _score_from_delta(nose_center_delta, 0.22)
-        + _score_from_delta(mouth_y_delta, 0.045)
+        _score_from_delta(eye_y_delta, _FRONT_EYE_LEVEL_TOLERANCE)
+        + _score_from_delta(nose_center_delta, _FRONT_NOSE_CENTER_TOLERANCE)
+        + _score_from_delta(mouth_y_delta, _FRONT_MOUTH_LEVEL_TOLERANCE)
     ) / 3.0
     occlusion = _landmark_visibility_score(landmarks)
     left_ear = _eye_aspect_ratio(landmarks, (33, 160, 158, 133, 153, 144))

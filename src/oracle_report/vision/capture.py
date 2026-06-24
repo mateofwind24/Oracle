@@ -60,6 +60,7 @@ class FaceCaptureHarness:
                 self._reset_tracking()
         else:
             if len(faces) > 1:
+                state = "warning"
                 message = "한 명만 카메라 앞에 서 주세요."
             self._reset_tracking()
 

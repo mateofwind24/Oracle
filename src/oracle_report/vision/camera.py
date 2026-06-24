@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -16,6 +18,17 @@ _GSTREAMER_BACKEND_NAME = "GSTREAMER"
 _VIDEO_CAPTURE_BUFFER_SIZE = 1
 _FACE_ANALYSIS_MODE_LLM_IMAGE = 1
 _FACE_ANALYSIS_MODE_LANDMARK_RULE = 2
+_OVERLAY_HEIGHT_PX = 54
+_OVERLAY_TEXT_POSITION = (24, 14)
+_OVERLAY_TEXT_BASELINE_POSITION = (24, 36)
+_OVERLAY_FONT_SIZE = 24
+_KOREAN_FONT_PATHS = (
+    Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+    Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"),
+    Path("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"),
+    Path("/usr/share/fonts/truetype/nanum/NanumGothic.ttf"),
+    Path("C:/Windows/Fonts/malgun.ttf"),
+)
 
 
 def open_camera(config: CaptureConfig) -> tuple[Any, Any]:
@@ -118,14 +131,67 @@ def draw_overlay(
         )
     for point in landmarks:
         cv2.circle(frame, point, 2, color, -1)
-    cv2.rectangle(frame, (0, 0), (frame.shape[1], 54), (0, 0, 0), -1)
+    cv2.rectangle(
+        frame,
+        (0, 0),
+        (frame.shape[1], _OVERLAY_HEIGHT_PX),
+        (0, 0, 0),
+        -1,
+    )
+    if not _draw_unicode_text(frame, message):
+        _draw_cv2_text(cv2, frame, message)
+
+
+def _draw_cv2_text(cv2: Any, frame: np.ndarray, message: str) -> None:
     cv2.putText(
         frame,
         message,
-        (24, 36),
+        _OVERLAY_TEXT_BASELINE_POSITION,
         cv2.FONT_HERSHEY_SIMPLEX,
         0.65,
         (255, 255, 255),
         2,
         cv2.LINE_AA,
     )
+
+
+def _draw_unicode_text(frame: np.ndarray, message: str) -> bool:
+    drawn = False
+    if not message.isascii():
+        try:
+            from PIL import Image, ImageDraw
+        except ImportError:
+            drawn = False
+        else:
+            font = _load_overlay_font()
+            if font is not None:
+                rgb_frame = np.ascontiguousarray(frame[:, :, ::-1])
+                image = Image.fromarray(rgb_frame)
+                draw = ImageDraw.Draw(image)
+                draw.text(
+                    _OVERLAY_TEXT_POSITION,
+                    message,
+                    font=font,
+                    fill=(255, 255, 255),
+                )
+                frame[:, :, :] = np.asarray(image)[:, :, ::-1]
+                drawn = True
+    return drawn
+
+
+@lru_cache(maxsize=1)
+def _load_overlay_font() -> Any | None:
+    font = None
+    try:
+        from PIL import ImageFont
+    except ImportError:
+        font = None
+    else:
+        for font_path in _KOREAN_FONT_PATHS:
+            if font is None and font_path.exists():
+                try:
+                    font = ImageFont.truetype(str(font_path), _OVERLAY_FONT_SIZE)
+                except OSError:
+                    font = None
+    result = font
+    return result
