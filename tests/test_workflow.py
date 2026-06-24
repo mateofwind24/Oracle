@@ -35,7 +35,10 @@ class FailingFaceClient:
         raise AssertionError("face LLM must not run in landmark rule mode")
 
 
-def test_personal_workflow_runs_without_real_camera_or_llm(tmp_path: Path) -> None:
+def test_personal_workflow_runs_without_real_camera_or_llm(
+    tmp_path: Path,
+    capsys,
+) -> None:
     capture_config = _capture_config(tmp_path)
     manse_db_path = _build_test_manse_db(tmp_path)
     workflow_input = PersonalWorkflowInput(
@@ -59,6 +62,10 @@ def test_personal_workflow_runs_without_real_camera_or_llm(tmp_path: Path) -> No
     )
 
     assert result.output_path.exists()
+    assert result.timing_log_path is not None
+    assert result.timing_log_path.exists()
+    assert "capture" in result.timing_log_path.read_text(encoding="utf-8")
+    assert "[timing] capture:" in capsys.readouterr().out
     assert "개인 리포트" in result.markdown
     assert len(result.recommendations) > 0
 
@@ -119,6 +126,11 @@ def test_compatibility_workflow_runs_without_real_camera_or_llm(tmp_path: Path) 
     )
 
     assert result.output_path.exists()
+    assert result.timing_log_path is not None
+    assert result.timing_log_path.exists()
+    assert "compatibility_workflow" in result.timing_log_path.read_text(
+        encoding="utf-8",
+    )
     assert "궁합 리포트" in result.markdown
     assert result.left_capture_path.parent.name == "person_1"
     assert result.right_capture_path.parent.name == "person_2"

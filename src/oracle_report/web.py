@@ -430,6 +430,7 @@ def _personal_result(markdown: str, workflow_result) -> str:
       <h2>개인 리포트 결과</h2>
       <p>캡처 이미지: <code>{escape(str(workflow_result.capture_path))}</code></p>
       <p>리포트 파일: <code>{escape(str(workflow_result.output_path))}</code></p>
+      <p>수행 시간 로그: <code>{escape(str(workflow_result.timing_log_path))}</code></p>
       <p>만세력 DB: {escape(workflow_result.manse_status)}</p>
       <h3>추천 후보</h3>
       <ul>{recommendation_items}</ul>
@@ -447,6 +448,7 @@ def _compatibility_result(markdown: str, workflow_result) -> str:
       <p>첫 번째 사람 캡처 이미지: <code>{escape(str(workflow_result.left_capture_path))}</code></p>
       <p>두 번째 사람 캡처 이미지: <code>{escape(str(workflow_result.right_capture_path))}</code></p>
       <p>리포트 파일: <code>{escape(str(workflow_result.output_path))}</code></p>
+      <p>수행 시간 로그: <code>{escape(str(workflow_result.timing_log_path))}</code></p>
       <p>첫 번째 사람 만세력 DB: {escape(workflow_result.left_manse_status)}</p>
       <p>두 번째 사람 만세력 DB: {escape(workflow_result.right_manse_status)}</p>
       <pre>{escape(markdown)}</pre>

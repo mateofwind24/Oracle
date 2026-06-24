@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 import time
 from pathlib import Path
-from typing import Protocol
+from typing import Callable, Generic, Protocol, TypeVar
 
 from oracle_report.config import CaptureConfig, LlmConfig
 from oracle_report.llm import LlamaCppChatClient
@@ -33,6 +33,7 @@ COMPATIBILITY_MODES = ("연인", "친구", "직장동료")
 FACE_ANALYSIS_MODE_LLM_IMAGE = 1
 FACE_ANALYSIS_MODE_LANDMARK_RULE = 2
 FACE_ANALYSIS_MODES = (FACE_ANALYSIS_MODE_LLM_IMAGE, FACE_ANALYSIS_MODE_LANDMARK_RULE)
+_T = TypeVar("_T")
 
 
 class TextGenerator(Protocol):
@@ -72,6 +73,7 @@ class PersonalWorkflowResult:
     recommendations: tuple[FaceRecommendation, ...]
     face_analysis: str
     manse_status: str
+    timing_log_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -83,12 +85,71 @@ class CompatibilityWorkflowResult:
     face_analysis: str
     left_manse_status: str
     right_manse_status: str
+    timing_log_path: Path | None = None
 
 
 @dataclass(frozen=True)
 class _GeneratedText:
     text: str
     error: str
+
+
+@dataclass(frozen=True)
+class _WorkflowTimingEntry:
+    label: str
+    elapsed_seconds: float
+    started_at: datetime
+    finished_at: datetime
+
+
+@dataclass(frozen=True)
+class _TimedCallResult(Generic[_T]):
+    value: _T
+    timing: _WorkflowTimingEntry
+
+
+@dataclass
+class _WorkflowTimingRecorder:
+    workflow_name: str
+    started_at: datetime = field(default_factory=datetime.now)
+    started_counter: float = field(default_factory=time.perf_counter)
+    entries: list[_WorkflowTimingEntry] = field(default_factory=list)
+
+    def run(
+        self,
+        label: str,
+        function: Callable[..., _T],
+        *args: object,
+        **kwargs: object,
+    ) -> _T:
+        timed_result = _timed_call(label, function, *args, **kwargs)
+        self.add(timed_result.timing)
+        result = timed_result.value
+        return result
+
+    def add(self, timing: _WorkflowTimingEntry) -> None:
+        self.entries.append(timing)
+        print(_format_timing_line(timing))
+
+    def finish_total(self) -> None:
+        finished_at = datetime.now()
+        timing = _WorkflowTimingEntry(
+            label=self.workflow_name,
+            elapsed_seconds=time.perf_counter() - self.started_counter,
+            started_at=self.started_at,
+            finished_at=finished_at,
+        )
+        self.add(timing)
+
+    def write_log(self, path: Path) -> Path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            _format_timing_log(self.workflow_name, self.entries),
+            encoding="utf-8",
+        )
+        print(f"[timing] log saved: {path}")
+        result = path
+        return result
 
 
 def run_personal_workflow(
@@ -116,6 +177,7 @@ def run_personal_workflow(
         workflow_input.gender,
     )
     output_dir = _new_session_dir(active_capture_config.output_dir, "personal")
+    timing_recorder = _WorkflowTimingRecorder("personal_workflow")
     repository = ManseRepository(manse_db_path)
     active_face_client = face_client
     if face_analysis_mode == FACE_ANALYSIS_MODE_LLM_IMAGE:
@@ -123,27 +185,44 @@ def run_personal_workflow(
     active_report_client = report_client or LlamaCppChatClient(report_llm_config)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        manse_future = executor.submit(repository.lookup, profile)
+        manse_future = executor.submit(
+            _timed_call,
+            "manse_lookup",
+            repository.lookup,
+            profile,
+        )
         capture_future = executor.submit(
+            _timed_call,
+            "capture",
             capture_runner,
             active_capture_config,
             output_dir,
         )
-        capture_artifact = capture_future.result()
-        manse_lookup = manse_future.result()
+        capture_timed = capture_future.result()
+        timing_recorder.add(capture_timed.timing)
+        capture_artifact = capture_timed.value
+        manse_timed = manse_future.result()
+        timing_recorder.add(manse_timed.timing)
+        manse_lookup = manse_timed.value
 
-    face_analysis = _build_single_face_analysis(
+    face_analysis = timing_recorder.run(
+        "face_analysis",
+        _build_single_face_analysis,
         active_face_client,
         profile,
         capture_artifact,
         face_analysis_mode,
     )
-    recommendations = recommend_faces(
+    recommendations = timing_recorder.run(
+        "recommend_faces",
+        recommend_faces,
         recommendation_db_path,
         workflow_input.target_gender,
         manse_lookup.reading,
     )
-    markdown = _build_personal_markdown(
+    markdown = timing_recorder.run(
+        "final_report",
+        _build_personal_markdown,
         active_report_client,
         profile,
         manse_lookup,
@@ -151,7 +230,14 @@ def run_personal_workflow(
         recommendations,
     )
     output_path = output_dir / "personal_report.md"
-    output_path.write_text(markdown, encoding="utf-8")
+    timing_recorder.run(
+        "save_report",
+        output_path.write_text,
+        markdown,
+        encoding="utf-8",
+    )
+    timing_recorder.finish_total()
+    timing_log_path = timing_recorder.write_log(output_dir / "timings.log")
     result = PersonalWorkflowResult(
         markdown=markdown,
         output_path=output_path,
@@ -159,6 +245,7 @@ def run_personal_workflow(
         recommendations=recommendations,
         face_analysis=face_analysis.text,
         manse_status="조회 완료",
+        timing_log_path=timing_log_path,
     )
     return result
 
@@ -195,6 +282,7 @@ def run_compatibility_workflow(
         workflow_input.right_gender,
     )
     output_dir = _new_session_dir(active_capture_config.output_dir, "compatibility")
+    timing_recorder = _WorkflowTimingRecorder("compatibility_workflow")
     repository = ManseRepository(manse_db_path)
     active_face_client = face_client
     if face_analysis_mode == FACE_ANALYSIS_MODE_LLM_IMAGE:
@@ -203,27 +291,41 @@ def run_compatibility_workflow(
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         manse_future = executor.submit(
+            _timed_call,
+            "manse_lookup_pair",
             _lookup_pair_manse,
             repository,
             left_profile,
             right_profile,
         )
-        capture_artifact = _run_sequential_pair_capture(
+        capture_future = executor.submit(
+            _timed_call,
+            "capture_pair",
+            _run_sequential_pair_capture,
             capture_runner,
             active_capture_config,
             output_dir,
             inter_capture_delay_seconds,
         )
-        left_manse, right_manse = manse_future.result()
+        capture_timed = capture_future.result()
+        timing_recorder.add(capture_timed.timing)
+        capture_artifact = capture_timed.value
+        manse_timed = manse_future.result()
+        timing_recorder.add(manse_timed.timing)
+        left_manse, right_manse = manse_timed.value
 
-    face_analysis = _build_pair_face_analysis(
+    face_analysis = timing_recorder.run(
+        "face_analysis_pair",
+        _build_pair_face_analysis,
         active_face_client,
         left_profile,
         right_profile,
         capture_artifact,
         face_analysis_mode,
     )
-    markdown = _build_compatibility_markdown(
+    markdown = timing_recorder.run(
+        "final_report",
+        _build_compatibility_markdown,
         active_report_client,
         left_profile,
         right_profile,
@@ -233,7 +335,14 @@ def run_compatibility_workflow(
         face_analysis.text,
     )
     output_path = output_dir / "compatibility_report.md"
-    output_path.write_text(markdown, encoding="utf-8")
+    timing_recorder.run(
+        "save_report",
+        output_path.write_text,
+        markdown,
+        encoding="utf-8",
+    )
+    timing_recorder.finish_total()
+    timing_log_path = timing_recorder.write_log(output_dir / "timings.log")
     result = CompatibilityWorkflowResult(
         markdown=markdown,
         output_path=output_path,
@@ -242,7 +351,57 @@ def run_compatibility_workflow(
         face_analysis=face_analysis.text,
         left_manse_status="조회 완료",
         right_manse_status="조회 완료",
+        timing_log_path=timing_log_path,
     )
+    return result
+
+
+def _timed_call(
+    label: str,
+    function: Callable[..., _T],
+    *args: object,
+    **kwargs: object,
+) -> _TimedCallResult[_T]:
+    started_at = datetime.now()
+    started_counter = time.perf_counter()
+    value = function(*args, **kwargs)
+    finished_at = datetime.now()
+    timing = _WorkflowTimingEntry(
+        label=label,
+        elapsed_seconds=time.perf_counter() - started_counter,
+        started_at=started_at,
+        finished_at=finished_at,
+    )
+    result = _TimedCallResult(value=value, timing=timing)
+    return result
+
+
+def _format_timing_line(timing: _WorkflowTimingEntry) -> str:
+    result = f"[timing] {timing.label}: {timing.elapsed_seconds:.3f}s"
+    return result
+
+
+def _format_timing_log(
+    workflow_name: str,
+    entries: list[_WorkflowTimingEntry],
+) -> str:
+    lines = [
+        "# Oracle workflow timing log",
+        f"workflow={workflow_name}",
+        "",
+    ]
+    for entry in entries:
+        lines.append(
+            "\t".join(
+                (
+                    entry.started_at.isoformat(timespec="milliseconds"),
+                    entry.finished_at.isoformat(timespec="milliseconds"),
+                    entry.label,
+                    f"{entry.elapsed_seconds:.3f}s",
+                ),
+            ),
+        )
+    result = "\n".join(lines) + "\n"
     return result
 
 
