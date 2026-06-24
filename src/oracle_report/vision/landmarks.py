@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Any
 
 import numpy as np
 
 from oracle_report.models import FaceBox, FaceQuality
 from oracle_report.vision.detection import _import_cv2
-from oracle_report.vision.physiognomy_rule_data import (
-    PHYSIOGNOMY_RULES,
-    PHYSIOGNOMY_SAFETY_NOTE,
-    UNSUPPORTED_PHYSIOGNOMY_FEATURES,
-    PhysiognomyRule,
-    PhysiognomyRuleRange,
+from oracle_report.vision.physiognomy_rule_repository import (
+    PhysiognomyRuleMatch,
+    PhysiognomyRuleRepository,
 )
 
 
@@ -110,14 +108,6 @@ class LandmarkMetrics:
     philtrum_chin_ratio: float
     jaw_width_ratio: float
     mouth_balance_delta: float
-
-
-@dataclass(frozen=True)
-class _RuleMatch:
-    title: str
-    tag: str
-    observation: str
-    interpretation: str
 
 
 class MediaPipeLandmarkFaceDetector:
@@ -227,11 +217,13 @@ class MediaPipeLandmarkQualityAnalyzer:
 
 
 def build_rule_based_face_analysis(metrics: LandmarkMetrics) -> str:
-    matches = _evaluate_physio_rules(metrics)
+    repository = _physiognomy_rule_repository()
+    matches = _evaluate_physio_rules(metrics, repository)
     tags = _format_rule_tags(matches)
     detail_lines = _format_rule_details(matches)
     auxiliary_text = _format_auxiliary_interpretation(matches)
-    unsupported = ", ".join(UNSUPPORTED_PHYSIOGNOMY_FEATURES)
+    unsupported = ", ".join(repository.unsupported_features())
+    safety_note = repository.safety_note()
     result = f"""
 ## 관상정보
 - 분석 모드: {_LANDMARK_MODE_NAME}
@@ -243,63 +235,60 @@ def build_rule_based_face_analysis(metrics: LandmarkMetrics) -> str:
 - 리포트에 넣을 보조 해석: {auxiliary_text}
 - 적용 제외 기준: {unsupported}은 현재 랜드마크만으로 안정 측정하기 어려워 룰에 넣지 않았습니다.
 - 캡처 신뢰도: 정면 점수 {metrics.frontality_score:.2f}, 가림 추정 점수 {metrics.occlusion_score:.2f}
-- 주의 문구: {PHYSIOGNOMY_SAFETY_NOTE}
+- 주의 문구: {safety_note}
 """.strip()
     return result
 
 
-def _evaluate_physio_rules(metrics: LandmarkMetrics) -> tuple[_RuleMatch, ...]:
-    result = tuple(_evaluate_physio_rule(metrics, rule) for rule in PHYSIOGNOMY_RULES)
+@lru_cache(maxsize=1)
+def _physiognomy_rule_repository() -> PhysiognomyRuleRepository:
+    result = PhysiognomyRuleRepository()
     return result
 
 
-def _evaluate_physio_rule(
+def _evaluate_physio_rules(
     metrics: LandmarkMetrics,
-    rule: PhysiognomyRule,
-) -> _RuleMatch:
-    value = float(getattr(metrics, rule.metric))
-    matched_range = _select_rule_range(value, rule.ranges)
-    result = _RuleMatch(
-        title=rule.title,
-        tag=matched_range.tag,
-        observation=f"{matched_range.observation} ({rule.basis}, 측정값 {value:.2f})",
-        interpretation=matched_range.interpretation,
+    repository: PhysiognomyRuleRepository,
+) -> tuple[PhysiognomyRuleMatch, ...]:
+    result = repository.lookup_many(
+        {
+            "third_balance_error": metrics.third_balance_error,
+            "upper_zone_ratio": metrics.upper_zone_ratio,
+            "middle_zone_ratio": metrics.middle_zone_ratio,
+            "lower_zone_ratio": metrics.lower_zone_ratio,
+            "face_aspect_ratio": metrics.face_aspect_ratio,
+            "eye_spacing_ratio": metrics.eye_spacing_ratio,
+            "brow_eye_span_ratio": metrics.brow_eye_span_ratio,
+            "brow_eye_gap_ratio": metrics.brow_eye_gap_ratio,
+            "nose_width_ratio": metrics.nose_width_ratio,
+            "mouth_width_ratio": metrics.mouth_width_ratio,
+            "philtrum_chin_ratio": metrics.philtrum_chin_ratio,
+            "jaw_width_ratio": metrics.jaw_width_ratio,
+            "mouth_balance_delta": metrics.mouth_balance_delta,
+        },
     )
     return result
 
 
-def _select_rule_range(
-    value: float,
-    ranges: tuple[PhysiognomyRuleRange, ...],
-) -> PhysiognomyRuleRange:
-    result = ranges[-1]
-    for candidate in ranges:
-        if _rule_range_matches(value, candidate):
-            result = candidate
-            break
-    return result
-
-
-def _rule_range_matches(value: float, rule_range: PhysiognomyRuleRange) -> bool:
-    meets_minimum = rule_range.min_value is None or value >= rule_range.min_value
-    meets_maximum = rule_range.max_value is None or value < rule_range.max_value
-    result = meets_minimum and meets_maximum
-    return result
-
-
-def _format_rule_tags(matches: tuple[_RuleMatch, ...]) -> str:
+def _format_rule_tags(matches: tuple[PhysiognomyRuleMatch, ...]) -> str:
     result = ", ".join(match.tag for match in matches[:8])
     return result
 
 
-def _format_rule_details(matches: tuple[_RuleMatch, ...]) -> str:
+def _format_rule_details(matches: tuple[PhysiognomyRuleMatch, ...]) -> str:
     result = "\n".join(
-        f"  - {match.title}: {match.observation}" for match in matches
+        (
+            f"  - {match.title}: {match.observation} "
+            f"({match.basis}, 측정값 {match.value:.2f})"
+        )
+        for match in matches
     )
     return result
 
 
-def _format_auxiliary_interpretation(matches: tuple[_RuleMatch, ...]) -> str:
+def _format_auxiliary_interpretation(
+    matches: tuple[PhysiognomyRuleMatch, ...],
+) -> str:
     selected = matches[:7]
     result = " ".join(match.interpretation for match in selected)
     return result

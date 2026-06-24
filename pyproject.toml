@@ -39,6 +39,7 @@ dev = [
 [project.scripts]
 oracle-report = "oracle_report.cli:main"
 oracle-build-manse-db = "oracle_report.saju.repository_cli:main"
+oracle-build-physiognomy-db = "oracle_report.vision.physiognomy_rule_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

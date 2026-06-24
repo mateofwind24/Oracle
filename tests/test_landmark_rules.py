@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sqlite3
+from pathlib import Path
+
 from oracle_report.vision.landmarks import (
     LandmarkMetrics,
     build_rule_based_face_analysis,
@@ -7,6 +10,10 @@ from oracle_report.vision.landmarks import (
 from oracle_report.vision.physiognomy_rule_data import (
     PHYSIOGNOMY_RULES,
     RULE_SOURCE_REFERENCES,
+)
+from oracle_report.vision.physiognomy_rule_repository import (
+    PhysiognomyRuleRepository,
+    build_physio_rule_database,
 )
 
 
@@ -23,6 +30,36 @@ def test_rule_data_is_sourced() -> None:
         for rule in PHYSIOGNOMY_RULES
         for source_id in rule.source_ids
     )
+
+
+def test_rule_database_queries_ranges_by_ratio(tmp_path: Path) -> None:
+    db_path = tmp_path / "physiognomy_rules.sqlite"
+
+    built = build_physio_rule_database(db_path)
+    skipped = build_physio_rule_database(db_path)
+    repository = PhysiognomyRuleRepository(db_path)
+    match = repository.lookup("eye_spacing_ratio", 0.28)
+
+    with sqlite3.connect(db_path) as connection:
+        row = connection.execute(
+            """
+            SELECT ranges.tag
+            FROM physiognomy_rules AS rules
+            JOIN physiognomy_rule_ranges AS ranges
+              ON ranges.rule_id = rules.id
+            WHERE rules.metric = ?
+              AND (ranges.min_value IS NULL OR ? >= ranges.min_value)
+              AND (ranges.max_value IS NULL OR ? < ranges.max_value)
+            """,
+            ("eye_spacing_ratio", 0.28, 0.28),
+        ).fetchone()
+
+    assert built is True
+    assert skipped is False
+    assert match is not None
+    assert match.tag == "미간 균형형"
+    assert row is not None
+    assert row[0] == "미간 균형형"
 
 
 def test_rule_based_face_analysis_includes_auxiliary_interpretation() -> None:
