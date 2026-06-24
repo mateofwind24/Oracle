@@ -16,10 +16,16 @@ from oracle_report.vision.physiognomy_rule_repository import (
 
 _LANDMARK_MODE_NAME = "랜드마크 룰 기반"
 _MIN_POSE_SCORE = 0.50
-_MIN_OCCLUSION_SCORE = 0.70
 _FRONT_EYE_LEVEL_TOLERANCE = 0.09
 _FRONT_NOSE_CENTER_TOLERANCE = 0.35
 _FRONT_MOUTH_LEVEL_TOLERANCE = 0.09
+_LANDMARK_FRAME_MARGIN = 0.03
+_LANDMARK_CENTER_X_TOLERANCE = 0.38
+_LANDMARK_CENTER_Y_TOLERANCE = 0.42
+_LANDMARK_NOSE_CENTER_TOLERANCE = 0.40
+_LANDMARK_INSIDE_FRAME_WEIGHT = 0.45
+_LANDMARK_CENTER_WEIGHT = 0.25
+_LANDMARK_BALANCE_WEIGHT = 0.30
 _EYE_OPEN_THRESHOLD = 0.18
 _KEY_LANDMARK_INDICES = (
     2,
@@ -200,8 +206,6 @@ class MediaPipeLandmarkQualityAnalyzer:
             metrics = _compute_landmark_metrics(detection.landmarks)
             if metrics.frontality_score < _MIN_POSE_SCORE:
                 warnings.append("정면을 바라봐 주세요.")
-            if metrics.occlusion_score < _MIN_OCCLUSION_SCORE:
-                warnings.append("얼굴을 가리는 물체를 치워 주세요.")
             if metrics.eye_count < 2:
                 warnings.append("눈을 뜨고 카메라를 정면으로 봐 주세요.")
             face_analysis = build_rule_based_face_analysis(metrics)
@@ -237,7 +241,7 @@ def build_rule_based_face_analysis(metrics: LandmarkMetrics) -> str:
 {detail_lines}
 - 리포트에 넣을 보조 해석: {auxiliary_text}
 - 적용 제외 기준: {unsupported}은 현재 랜드마크만으로 안정 측정하기 어려워 룰에 넣지 않았습니다.
-- 캡처 신뢰도: 정면 점수 {metrics.frontality_score:.2f}, 가림 추정 점수 {metrics.occlusion_score:.2f}
+- 캡처 신뢰도: 정면 점수 {metrics.frontality_score:.2f}, 랜드마크 배치 점수 {metrics.occlusion_score:.2f}
 - 주의 문구: {safety_note}
 """.strip()
     return result
@@ -345,7 +349,7 @@ def _compute_landmark_metrics(
         + _score_from_delta(nose_center_delta, _FRONT_NOSE_CENTER_TOLERANCE)
         + _score_from_delta(mouth_y_delta, _FRONT_MOUTH_LEVEL_TOLERANCE)
     ) / 3.0
-    occlusion = _landmark_visibility_score(landmarks)
+    occlusion = _landmark_geometry_score(landmarks)
     left_ear = _eye_aspect_ratio(landmarks, (33, 160, 158, 133, 153, 144))
     right_ear = _eye_aspect_ratio(landmarks, (362, 385, 387, 263, 373, 380))
     eye_count = int(left_ear >= _EYE_OPEN_THRESHOLD) + int(
@@ -455,20 +459,98 @@ def _select_draw_points(points: tuple[tuple[int, int], ...]) -> tuple[tuple[int,
     return result
 
 
-def _landmark_visibility_score(landmarks: tuple[NormalizedLandmark, ...]) -> float:
-    visible_count = 0
+def _landmark_geometry_score(landmarks: tuple[NormalizedLandmark, ...]) -> float:
+    inside_score = _landmark_inside_frame_score(landmarks)
+    center_score = _landmark_center_score(landmarks)
+    balance_score = _landmark_balance_score(landmarks)
+    result = (
+        (inside_score * _LANDMARK_INSIDE_FRAME_WEIGHT)
+        + (center_score * _LANDMARK_CENTER_WEIGHT)
+        + (balance_score * _LANDMARK_BALANCE_WEIGHT)
+    )
+    return result
+
+
+def _landmark_inside_frame_score(landmarks: tuple[NormalizedLandmark, ...]) -> float:
+    inside_count = 0
     total_count = 0
     for index in _KEY_LANDMARK_INDICES:
         if index < len(landmarks):
             total_count = total_count + 1
-            item = landmarks[index]
-            inside_frame = 0.0 <= item.x <= 1.0 and 0.0 <= item.y <= 1.0
-            confident = item.visibility >= 0.35 and item.presence >= 0.35
-            if inside_frame and confident:
-                visible_count = visible_count + 1
+            if _is_landmark_inside_frame(landmarks[index]):
+                inside_count = inside_count + 1
     result = 0.0
     if total_count > 0:
-        result = float(visible_count) / float(total_count)
+        result = float(inside_count) / float(total_count)
+    return result
+
+
+def _is_landmark_inside_frame(landmark: NormalizedLandmark) -> bool:
+    result = (
+        -_LANDMARK_FRAME_MARGIN <= landmark.x <= 1.0 + _LANDMARK_FRAME_MARGIN
+        and -_LANDMARK_FRAME_MARGIN <= landmark.y <= 1.0 + _LANDMARK_FRAME_MARGIN
+    )
+    return result
+
+
+def _landmark_center_score(landmarks: tuple[NormalizedLandmark, ...]) -> float:
+    key_landmarks = _available_key_landmarks(landmarks)
+    result = 0.0
+    if key_landmarks:
+        min_x = min(landmark.x for landmark in key_landmarks)
+        max_x = max(landmark.x for landmark in key_landmarks)
+        min_y = min(landmark.y for landmark in key_landmarks)
+        max_y = max(landmark.y for landmark in key_landmarks)
+        center_x = (min_x + max_x) * 0.5
+        center_y = (min_y + max_y) * 0.5
+        result = (
+            _score_from_delta(abs(center_x - 0.5), _LANDMARK_CENTER_X_TOLERANCE)
+            + _score_from_delta(abs(center_y - 0.5), _LANDMARK_CENTER_Y_TOLERANCE)
+        ) / 2.0
+    return result
+
+
+def _available_key_landmarks(
+    landmarks: tuple[NormalizedLandmark, ...],
+) -> tuple[NormalizedLandmark, ...]:
+    result = tuple(
+        landmarks[index] for index in _KEY_LANDMARK_INDICES if index < len(landmarks)
+    )
+    return result
+
+
+def _landmark_balance_score(landmarks: tuple[NormalizedLandmark, ...]) -> float:
+    result = 0.0
+    if _has_landmark_indices(landmarks, (1, 33, 61, 234, 263, 291, 454)):
+        nose_tip = landmarks[1]
+        left_eye = landmarks[33]
+        right_eye = landmarks[263]
+        left_mouth = landmarks[61]
+        right_mouth = landmarks[291]
+        left_face = landmarks[234]
+        right_face = landmarks[454]
+        face_center_x = (left_face.x + right_face.x) * 0.5
+        face_width = max(0.001, abs(right_face.x - left_face.x))
+        nose_center_delta = abs(nose_tip.x - face_center_x) / face_width
+        nose_score = _score_from_delta(
+            nose_center_delta,
+            _LANDMARK_NOSE_CENTER_TOLERANCE,
+        )
+        eye_min_x = min(left_eye.x, right_eye.x)
+        eye_max_x = max(left_eye.x, right_eye.x)
+        mouth_min_x = min(left_mouth.x, right_mouth.x)
+        mouth_max_x = max(left_mouth.x, right_mouth.x)
+        eye_score = float(eye_min_x <= nose_tip.x <= eye_max_x)
+        mouth_score = float(mouth_min_x <= nose_tip.x <= mouth_max_x)
+        result = (nose_score + eye_score + mouth_score) / 3.0
+    return result
+
+
+def _has_landmark_indices(
+    landmarks: tuple[NormalizedLandmark, ...],
+    indices: tuple[int, ...],
+) -> bool:
+    result = all(index < len(landmarks) for index in indices)
     return result
 
 

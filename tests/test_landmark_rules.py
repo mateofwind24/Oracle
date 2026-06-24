@@ -8,8 +8,10 @@ from oracle_report.vision.landmarks import (
     _FRONT_MOUTH_LEVEL_TOLERANCE,
     _FRONT_NOSE_CENTER_TOLERANCE,
     _MIN_POSE_SCORE,
+    _landmark_geometry_score,
     _score_from_delta,
     LandmarkMetrics,
+    NormalizedLandmark,
     build_rule_based_face_analysis,
 )
 from oracle_report.vision.physiognomy_rule_data import (
@@ -81,6 +83,14 @@ def test_frontality_threshold_allows_slight_head_roll() -> None:
     assert score >= _MIN_POSE_SCORE
 
 
+def test_landmark_geometry_score_ignores_missing_visibility_fields() -> None:
+    landmarks = _build_centered_face_landmarks(visibility=0.0, presence=0.0)
+
+    score = _landmark_geometry_score(landmarks)
+
+    assert score > 0.99
+
+
 def test_rule_based_face_analysis_includes_auxiliary_interpretation() -> None:
     metrics = LandmarkMetrics(
         frontality_score=0.91,
@@ -113,3 +123,50 @@ def test_rule_based_face_analysis_includes_auxiliary_interpretation() -> None:
     assert "리포트에 넣을 보조 해석" in result
     assert "적용 제외 기준" in result
     assert "엔터테인먼트 보조 정보" in result
+
+
+def _build_centered_face_landmarks(
+    visibility: float = 1.0,
+    presence: float = 1.0,
+) -> tuple[NormalizedLandmark, ...]:
+    items = [
+        NormalizedLandmark(0.50, 0.50, 0.0, visibility, presence)
+        for _ in range(468)
+    ]
+    points = {
+        1: (0.50, 0.50),
+        2: (0.50, 0.58),
+        10: (0.50, 0.20),
+        13: (0.50, 0.62),
+        33: (0.36, 0.42),
+        61: (0.42, 0.65),
+        70: (0.34, 0.36),
+        98: (0.45, 0.55),
+        105: (0.40, 0.36),
+        133: (0.45, 0.42),
+        145: (0.40, 0.45),
+        152: (0.50, 0.82),
+        159: (0.40, 0.39),
+        172: (0.34, 0.76),
+        234: (0.28, 0.50),
+        263: (0.64, 0.42),
+        291: (0.58, 0.65),
+        300: (0.66, 0.36),
+        327: (0.55, 0.55),
+        334: (0.60, 0.36),
+        362: (0.55, 0.42),
+        374: (0.60, 0.45),
+        386: (0.60, 0.39),
+        397: (0.66, 0.76),
+        454: (0.72, 0.50),
+    }
+    for index, point in points.items():
+        items[index] = NormalizedLandmark(
+            point[0],
+            point[1],
+            0.0,
+            visibility,
+            presence,
+        )
+    result = tuple(items)
+    return result

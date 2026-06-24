@@ -20,7 +20,7 @@ def format_face_quality(quality: FaceQuality | None) -> str:
             f"- 눈 개수: {quality.eye_count}, "
             f"눈썹 점수: {quality.eyebrow_score:.3f}, "
             f"정면 점수: {quality.frontality_score:.2f}, "
-            f"가림 추정 점수: {quality.occlusion_score:.2f}, "
+            f"랜드마크 배치 점수: {quality.occlusion_score:.2f}, "
             f"경고: {warnings}"
         )
     return result
