@@ -31,7 +31,7 @@
 
 ## 확인 명령
 
-프롬프트만 확인:
+관상 분석 LLM 프롬프트만 확인:
 
 ```bash
 ./run.sh prompt face-analysis --name tester --birth-date 1995-03-15 --birth-time 14:30 --gender male
@@ -52,10 +52,13 @@
   --birth-time 14:30 \
   --gender male \
   --target-gender female \
-  --face-analysis "관상 분석 결과 예시"
+  --face-analysis "관상 분석 결과 예시" \
+  --recommendation-text "추천 후보 예시"
 ```
 
-LLM 결과만 확인하려면 `prompt` 대신 `prompt-run`을 사용합니다.
+`face-analysis`는 관상 분석 LLM 입력만 확인합니다. `saju-reading`은 LLM에 바로 보내는 프롬프트가 아니라 최종 리포트 프롬프트에 삽입될 사주/만세력 텍스트 블록을 확인합니다. `personal-final`은 사주/만세력 정보, 관상정보, 추천 정보를 함께 넣은 최종 리포트 LLM 입력을 확인합니다.
+
+LLM 결과만 확인하려면 `prompt` 대신 `prompt-run`을 사용합니다. 사주/만세력 조회 자체는 LLM을 쓰지 않으므로 `prompt-run saju-reading`은 별도로 실행할 LLM 단계가 없습니다.
 
 ```bash
 ./run.sh prompt-run face-analysis \
@@ -64,6 +67,17 @@ LLM 결과만 확인하려면 `prompt` 대신 `prompt-run`을 사용합니다.
   --birth-time 14:30 \
   --gender male \
   --image runs/session-001/capture.jpg
+```
+
+```bash
+./run.sh prompt-run personal-final \
+  --name tester \
+  --birth-date 1995-03-15 \
+  --birth-time 14:30 \
+  --gender male \
+  --target-gender female \
+  --face-analysis "관상 분석 결과 예시" \
+  --recommendation-text "추천 후보 예시"
 ```
 
 ## 별도 템플릿 파일 사용

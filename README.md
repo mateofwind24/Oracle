@@ -52,36 +52,64 @@ CLI 전체 워크플로우 릴리즈 실행, 화면 출력만:
 
 ## Prompt Debugging
 
-프롬프트만 확인하고 저장:
+관상 분석 LLM 프롬프트만 확인:
 
 ```bash
-./run.sh debug prompt face-analysis \
+./run.sh prompt face-analysis \
   --name "홍길동" \
   --birth-date 1995-03-15 \
   --birth-time 14:30 \
   --gender male
 ```
 
-프롬프트만 확인하고 화면 출력만:
+사주/만세력 조회 결과가 최종 리포트에 어떤 텍스트로 들어가는지 확인:
 
 ```bash
-./run.sh release prompt face-analysis \
+./run.sh prompt saju-reading \
   --name "홍길동" \
   --birth-date 1995-03-15 \
   --birth-time 14:30 \
   --gender male
 ```
 
-프롬프트를 실제 LLM에 보내고 결과 저장:
+사주/만세력 정보, 관상정보, 추천 정보를 함께 넣은 개인 최종 리포트 프롬프트 확인:
 
 ```bash
-./run.sh debug prompt-run face-analysis \
+./run.sh prompt personal-final \
+  --name "홍길동" \
+  --birth-date 1995-03-15 \
+  --birth-time 14:30 \
+  --gender male \
+  --target-gender female \
+  --face-analysis "관상 분석 결과 예시" \
+  --recommendation-text "추천 후보 예시"
+```
+
+관상 분석 프롬프트를 실제 LLM에 보내고 결과 확인:
+
+```bash
+./run.sh prompt-run face-analysis \
   --name "홍길동" \
   --birth-date 1995-03-15 \
   --birth-time 14:30 \
   --gender male \
   --image runs/session-001/capture.jpg
 ```
+
+사주/만세력 정보가 포함된 개인 최종 리포트 프롬프트를 실제 LLM에 보내고 결과 확인:
+
+```bash
+./run.sh prompt-run personal-final \
+  --name "홍길동" \
+  --birth-date 1995-03-15 \
+  --birth-time 14:30 \
+  --gender male \
+  --target-gender female \
+  --face-analysis "관상 분석 결과 예시" \
+  --recommendation-text "추천 후보 예시"
+```
+
+정리하면 `face-analysis`는 관상 분석 LLM 입력만 확인하고, `saju-reading`은 LLM에 넣기 전 사주/만세력 텍스트 블록만 확인합니다. `personal-final`은 사주/만세력 정보와 관상정보를 함께 넣은 최종 리포트 프롬프트를 확인합니다.
 
 프롬프트 템플릿 수정:
 
