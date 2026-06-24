@@ -398,6 +398,69 @@ run_oracle() {
     "${debug_args[@]}"
 }
 
+timestamp() {
+  date +"%Y%m%d_%H%M%S"
+}
+
+require_wrapped_command() {
+  local mode
+  mode="$1"
+  shift
+  if [[ "$#" -eq 0 ]]; then
+    fail "usage: ./run.sh $mode <capture|prompt|prompt-run|report|run|serve> [args...]"
+  fi
+}
+
+reject_release_output_args() {
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --output | --output=* | --output-dir | --output-dir=*)
+        fail "release mode does not allow $arg because it must not save outputs"
+        ;;
+    esac
+  done
+}
+
+run_debug_mode() {
+  require_wrapped_command debug "$@"
+  local debug_dir
+  local status
+  debug_dir="$ROOT_DIR/runs/debug/$(timestamp)"
+  mkdir -p "$debug_dir/artifacts"
+  export ORACLE_OUTPUT_DIR="$debug_dir/artifacts"
+  printf './run.sh debug' >"$debug_dir/command.txt"
+  printf ' %q' "$@" >>"$debug_dir/command.txt"
+  printf '\n' >>"$debug_dir/command.txt"
+  log "debug output dir: $debug_dir"
+  if needs_llm_server "$@"; then
+    start_llama_server
+  fi
+  set +e
+  run_oracle "$@" 2>&1 | tee "$debug_dir/output.log"
+  status="${PIPESTATUS[0]}"
+  set -e
+  return "$status"
+}
+
+run_release_mode() {
+  require_wrapped_command release "$@"
+  reject_release_output_args "$@"
+  local release_dir
+  local status
+  release_dir="$(mktemp -d)"
+  export ORACLE_OUTPUT_DIR="$release_dir"
+  if needs_llm_server "$@"; then
+    start_llama_server
+  fi
+  set +e
+  run_oracle "$@"
+  status="$?"
+  set -e
+  rm -rf "$release_dir"
+  return "$status"
+}
+
 needs_llm_server() {
   local result
   result=0
@@ -425,13 +488,31 @@ needs_llm_server() {
 }
 
 main() {
+  if [[ "${1:-}" == "build" ]]; then
+    "$ROOT_DIR/build.sh"
+    return
+  fi
+
   activate_venv
   load_env
   apply_run_config
-  if needs_llm_server "$@"; then
-    start_llama_server
-  fi
-  run_oracle "$@"
+
+  case "${1:-}" in
+    debug)
+      shift
+      run_debug_mode "$@"
+      ;;
+    release)
+      shift
+      run_release_mode "$@"
+      ;;
+    *)
+      if needs_llm_server "$@"; then
+        start_llama_server
+      fi
+      run_oracle "$@"
+      ;;
+  esac
 }
 
 main "$@"
