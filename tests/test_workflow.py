@@ -30,6 +30,11 @@ class FakeLlmClient:
         return result
 
 
+class FailingFaceClient:
+    def generate(self, prompt: str, image_path: Path | None = None) -> str:
+        raise AssertionError("face LLM must not run in landmark rule mode")
+
+
 def test_personal_workflow_runs_without_real_camera_or_llm(tmp_path: Path) -> None:
     capture_config = _capture_config(tmp_path)
     manse_db_path = _build_test_manse_db(tmp_path)
@@ -56,6 +61,34 @@ def test_personal_workflow_runs_without_real_camera_or_llm(tmp_path: Path) -> No
     assert result.output_path.exists()
     assert "개인 리포트" in result.markdown
     assert len(result.recommendations) > 0
+
+
+def test_personal_workflow_uses_rule_based_face_mode(tmp_path: Path) -> None:
+    capture_config = _capture_config(tmp_path)
+    manse_db_path = _build_test_manse_db(tmp_path)
+    workflow_input = PersonalWorkflowInput(
+        name="홍길동",
+        birth_date="1995-03-15",
+        birth_time="",
+        gender="남성",
+        target_gender="여성",
+        face_analysis_mode=2,
+    )
+
+    result = run_personal_workflow(
+        workflow_input=workflow_input,
+        capture_config=capture_config,
+        face_llm_config=_llm_config(),
+        report_llm_config=_llm_config(),
+        manse_db_path=manse_db_path,
+        recommendation_db_path=tmp_path / "faces.sqlite",
+        face_client=FailingFaceClient(),
+        report_client=FakeLlmClient(),
+        capture_runner=_fake_single_capture,
+    )
+
+    assert "랜드마크 룰 기반" in result.face_analysis
+    assert "개인 리포트" in result.markdown
 
 
 def test_compatibility_workflow_runs_without_real_camera_or_llm(tmp_path: Path) -> None:
@@ -140,6 +173,12 @@ def _fake_single_capture(
         image_path=image_path,
         face=FaceBox(10, 10, 120, 120),
         captured_at=datetime(2026, 1, 1, 12, 0),
-        quality=FaceQuality(ready=True, eye_count=2, eyebrow_score=0.05),
+        quality=FaceQuality(
+            ready=True,
+            eye_count=2,
+            eyebrow_score=0.05,
+            face_analysis="## 관상정보\n- 분석 모드: 랜드마크 룰 기반",
+        ),
+        face_analysis="## 관상정보\n- 분석 모드: 랜드마크 룰 기반",
     )
     return result

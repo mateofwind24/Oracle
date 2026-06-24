@@ -101,6 +101,7 @@ modules = (
     "cv2",
     "dotenv",
     "flask",
+    "mediapipe",
     "numpy",
     "oracle_report",
     "pytest",
@@ -140,11 +141,11 @@ ensure_python_env() {
   python -m pip install --upgrade pip setuptools wheel
 
   if python -c 'import cv2' >/dev/null 2>&1; then
-    log "OpenCV already importable; installing Python app/test deps"
-    python -m pip install -e ".[test]"
+    log "OpenCV already importable; installing Python app/quality/test deps"
+    python -m pip install -e ".[quality,test]"
   else
-    log "OpenCV not importable; installing Python camera/test deps"
-    python -m pip install -e ".[camera,test]"
+    log "OpenCV not importable; installing Python camera/quality/test deps"
+    python -m pip install -e ".[camera,quality,test]"
   fi
 
   python -c 'import cv2' >/dev/null 2>&1 ||

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
@@ -63,6 +64,7 @@ def _add_capture_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--camera-index", type=int)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--no-preview", action="store_true")
+    parser.add_argument("--face-analysis-mode", type=int, choices=(1, 2))
 
 
 def _add_report_args(parser: argparse.ArgumentParser) -> None:
@@ -112,7 +114,7 @@ def _run_serve_command(args: argparse.Namespace) -> int:
     from oracle_report.web import create_app
 
     app = create_app()
-    app.run(host=args.host, port=args.port, debug=args.debug, threaded=False)
+    app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
     result = 0
     return result
 
@@ -122,19 +124,17 @@ def _override_capture_config(args: argparse.Namespace):
     camera_index = config.camera_index if args.camera_index is None else args.camera_index
     output_dir = config.output_dir if args.output_dir is None else args.output_dir
     show_preview = config.show_preview and not args.no_preview
-    result = type(config)(
+    face_analysis_mode = (
+        config.face_analysis_mode
+        if args.face_analysis_mode is None
+        else args.face_analysis_mode
+    )
+    result = replace(
+        config,
         camera_index=camera_index,
-        frame_width=config.frame_width,
-        frame_height=config.frame_height,
-        camera_fps=config.camera_fps,
-        min_face_seconds=config.min_face_seconds,
-        face_min_size_px=config.face_min_size_px,
-        face_detection_scale=config.face_detection_scale,
-        face_detection_interval=config.face_detection_interval,
         output_dir=output_dir,
         show_preview=show_preview,
-        eye_min_count=config.eye_min_count,
-        eyebrow_min_edge_density=config.eyebrow_min_edge_density,
+        face_analysis_mode=face_analysis_mode,
     )
     return result
 

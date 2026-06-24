@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 import time
 from pathlib import Path
@@ -14,13 +14,13 @@ from oracle_report.models import (
     CaptureArtifact,
     SequentialPairCaptureArtifact,
 )
-from oracle_report.physiognomy import FaceReadingInput
 from oracle_report.recommender import (
     FaceRecommendation,
     format_recommendations,
     recommend_faces,
 )
 from oracle_report.report import (
+    FaceReadingInput,
     build_compatibility_final_prompt,
     build_face_analysis_prompt,
     build_personal_final_prompt,
@@ -30,6 +30,9 @@ from oracle_report.vision.runtime import run_capture
 
 
 COMPATIBILITY_MODES = ("연인", "친구", "직장동료")
+FACE_ANALYSIS_MODE_LLM_IMAGE = 1
+FACE_ANALYSIS_MODE_LANDMARK_RULE = 2
+FACE_ANALYSIS_MODES = (FACE_ANALYSIS_MODE_LLM_IMAGE, FACE_ANALYSIS_MODE_LANDMARK_RULE)
 
 
 class TextGenerator(Protocol):
@@ -44,6 +47,7 @@ class PersonalWorkflowInput:
     birth_time: str
     gender: str
     target_gender: str
+    face_analysis_mode: int = FACE_ANALYSIS_MODE_LLM_IMAGE
 
 
 @dataclass(frozen=True)
@@ -57,6 +61,7 @@ class CompatibilityWorkflowInput:
     right_birth_time: str
     right_gender: str
     mode: str
+    face_analysis_mode: int = FACE_ANALYSIS_MODE_LLM_IMAGE
 
 
 @dataclass(frozen=True)
@@ -97,20 +102,33 @@ def run_personal_workflow(
     report_client: TextGenerator | None = None,
     capture_runner=run_capture,
 ) -> PersonalWorkflowResult:
+    face_analysis_mode = _validate_face_analysis_mode(
+        workflow_input.face_analysis_mode,
+    )
+    active_capture_config = replace(
+        capture_config,
+        face_analysis_mode=face_analysis_mode,
+    )
     profile = _build_birth_profile(
         workflow_input.name,
         workflow_input.birth_date,
         workflow_input.birth_time,
         workflow_input.gender,
     )
-    output_dir = _new_session_dir(capture_config.output_dir, "personal")
+    output_dir = _new_session_dir(active_capture_config.output_dir, "personal")
     repository = ManseRepository(manse_db_path)
-    active_face_client = face_client or LlamaCppChatClient(face_llm_config)
+    active_face_client = face_client
+    if face_analysis_mode == FACE_ANALYSIS_MODE_LLM_IMAGE:
+        active_face_client = face_client or LlamaCppChatClient(face_llm_config)
     active_report_client = report_client or LlamaCppChatClient(report_llm_config)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         manse_future = executor.submit(repository.lookup, profile)
-        capture_future = executor.submit(capture_runner, capture_config, output_dir)
+        capture_future = executor.submit(
+            capture_runner,
+            active_capture_config,
+            output_dir,
+        )
         capture_artifact = capture_future.result()
         manse_lookup = manse_future.result()
 
@@ -118,6 +136,7 @@ def run_personal_workflow(
         active_face_client,
         profile,
         capture_artifact,
+        face_analysis_mode,
     )
     recommendations = recommend_faces(
         recommendation_db_path,
@@ -156,6 +175,13 @@ def run_compatibility_workflow(
     inter_capture_delay_seconds: float = 3.0,
 ) -> CompatibilityWorkflowResult:
     mode = _validate_mode(workflow_input.mode)
+    face_analysis_mode = _validate_face_analysis_mode(
+        workflow_input.face_analysis_mode,
+    )
+    active_capture_config = replace(
+        capture_config,
+        face_analysis_mode=face_analysis_mode,
+    )
     left_profile = _build_birth_profile(
         workflow_input.left_name,
         workflow_input.left_birth_date,
@@ -168,9 +194,11 @@ def run_compatibility_workflow(
         workflow_input.right_birth_time,
         workflow_input.right_gender,
     )
-    output_dir = _new_session_dir(capture_config.output_dir, "compatibility")
+    output_dir = _new_session_dir(active_capture_config.output_dir, "compatibility")
     repository = ManseRepository(manse_db_path)
-    active_face_client = face_client or LlamaCppChatClient(face_llm_config)
+    active_face_client = face_client
+    if face_analysis_mode == FACE_ANALYSIS_MODE_LLM_IMAGE:
+        active_face_client = face_client or LlamaCppChatClient(face_llm_config)
     active_report_client = report_client or LlamaCppChatClient(report_llm_config)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
@@ -182,7 +210,7 @@ def run_compatibility_workflow(
         )
         capture_artifact = _run_sequential_pair_capture(
             capture_runner,
-            capture_config,
+            active_capture_config,
             output_dir,
             inter_capture_delay_seconds,
         )
@@ -193,6 +221,7 @@ def run_compatibility_workflow(
         left_profile,
         right_profile,
         capture_artifact,
+        face_analysis_mode,
     )
     markdown = _build_compatibility_markdown(
         active_report_client,
@@ -218,39 +247,51 @@ def run_compatibility_workflow(
 
 
 def _build_single_face_analysis(
-    client: TextGenerator,
+    client: TextGenerator | None,
     profile: BirthProfile,
     artifact: CaptureArtifact,
+    face_analysis_mode: int = FACE_ANALYSIS_MODE_LLM_IMAGE,
 ) -> _GeneratedText:
-    face_input = FaceReadingInput(
-        image_path=artifact.image_path,
-        quality=artifact.quality,
-    )
-    prompt = build_face_analysis_prompt(profile, face_input)
-    result = _safe_generate(
-        client,
-        prompt,
-        artifact.image_path,
-        "관상정보를 생성하지 못했습니다.",
-    )
+    if face_analysis_mode == FACE_ANALYSIS_MODE_LANDMARK_RULE:
+        text = artifact.face_analysis or artifact.quality.face_analysis
+        if text == "":
+            text = "## 관상정보\n- 랜드마크 룰 기반 관상정보를 생성하지 못했습니다."
+        result = _GeneratedText(text=text, error="")
+    else:
+        if client is None:
+            raise ValueError("face analysis client is required for mode 1.")
+        face_input = FaceReadingInput(
+            image_path=artifact.image_path,
+            quality=artifact.quality,
+        )
+        prompt = build_face_analysis_prompt(profile, face_input)
+        result = _safe_generate(
+            client,
+            prompt,
+            artifact.image_path,
+            "관상정보를 생성하지 못했습니다.",
+        )
     return result
 
 
 def _build_pair_face_analysis(
-    client: TextGenerator,
+    client: TextGenerator | None,
     left_profile: BirthProfile,
     right_profile: BirthProfile,
     artifact: SequentialPairCaptureArtifact,
+    face_analysis_mode: int = FACE_ANALYSIS_MODE_LLM_IMAGE,
 ) -> _GeneratedText:
     left_analysis = _build_single_face_analysis(
         client,
         left_profile,
         artifact.left,
+        face_analysis_mode,
     )
     right_analysis = _build_single_face_analysis(
         client,
         right_profile,
         artifact.right,
+        face_analysis_mode,
     )
     error = ""
     if left_analysis.error or right_analysis.error:
@@ -417,6 +458,13 @@ def _validate_mode(mode: str) -> str:
     if cleaned not in COMPATIBILITY_MODES:
         raise ValueError("궁합 모드는 연인, 친구, 직장동료 중 하나여야 합니다.")
     result = cleaned
+    return result
+
+
+def _validate_face_analysis_mode(mode: int | str) -> int:
+    result = int(mode)
+    if result not in FACE_ANALYSIS_MODES:
+        raise ValueError("관상 분석 모드는 1 또는 2여야 합니다.")
     return result
 
 

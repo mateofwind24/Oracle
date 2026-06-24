@@ -24,6 +24,7 @@ camera = [
 ]
 pi = [
     "opencv-python>=4.8",
+    "mediapipe>=0.10",
 ]
 quality = [
     "mediapipe>=0.10",

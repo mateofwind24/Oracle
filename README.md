@@ -35,7 +35,7 @@ cd /home/willtek/work/oracle
 
 - apt 패키지가 설치되어 있으면 apt install 생략
 - Python venv가 있으면 재생성 생략
-- `cv2`, `flask`, `requests`, `pytest`, `oracle_report`와 `oracle-report` 실행 파일이 준비되어 있으면 pip install 생략
+- `cv2`, `flask`, `mediapipe`, `requests`, `pytest`, `oracle_report`와 `oracle-report` 실행 파일이 준비되어 있으면 pip install 생략
 - `llama-server`가 PATH에 있거나 `.deps/llama.cpp/build/bin/llama-server`가 있으면 llama.cpp clone/build 생략
 - `.env`가 있으면 덮어쓰지 않음
 - `data`, `models`, `runs` 디렉터리가 없으면 생성
@@ -80,7 +80,7 @@ llama-server -m /home/willtek/work/oracle/models/model.gguf --host 127.0.0.1 --p
 
 또는 `.env`에 `ORACLE_LLAMA_MODEL_PATH`를 설정한 뒤 `./run.sh`를 실행하면 서버가 없을 때 자동으로 시작합니다.
 
-멀티모달 관상까지 사진을 직접 넣으려면 llama.cpp에서 지원하는 비전 모델과 projector 설정이 필요합니다. 기본 포함 모델은 가장 작은 텍스트 우선 GGUF이므로 `ORACLE_LLM_SEND_IMAGE=0`, `ORACLE_FACE_LLM_SEND_IMAGE=0`이 기본값입니다. 이 모드에서는 캡처 품질 정보와 사주 룰 해석만 LLM에 전달합니다.
+관상 분석 모드는 숫자로 선택합니다. `ORACLE_FACE_ANALYSIS_MODE=1`은 기존 방식으로 캡처 이미지를 LLM 관상 프롬프트에 넘깁니다. 멀티모달 관상까지 사진을 직접 넣으려면 llama.cpp에서 지원하는 비전 모델과 projector 설정이 필요합니다. `ORACLE_FACE_ANALYSIS_MODE=2`는 MediaPipe FaceMesh 랜드마크 비율을 이용해 관상정보를 룰 기반 텍스트로 만들고, 얼굴 검출과 시각화도 랜드마크 기반으로 수행합니다.
 
 ## Face Detection 경량화
 
@@ -92,15 +92,22 @@ ORACLE_FRAME_HEIGHT=480
 ORACLE_CAMERA_FPS=15
 ORACLE_FACE_DETECTION_SCALE=0.5
 ORACLE_FACE_DETECTION_INTERVAL=2
+ORACLE_FACE_ANALYSIS_MODE=1
 ORACLE_HAAR_CASCADE_DIR=/usr/share/opencv4/haarcascades
 ```
 
-더 가볍게 하려면 `ORACLE_FRAME_WIDTH=320`, `ORACLE_FRAME_HEIGHT=240`, `ORACLE_FACE_DETECTION_SCALE=1.0`으로 낮춰도 됩니다. 눈/눈썹 품질검사는 매 프레임이 아니라 얼굴이 2초 이상 유지된 뒤 캡처 직전에만 실행합니다. apt OpenCV에서 `cv2.data`가 없으면 `opencv-data` 패키지의 `/usr/share/opencv4/haarcascades`를 사용하거나 `ORACLE_HAAR_CASCADE_DIR`로 직접 지정합니다.
+더 가볍게 하려면 `ORACLE_FRAME_WIDTH=320`, `ORACLE_FRAME_HEIGHT=240`, `ORACLE_FACE_DETECTION_SCALE=1.0`으로 낮춰도 됩니다. 촬영 중에는 현재 얼굴 상태를 실시간으로 평가해 정면/가림 조건이 좋으면 초록색 `correct`, 정면이 아니거나 가림이 많으면 빨간색 경고를 표시합니다. 모드 1은 OpenCV 얼굴 박스만, 모드 2는 얼굴 박스와 랜드마크 점을 함께 표시합니다. apt OpenCV에서 `cv2.data`가 없으면 `opencv-data` 패키지의 `/usr/share/opencv4/haarcascades`를 사용하거나 `ORACLE_HAAR_CASCADE_DIR`로 직접 지정합니다.
 
 캡처만 실행:
 
 ```bash
 ./run.sh capture --output-dir runs/session-001
+```
+
+랜드마크 룰 기반 모드로 캡처:
+
+```bash
+./run.sh capture --face-analysis-mode 2 --output-dir runs/session-001
 ```
 
 이미지와 생년월일시로 리포트 생성:

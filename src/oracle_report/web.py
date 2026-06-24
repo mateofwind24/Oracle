@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import os
 from pathlib import Path
+import threading
+import uuid
 
-from flask import Flask, request
+from flask import Flask, Response, jsonify, request
 from markupsafe import escape
 
 from oracle_report.config import (
@@ -19,6 +22,58 @@ from oracle_report.workflow import (
     run_compatibility_workflow,
     run_personal_workflow,
 )
+from oracle_report.vision.runtime import run_capture
+
+
+@dataclass
+class _WorkflowJob:
+    status: str
+    html: str = ""
+    error: str = ""
+
+
+class _PreviewStream:
+    def __init__(self) -> None:
+        self._condition = threading.Condition()
+        self._frame: bytes | None = None
+        self._version = 0
+
+    def publish(self, cv2, frame) -> None:
+        ok, encoded = cv2.imencode(
+            ".jpg",
+            frame,
+            [int(cv2.IMWRITE_JPEG_QUALITY), 75],
+        )
+        if ok:
+            with self._condition:
+                self._frame = encoded.tobytes()
+                self._version = self._version + 1
+                self._condition.notify_all()
+
+    def frames(self):
+        last_version = -1
+        while True:
+            with self._condition:
+                self._condition.wait_for(
+                    lambda: self._frame is not None
+                    and self._version != last_version,
+                    timeout=1.0,
+                )
+                frame = self._frame
+                last_version = self._version
+            if frame is not None:
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n"
+                    + frame
+                    + b"\r\n"
+                )
+
+
+_PREVIEW_STREAM = _PreviewStream()
+_CAPTURE_LOCK = threading.Lock()
+_JOBS_LOCK = threading.Lock()
+_JOBS: dict[str, _WorkflowJob] = {}
 
 
 def create_app() -> Flask:
@@ -52,6 +107,7 @@ def create_app() -> Flask:
                     birth_time=_form_value("birth_time"),
                     gender=_form_value("gender"),
                     target_gender=_form_value("target_gender"),
+                    face_analysis_mode=_form_int("face_analysis_mode", 1),
                 )
                 workflow_result = run_personal_workflow(
                     workflow_input=workflow_input,
@@ -65,6 +121,34 @@ def create_app() -> Flask:
             except Exception as exc:
                 body = _error_panel(exc) + _personal_form()
         result = _render_page("개인 리포트", body)
+        return result
+
+    @app.post("/api/personal")
+    def personal_api():
+        workflow_input = PersonalWorkflowInput(
+            name=_form_value("name"),
+            birth_date=_form_value("birth_date"),
+            birth_time=_form_value("birth_time"),
+            gender=_form_value("gender"),
+            target_gender=_form_value("target_gender"),
+            face_analysis_mode=_form_int("face_analysis_mode", 1),
+        )
+
+        def run_job() -> str:
+            workflow_result = run_personal_workflow(
+                workflow_input=workflow_input,
+                capture_config=load_capture_config(),
+                face_llm_config=load_face_llm_config(),
+                report_llm_config=load_report_llm_config(),
+                manse_db_path=_manse_db_path(),
+                recommendation_db_path=_face_db_path(),
+                capture_runner=_preview_capture_runner,
+            )
+            result = _personal_result(workflow_result.markdown, workflow_result)
+            return result
+
+        job_id = _start_workflow_job(run_job)
+        result = jsonify({"job_id": job_id})
         return result
 
     @app.route("/compatibility", methods=["GET", "POST"])
@@ -82,6 +166,7 @@ def create_app() -> Flask:
                     right_birth_time=_form_value("right_birth_time"),
                     right_gender=_form_value("right_gender"),
                     mode=_form_value("mode"),
+                    face_analysis_mode=_form_int("face_analysis_mode", 1),
                 )
                 workflow_result = run_compatibility_workflow(
                     workflow_input=workflow_input,
@@ -99,9 +184,68 @@ def create_app() -> Flask:
         result = _render_page("두 사람 궁합", body)
         return result
 
+    @app.post("/api/compatibility")
+    def compatibility_api():
+        workflow_input = CompatibilityWorkflowInput(
+            left_name=_form_value("left_name"),
+            left_birth_date=_form_value("left_birth_date"),
+            left_birth_time=_form_value("left_birth_time"),
+            left_gender=_form_value("left_gender"),
+            right_name=_form_value("right_name"),
+            right_birth_date=_form_value("right_birth_date"),
+            right_birth_time=_form_value("right_birth_time"),
+            right_gender=_form_value("right_gender"),
+            mode=_form_value("mode"),
+            face_analysis_mode=_form_int("face_analysis_mode", 1),
+        )
+
+        def run_job() -> str:
+            workflow_result = run_compatibility_workflow(
+                workflow_input=workflow_input,
+                capture_config=load_capture_config(),
+                face_llm_config=load_face_llm_config(),
+                report_llm_config=load_report_llm_config(),
+                manse_db_path=_manse_db_path(),
+                capture_runner=_preview_capture_runner,
+            )
+            result = _compatibility_result(
+                workflow_result.markdown,
+                workflow_result,
+            )
+            return result
+
+        job_id = _start_workflow_job(run_job)
+        result = jsonify({"job_id": job_id})
+        return result
+
+    @app.get("/api/jobs/<job_id>")
+    def job_status(job_id: str):
+        job = _get_job(job_id)
+        status_code = 200
+        payload = {"status": "missing", "html": "", "error": "job not found"}
+        if job is not None:
+            payload = {"status": job.status, "html": job.html, "error": job.error}
+        else:
+            status_code = 404
+        result = jsonify(payload), status_code
+        return result
+
+    @app.get("/video-feed")
+    def video_feed():
+        result = Response(
+            _PREVIEW_STREAM.frames(),
+            mimetype="multipart/x-mixed-replace; boundary=frame",
+        )
+        return result
+
     @app.get("/health")
     def health():
         result = "ok"
+        return result
+
+    @app.get("/favicon.ico")
+    def favicon():
+        result = ("", 204)
         return result
 
     result = app
@@ -111,11 +255,80 @@ def create_app() -> Flask:
 def serve() -> None:
     config = load_app_config()
     app = create_app()
-    app.run(host=config.host, port=config.port, debug=config.debug, threaded=False)
+    app.run(host=config.host, port=config.port, debug=config.debug, threaded=True)
 
 
 def _form_value(name: str) -> str:
     result = request.form.get(name, "").strip()
+    return result
+
+
+def _form_int(name: str, default: int) -> int:
+    raw_value = _form_value(name)
+    result = default
+    if raw_value != "":
+        result = int(raw_value)
+    return result
+
+
+def _preview_capture_runner(config, output_dir: Path | None = None):
+    result = run_capture(
+        config,
+        output_dir=output_dir,
+        frame_callback=_PREVIEW_STREAM.publish,
+    )
+    return result
+
+
+def _start_workflow_job(run_job) -> str:
+    job_id = uuid.uuid4().hex
+    _set_job(job_id, _WorkflowJob(status="running"))
+    thread = threading.Thread(
+        target=_run_workflow_job,
+        args=(job_id, run_job),
+        daemon=True,
+    )
+    thread.start()
+    result = job_id
+    return result
+
+
+def _run_workflow_job(job_id: str, run_job) -> None:
+    acquired = _CAPTURE_LOCK.acquire(blocking=False)
+    if not acquired:
+        _set_job(
+            job_id,
+            _WorkflowJob(
+                status="error",
+                html=_error_panel(RuntimeError("다른 촬영 작업이 진행 중입니다.")),
+                error="다른 촬영 작업이 진행 중입니다.",
+            ),
+        )
+    else:
+        try:
+            html = run_job()
+            _set_job(job_id, _WorkflowJob(status="complete", html=html))
+        except Exception as exc:
+            _set_job(
+                job_id,
+                _WorkflowJob(
+                    status="error",
+                    html=_error_panel(exc),
+                    error=str(exc),
+                ),
+            )
+        finally:
+            _CAPTURE_LOCK.release()
+
+
+def _set_job(job_id: str, job: _WorkflowJob) -> None:
+    with _JOBS_LOCK:
+        _JOBS[job_id] = job
+
+
+def _get_job(job_id: str) -> _WorkflowJob | None:
+    with _JOBS_LOCK:
+        result = _JOBS.get(job_id)
     return result
 
 
@@ -132,16 +345,19 @@ def _face_db_path() -> Path:
 
 
 def _personal_form() -> str:
-    result = """
-    <form method="post" class="panel">
+    mode_options = _face_analysis_mode_options()
+    result = f"""
+    <form method="post" class="panel workflow-form" data-workflow-api="/api/personal">
       <h2>개인 리포트</h2>
       <label>이름<input name="name" required></label>
       <label>생년월일<input name="birth_date" type="date" required></label>
       <label>태어난 시간<span class="hint">선택</span><input name="birth_time" type="time"></label>
       <label>성별<input name="gender" placeholder="예: 남성 또는 여성" required></label>
       <label>추천받고 싶은 이성 얼굴<input name="target_gender" placeholder="예: 남성 또는 여성"></label>
+      <label>관상 분석 모드<select name="face_analysis_mode">{mode_options}</select></label>
       <button type="submit">개인 리포트 촬영 시작</button>
     </form>
+    {_capture_preview_panel()}
     """
     return result
 
@@ -151,8 +367,9 @@ def _compatibility_form() -> str:
         f'<option value="{escape(mode)}">{escape(mode)}</option>'
         for mode in COMPATIBILITY_MODES
     )
+    face_mode_options = _face_analysis_mode_options()
     result = f"""
-    <form method="post" class="panel">
+    <form method="post" class="panel workflow-form" data-workflow-api="/api/compatibility">
       <h2>두 사람 궁합</h2>
       <div class="grid">
         <fieldset>
@@ -171,9 +388,34 @@ def _compatibility_form() -> str:
         </fieldset>
       </div>
       <label>궁합 모드<select name="mode">{mode_options}</select></label>
+      <label>관상 분석 모드<select name="face_analysis_mode">{face_mode_options}</select></label>
       <p class="hint">두 사람 정보를 먼저 입력한 뒤 첫 번째 사람을 촬영하고, 3초 후 두 번째 사람을 촬영합니다.</p>
       <button type="submit">두 사람 궁합 촬영 시작</button>
     </form>
+    {_capture_preview_panel()}
+    """
+    return result
+
+
+def _face_analysis_mode_options() -> str:
+    selected_mode = os.getenv("ORACLE_FACE_ANALYSIS_MODE", "1")
+    mode_one_selected = " selected" if selected_mode == "1" else ""
+    mode_two_selected = " selected" if selected_mode == "2" else ""
+    result = f"""
+      <option value="1"{mode_one_selected}>1 - 이미지 LLM 분석</option>
+      <option value="2"{mode_two_selected}>2 - 랜드마크 룰 기반 분석</option>
+    """
+    return result
+
+
+def _capture_preview_panel() -> str:
+    result = """
+    <section class="panel capture-preview" hidden>
+      <h2>실시간 촬영 상태</h2>
+      <img id="capture-preview-image" alt="실시간 촬영 상태">
+      <p id="workflow-status" class="hint">촬영 준비 중</p>
+    </section>
+    <section id="workflow-result"></section>
     """
     return result
 
@@ -327,6 +569,17 @@ def _render_page(title: str, body: str) -> str:
             border-color: #d1242f;
             background: #fff5f5;
           }}
+          .capture-preview {{
+            margin-top: 16px;
+          }}
+          .capture-preview img {{
+            display: block;
+            width: 100%;
+            max-height: 70vh;
+            object-fit: contain;
+            border-radius: 6px;
+            background: #111111;
+          }}
         </style>
       </head>
       <body>
@@ -334,6 +587,57 @@ def _render_page(title: str, body: str) -> str:
           <h1>Oracle</h1>
           {body}
         </main>
+        <script>
+          const forms = document.querySelectorAll(".workflow-form");
+          forms.forEach((form) => {{
+            form.addEventListener("submit", async (event) => {{
+              event.preventDefault();
+              const preview = document.querySelector(".capture-preview");
+              const previewImage = document.getElementById("capture-preview-image");
+              const status = document.getElementById("workflow-status");
+              const result = document.getElementById("workflow-result");
+              preview.hidden = false;
+              result.innerHTML = "";
+              status.textContent = "촬영 중";
+              previewImage.src = "/video-feed?ts=" + Date.now();
+              const button = form.querySelector("button");
+              button.disabled = true;
+              try {{
+                const startResponse = await fetch(form.dataset.workflowApi, {{
+                  method: "POST",
+                  body: new FormData(form),
+                }});
+                const startPayload = await startResponse.json();
+                await pollWorkflow(startPayload.job_id, status, result);
+              }} catch (error) {{
+                result.innerHTML = '<section class="error"><strong>처리 중 오류가 발생했습니다.</strong><p>' + String(error) + '</p></section>';
+                status.textContent = "오류";
+              }} finally {{
+                button.disabled = false;
+              }}
+            }});
+          }});
+
+          async function pollWorkflow(jobId, status, result) {{
+            let done = false;
+            while (!done) {{
+              await new Promise((resolve) => setTimeout(resolve, 800));
+              const response = await fetch("/api/jobs/" + encodeURIComponent(jobId));
+              const payload = await response.json();
+              if (payload.status === "complete") {{
+                result.innerHTML = payload.html;
+                status.textContent = "완료";
+                done = true;
+              }} else if (payload.status === "error") {{
+                result.innerHTML = payload.html;
+                status.textContent = "오류";
+                done = true;
+              }} else {{
+                status.textContent = "촬영 및 리포트 생성 중";
+              }}
+            }}
+          }}
+        </script>
       </body>
     </html>
     """

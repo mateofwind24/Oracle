@@ -24,6 +24,7 @@ CSI 카메라가 OpenCV에 직접 노출되지 않으면 `libcamera-vid` 또는 
 - 얼굴 유지 시간: 2.0초
 - LLM 서버: `llama-server` on `http://127.0.0.1:8080/v1`
 - LLM 이미지 입력: 멀티모달 GGUF 서버에서만 사용
+- 관상 분석 모드: `ORACLE_FACE_ANALYSIS_MODE=1`은 기존 이미지 LLM, `2`는 랜드마크 룰 기반
 - 미리보기: 현장 디버깅 때만 켜고, 키오스크 운영에서는 끄기
 
 ## Install
@@ -37,7 +38,7 @@ sudo apt-get update
 sudo apt-get install -y python3-opencv libatlas-base-dev
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[test]"
+pip install -e ".[quality,test]"
 cp .env.example .env
 ```
 
@@ -59,6 +60,11 @@ Gemma 3 1B Q4_0으로 실행하려면 아래처럼 모델 경로를 바꿉니다
 ```bash
 RUN_ORACLE_LLAMA_MODEL_PATH=/home/willtek/work/oracle/models/gemma-3-1b-it-Q4_0.gguf ./run.sh
 ```
+
+웹에서 리포트 촬영 시작을 누르면 캡처 루프가 만든 영상을 바로 보여줍니다.
+정면/가림 조건이 좋으면 초록색 `correct`, 정면이 아니거나 가림이 많으면
+빨간색 경고가 표시됩니다. 모드 1은 OpenCV 박스만 그리고, 모드 2는
+MediaPipe FaceMesh 박스와 랜드마크 점을 함께 그립니다.
 
 ## llama.cpp Server
 

@@ -43,16 +43,21 @@ class FaceCaptureHarness:
             self._start_or_continue_tracking(now, face)
             elapsed = self._tracked_elapsed(now)
             state = "tracking"
-            message = f"얼굴 탐지 중: {elapsed:.1f}/{self._min_face_seconds:.1f}s"
-            if elapsed >= self._min_face_seconds:
-                quality = self._quality_analyzer.analyze(frame, face)
-                if quality.ready:
+            quality = self._quality_analyzer.analyze(frame, face)
+            if quality.ready:
+                message = (
+                    f"correct - 촬영 조건이 좋습니다: "
+                    f"{elapsed:.1f}/{self._min_face_seconds:.1f}s"
+                )
+                if elapsed >= self._min_face_seconds:
                     state = "captured"
                     should_capture = True
-                    message = "캡처 조건을 만족했습니다."
-                else:
-                    state = "warning"
-                    message = " ".join(quality.warnings)
+                    message = "correct - 캡처 조건을 만족했습니다."
+            else:
+                state = "warning"
+                message = " ".join(quality.warnings)
+                elapsed = 0.0
+                self._reset_tracking()
         else:
             if len(faces) > 1:
                 message = "한 명만 카메라 앞에 서 주세요."
@@ -65,6 +70,8 @@ class FaceCaptureHarness:
             quality=quality,
             should_capture=should_capture,
             message=message,
+            landmark_points=() if quality is None else quality.landmark_points,
+            face_analysis="" if quality is None else quality.face_analysis,
         )
         return result
 
@@ -112,6 +119,8 @@ def save_capture_artifact(
         face=decision.face,
         captured_at=datetime.now(),
         quality=decision.quality,
+        landmark_points=decision.landmark_points,
+        face_analysis=decision.face_analysis,
     )
     return result
 

@@ -49,6 +49,8 @@ class OpenCvFaceQualityAnalyzer:
             warnings=tuple(warnings),
             eye_count=eye_count,
             eyebrow_score=eyebrow_score,
+            frontality_score=1.0,
+            occlusion_score=1.0,
         )
         return result
 
@@ -119,6 +121,8 @@ class MediaPipeFaceQualityAnalyzer:
             warnings=tuple(warnings),
             eye_count=eye_count,
             eyebrow_score=eyebrow_score,
+            frontality_score=1.0 if len(warnings) == 0 else 0.0,
+            occlusion_score=1.0 if len(warnings) == 0 else 0.0,
         )
         return result
 

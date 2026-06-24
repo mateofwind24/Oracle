@@ -36,6 +36,9 @@ def format_face_quality(quality: FaceQuality | None) -> str:
         warnings = ", ".join(quality.warnings) if quality.warnings else "경고 없음"
         result = (
             f"- 눈 후보: {quality.eye_count}, "
-            f"눈썹 점수: {quality.eyebrow_score:.3f}, 경고: {warnings}"
+            f"눈썹 점수: {quality.eyebrow_score:.3f}, "
+            f"정면 점수: {quality.frontality_score:.2f}, "
+            f"가림 추정 점수: {quality.occlusion_score:.2f}, "
+            f"경고: {warnings}"
         )
     return result

@@ -20,6 +20,10 @@ class FaceQuality:
     warnings: tuple[str, ...] = field(default_factory=tuple)
     eye_count: int = 0
     eyebrow_score: float = 0.0
+    frontality_score: float = 0.0
+    occlusion_score: float = 0.0
+    landmark_points: tuple[tuple[int, int], ...] = field(default_factory=tuple)
+    face_analysis: str = ""
 
 
 @dataclass(frozen=True)
@@ -30,6 +34,8 @@ class CaptureDecision:
     quality: FaceQuality | None
     should_capture: bool
     message: str
+    landmark_points: tuple[tuple[int, int], ...] = field(default_factory=tuple)
+    face_analysis: str = ""
 
 
 @dataclass(frozen=True)
@@ -38,6 +44,8 @@ class CaptureArtifact:
     face: FaceBox
     captured_at: datetime
     quality: FaceQuality
+    landmark_points: tuple[tuple[int, int], ...] = field(default_factory=tuple)
+    face_analysis: str = ""
 
 
 @dataclass(frozen=True)
