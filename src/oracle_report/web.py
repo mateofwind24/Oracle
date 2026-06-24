@@ -18,6 +18,7 @@ from oracle_report.config import (
 from oracle_report.workflow import (
     COMPATIBILITY_MODES,
     CompatibilityWorkflowInput,
+    PersonalWorkflowResult,
     PersonalWorkflowInput,
     run_compatibility_workflow,
     run_personal_workflow,
@@ -117,7 +118,7 @@ def create_app() -> Flask:
                     manse_db_path=_manse_db_path(),
                     recommendation_db_path=_face_db_path(),
                 )
-                body = _personal_result(workflow_result.markdown, workflow_result)
+                body = _personal_result(workflow_result)
             except Exception as exc:
                 body = _error_panel(exc) + _personal_form()
         result = _render_page("개인 리포트", body)
@@ -144,7 +145,7 @@ def create_app() -> Flask:
                 recommendation_db_path=_face_db_path(),
                 capture_runner=_preview_capture_runner,
             )
-            result = _personal_result(workflow_result.markdown, workflow_result)
+            result = _personal_result(workflow_result)
             return result
 
         job_id = _start_workflow_job(run_job)
@@ -420,24 +421,8 @@ def _capture_preview_panel() -> str:
     return result
 
 
-def _personal_result(markdown: str, workflow_result) -> str:
-    recommendation_items = "".join(
-        f"<li>{escape(item.display_name)} - {escape(item.reason)}</li>"
-        for item in workflow_result.recommendations
-    )
-    result = f"""
-    <section class="panel">
-      <h2>개인 리포트 결과</h2>
-      <p>캡처 이미지: <code>{escape(str(workflow_result.capture_path))}</code></p>
-      <p>리포트 파일: <code>{escape(str(workflow_result.output_path))}</code></p>
-      <p>수행 시간 로그: <code>{escape(str(workflow_result.timing_log_path))}</code></p>
-      <p>만세력 DB: {escape(workflow_result.manse_status)}</p>
-      <h3>추천 후보</h3>
-      <ul>{recommendation_items}</ul>
-      <pre>{escape(markdown)}</pre>
-    </section>
-    <p><a href="/">처음으로</a></p>
-    """
+def _personal_result(workflow_result: PersonalWorkflowResult) -> str:
+    result = workflow_result.report_fragment_html
     return result
 
 

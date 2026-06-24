@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -23,8 +24,42 @@ class FakeLlmClient:
         result = "LLM 결과"
         if "출력 형식" in prompt and image_path is not None:
             result = "## 관상정보\n- 얼굴 인상 태그: 차분함"
-        elif "Oracle 종합 리포트" in prompt:
-            result = "# 개인 리포트\n## 내 관상과 궁합 좋은 이성 얼굴 추천\n추천 포함"
+        elif "face_blocks" in prompt:
+            result = json.dumps(
+                {
+                    "essence": "테스트 핵심 문장",
+                    "element_note": "테스트 오행 메모",
+                    "face_subtitle": "테스트 관상 소제목",
+                    "face_blocks": [
+                        {
+                            "category": "관상 카테고리",
+                            "title": "관상 제목",
+                            "summary": "관상 요약",
+                            "body": "관상 본문",
+                        },
+                    ],
+                    "saju_subtitle": "테스트 사주 소제목",
+                    "saju_blocks": [
+                        {
+                            "category": "사주 카테고리",
+                            "title": "사주 제목",
+                            "summary": "사주 요약",
+                            "body": "사주 본문",
+                        },
+                    ],
+                    "synthesis_title": "종합 제목",
+                    "synthesis_body": "종합 본문",
+                    "convergence": [
+                        {"face": "관상 수렴", "saju": "사주 수렴"},
+                    ],
+                    "synthesis_summary": "종합 요약",
+                    "tags": ["테스트 태그"],
+                    "recommendation_title": "추천 제목",
+                    "recommendation_lead": "추천 리드",
+                    "disclaimer": "테스트 고지",
+                },
+                ensure_ascii=False,
+            )
         elif "궁합 리포트" in prompt:
             result = "# 궁합 리포트\n## 관계를 좋게 만드는 행동 제안\n대화"
         return result
@@ -66,7 +101,10 @@ def test_personal_workflow_runs_without_real_camera_or_llm(
     assert result.timing_log_path.exists()
     assert "capture" in result.timing_log_path.read_text(encoding="utf-8")
     assert "[timing] capture:" in capsys.readouterr().out
-    assert "개인 리포트" in result.markdown
+    assert result.output_path.name == "personal_report.html"
+    assert result.report_html.startswith("<!DOCTYPE html>")
+    assert "oracle-report" in result.report_fragment_html
+    assert "테스트 핵심 문장" in result.report_html
     assert len(result.recommendations) > 0
 
 
@@ -95,7 +133,8 @@ def test_personal_workflow_uses_rule_based_face_mode(tmp_path: Path) -> None:
     )
 
     assert "랜드마크 룰 기반" in result.face_analysis
-    assert "개인 리포트" in result.markdown
+    assert result.output_path.suffix == ".html"
+    assert "oracle-report" in result.report_html
 
 
 def test_compatibility_workflow_runs_without_real_camera_or_llm(tmp_path: Path) -> None:

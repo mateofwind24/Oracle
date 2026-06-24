@@ -25,6 +25,7 @@ from oracle_report.report import (
     build_face_analysis_prompt,
     build_personal_final_prompt,
 )
+from oracle_report.report_html import render_personal_report_html
 from oracle_report.saju.repository import ManseLookupResult, ManseRepository
 from oracle_report.vision.runtime import run_capture
 
@@ -68,6 +69,8 @@ class CompatibilityWorkflowInput:
 @dataclass(frozen=True)
 class PersonalWorkflowResult:
     markdown: str
+    report_html: str
+    report_fragment_html: str
     output_path: Path
     capture_path: Path
     recommendations: tuple[FaceRecommendation, ...]
@@ -229,17 +232,38 @@ def run_personal_workflow(
         face_analysis.text,
         recommendations,
     )
-    output_path = output_dir / "personal_report.md"
+    report_html = timing_recorder.run(
+        "render_report_html",
+        render_personal_report_html,
+        profile,
+        manse_lookup,
+        face_analysis.text,
+        recommendations,
+        markdown,
+    )
+    report_fragment_html = timing_recorder.run(
+        "render_report_fragment_html",
+        render_personal_report_html,
+        profile,
+        manse_lookup,
+        face_analysis.text,
+        recommendations,
+        markdown,
+        False,
+    )
+    output_path = output_dir / "personal_report.html"
     timing_recorder.run(
         "save_report",
         output_path.write_text,
-        markdown,
+        report_html,
         encoding="utf-8",
     )
     timing_recorder.finish_total()
     timing_log_path = timing_recorder.write_log(output_dir / "timings.log")
     result = PersonalWorkflowResult(
         markdown=markdown,
+        report_html=report_html,
+        report_fragment_html=report_fragment_html,
         output_path=output_path,
         capture_path=capture_artifact.image_path,
         recommendations=recommendations,

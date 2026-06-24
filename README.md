@@ -85,6 +85,9 @@ CLI 전체 워크플로우 릴리즈 실행, 화면 출력만:
   --recommendation-text "추천 후보 예시"
 ```
 
+`personal-final`은 최종 화면 UI의 각 영역에 들어갈 JSON 객체를 요청합니다.
+`essence`, `face_blocks`, `saju_blocks`, `convergence`, `tags`, `recommendation_*` 필드를 확인하면 샘플 리포트 화면에 어떤 내용이 들어갈지 디버깅할 수 있습니다.
+
 관상 분석 프롬프트를 실제 LLM에 보내고 결과 확인:
 
 ```bash
@@ -108,6 +111,8 @@ CLI 전체 워크플로우 릴리즈 실행, 화면 출력만:
   --face-analysis "관상 분석 결과 예시" \
   --recommendation-text "추천 후보 예시"
 ```
+
+위 명령의 출력 JSON은 Flask 결과 화면과 `runs/.../personal_report.html`에 같은 섹션 구조로 렌더링됩니다.
 
 정리하면 `face-analysis`는 관상 분석 LLM 입력만 확인하고, `saju-reading`은 LLM에 넣기 전 사주/만세력 텍스트 블록만 확인합니다. `personal-final`은 사주/만세력 정보와 관상정보를 함께 넣은 최종 리포트 프롬프트를 확인합니다.
 
