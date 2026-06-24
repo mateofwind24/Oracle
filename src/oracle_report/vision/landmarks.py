@@ -7,6 +7,13 @@ import numpy as np
 
 from oracle_report.models import FaceBox, FaceQuality
 from oracle_report.vision.detection import _import_cv2
+from oracle_report.vision.physiognomy_rule_data import (
+    PHYSIOGNOMY_RULES,
+    PHYSIOGNOMY_SAFETY_NOTE,
+    UNSUPPORTED_PHYSIOGNOMY_FEATURES,
+    PhysiognomyRule,
+    PhysiognomyRuleRange,
+)
 
 
 _LANDMARK_MODE_NAME = "랜드마크 룰 기반"
@@ -14,37 +21,53 @@ _MIN_POSE_SCORE = 0.68
 _MIN_OCCLUSION_SCORE = 0.82
 _EYE_OPEN_THRESHOLD = 0.18
 _KEY_LANDMARK_INDICES = (
+    2,
     10,
+    13,
     33,
     61,
+    70,
+    98,
     105,
     133,
     152,
+    172,
     159,
     234,
     263,
     291,
+    300,
+    327,
     334,
     362,
     386,
+    397,
     454,
 )
 _DRAW_LANDMARK_INDICES = (
+    2,
     10,
+    13,
     33,
     61,
+    70,
+    98,
     105,
     133,
     145,
     152,
     159,
+    172,
     234,
     263,
     291,
+    300,
+    327,
     334,
     362,
     374,
     386,
+    397,
     454,
 )
 
@@ -77,6 +100,24 @@ class LandmarkMetrics:
     mouth_width_ratio: float
     lower_face_ratio: float
     mouth_corner_delta: float
+    upper_zone_ratio: float
+    middle_zone_ratio: float
+    lower_zone_ratio: float
+    third_balance_error: float
+    brow_eye_span_ratio: float
+    brow_eye_gap_ratio: float
+    nose_width_ratio: float
+    philtrum_chin_ratio: float
+    jaw_width_ratio: float
+    mouth_balance_delta: float
+
+
+@dataclass(frozen=True)
+class _RuleMatch:
+    title: str
+    tag: str
+    observation: str
+    interpretation: str
 
 
 class MediaPipeLandmarkFaceDetector:
@@ -186,23 +227,81 @@ class MediaPipeLandmarkQualityAnalyzer:
 
 
 def build_rule_based_face_analysis(metrics: LandmarkMetrics) -> str:
-    face_shape = _face_shape_label(metrics.face_aspect_ratio)
-    eye_spacing = _eye_spacing_label(metrics.eye_spacing_ratio)
-    brow_label = _brow_label(metrics.eyebrow_score)
-    mouth_label = _mouth_label(metrics.mouth_corner_delta)
-    lower_face = _lower_face_label(metrics.lower_face_ratio)
-    tags = ", ".join((face_shape, eye_spacing, brow_label, mouth_label))
+    matches = _evaluate_physio_rules(metrics)
+    tags = _format_rule_tags(matches)
+    detail_lines = _format_rule_details(matches)
+    auxiliary_text = _format_auxiliary_interpretation(matches)
+    unsupported = ", ".join(UNSUPPORTED_PHYSIOGNOMY_FEATURES)
     result = f"""
 ## 관상정보
 - 분석 모드: {_LANDMARK_MODE_NAME}
-- 얼굴 인상 태그: {tags}
-- 비율 지표: 얼굴 세로/가로 {metrics.face_aspect_ratio:.2f}, 눈 사이 간격 {metrics.eye_spacing_ratio:.2f}, 입 너비 {metrics.mouth_width_ratio:.2f}, 하관 비율 {metrics.lower_face_ratio:.2f}
-- 눈/눈썹 관찰: {eye_spacing}, {brow_label}
-- 윤곽/표정 관찰: {face_shape}, {lower_face}, {mouth_label}
-- 리포트에 넣을 보조 해석: 얼굴 비율이 {face_shape} 쪽으로 보이고, 눈썹과 눈 간격은 {brow_label} 인상을 줍니다. 표정은 {mouth_label} 흐름으로 관찰됩니다.
+- 참고 기준: 삼정, 오관, 십이궁, 얼굴형, 하관 비율을 랜드마크로 측정 가능한 항목에 맞춰 변환
+- 주요 태그: {tags}
+- 비율 지표: 삼정 상/중/하 {metrics.upper_zone_ratio:.2f}/{metrics.middle_zone_ratio:.2f}/{metrics.lower_zone_ratio:.2f}, 삼정 편차 {metrics.third_balance_error:.2f}, 얼굴 세로/가로 {metrics.face_aspect_ratio:.2f}, 미간 {metrics.eye_spacing_ratio:.2f}, 눈썹/눈 폭 {metrics.brow_eye_span_ratio:.2f}, 코 폭 {metrics.nose_width_ratio:.2f}, 입 폭 {metrics.mouth_width_ratio:.2f}, 하관 폭 {metrics.jaw_width_ratio:.2f}
+- 세부 관찰:
+{detail_lines}
+- 리포트에 넣을 보조 해석: {auxiliary_text}
+- 적용 제외 기준: {unsupported}은 현재 랜드마크만으로 안정 측정하기 어려워 룰에 넣지 않았습니다.
 - 캡처 신뢰도: 정면 점수 {metrics.frontality_score:.2f}, 가림 추정 점수 {metrics.occlusion_score:.2f}
-- 주의 문구: 랜드마크 비율 기반의 엔터테인먼트 보조 정보이며 실제 성격, 건강, 신원, 능력을 판단하지 않습니다.
+- 주의 문구: {PHYSIOGNOMY_SAFETY_NOTE}
 """.strip()
+    return result
+
+
+def _evaluate_physio_rules(metrics: LandmarkMetrics) -> tuple[_RuleMatch, ...]:
+    result = tuple(_evaluate_physio_rule(metrics, rule) for rule in PHYSIOGNOMY_RULES)
+    return result
+
+
+def _evaluate_physio_rule(
+    metrics: LandmarkMetrics,
+    rule: PhysiognomyRule,
+) -> _RuleMatch:
+    value = float(getattr(metrics, rule.metric))
+    matched_range = _select_rule_range(value, rule.ranges)
+    result = _RuleMatch(
+        title=rule.title,
+        tag=matched_range.tag,
+        observation=f"{matched_range.observation} ({rule.basis}, 측정값 {value:.2f})",
+        interpretation=matched_range.interpretation,
+    )
+    return result
+
+
+def _select_rule_range(
+    value: float,
+    ranges: tuple[PhysiognomyRuleRange, ...],
+) -> PhysiognomyRuleRange:
+    result = ranges[-1]
+    for candidate in ranges:
+        if _rule_range_matches(value, candidate):
+            result = candidate
+            break
+    return result
+
+
+def _rule_range_matches(value: float, rule_range: PhysiognomyRuleRange) -> bool:
+    meets_minimum = rule_range.min_value is None or value >= rule_range.min_value
+    meets_maximum = rule_range.max_value is None or value < rule_range.max_value
+    result = meets_minimum and meets_maximum
+    return result
+
+
+def _format_rule_tags(matches: tuple[_RuleMatch, ...]) -> str:
+    result = ", ".join(match.tag for match in matches[:8])
+    return result
+
+
+def _format_rule_details(matches: tuple[_RuleMatch, ...]) -> str:
+    result = "\n".join(
+        f"  - {match.title}: {match.observation}" for match in matches
+    )
+    return result
+
+
+def _format_auxiliary_interpretation(matches: tuple[_RuleMatch, ...]) -> str:
+    selected = matches[:7]
+    result = " ".join(match.interpretation for match in selected)
     return result
 
 
@@ -214,18 +313,41 @@ def _compute_landmark_metrics(
     left_eye_inner = landmarks[133]
     right_eye_inner = landmarks[362]
     nose_tip = landmarks[1]
+    nose_base = landmarks[2]
+    upper_lip = landmarks[13]
     left_mouth = landmarks[61]
     right_mouth = landmarks[291]
     chin = landmarks[152]
     forehead = landmarks[10]
     left_face = landmarks[234]
     right_face = landmarks[454]
+    left_brow_outer = landmarks[70]
+    right_brow_outer = landmarks[300]
+    left_brow = landmarks[105]
+    right_brow = landmarks[334]
+    left_nose = landmarks[98]
+    right_nose = landmarks[327]
+    left_jaw = landmarks[172]
+    right_jaw = landmarks[397]
     face_width = max(0.001, _distance(left_face, right_face))
-    face_height = max(0.001, _distance(forehead, chin))
+    face_height = max(0.001, abs(chin.y - forehead.y))
     eye_line = max(0.001, _distance(left_eye, right_eye))
     eye_y_delta = abs(left_eye.y - right_eye.y) / face_height
     nose_center_delta = abs(nose_tip.x - ((left_eye.x + right_eye.x) * 0.5)) / eye_line
     mouth_y_delta = abs(left_mouth.y - right_mouth.y) / face_height
+    brow_y = (left_brow.y + right_brow.y) * 0.5
+    upper_zone_ratio = abs(brow_y - forehead.y) / face_height
+    middle_zone_ratio = abs(nose_base.y - brow_y) / face_height
+    lower_zone_ratio = abs(chin.y - nose_base.y) / face_height
+    third_balance_error = max(
+        abs(upper_zone_ratio - (1.0 / 3.0)),
+        abs(middle_zone_ratio - (1.0 / 3.0)),
+        abs(lower_zone_ratio - (1.0 / 3.0)),
+    )
+    eyebrow_gap_ratio = _eyebrow_geometry_score(landmarks) / face_height
+    brow_span = max(0.001, abs(right_brow_outer.x - left_brow_outer.x))
+    eye_span = max(0.001, abs(right_eye.x - left_eye.x))
+    lower_height = max(0.001, abs(chin.y - nose_base.y))
     frontality = (
         _score_from_delta(eye_y_delta, 0.045)
         + _score_from_delta(nose_center_delta, 0.22)
@@ -237,17 +359,26 @@ def _compute_landmark_metrics(
     eye_count = int(left_ear >= _EYE_OPEN_THRESHOLD) + int(
         right_ear >= _EYE_OPEN_THRESHOLD,
     )
-    eyebrow_score = _eyebrow_geometry_score(landmarks)
     result = LandmarkMetrics(
         frontality_score=frontality,
         occlusion_score=occlusion,
         eye_count=eye_count,
-        eyebrow_score=eyebrow_score,
+        eyebrow_score=eyebrow_gap_ratio,
         face_aspect_ratio=face_height / face_width,
         eye_spacing_ratio=_distance(left_eye_inner, right_eye_inner) / face_width,
         mouth_width_ratio=_distance(left_mouth, right_mouth) / face_width,
-        lower_face_ratio=abs(chin.y - nose_tip.y) / face_height,
+        lower_face_ratio=lower_zone_ratio,
         mouth_corner_delta=right_mouth.y - left_mouth.y,
+        upper_zone_ratio=upper_zone_ratio,
+        middle_zone_ratio=middle_zone_ratio,
+        lower_zone_ratio=lower_zone_ratio,
+        third_balance_error=third_balance_error,
+        brow_eye_span_ratio=brow_span / eye_span,
+        brow_eye_gap_ratio=eyebrow_gap_ratio,
+        nose_width_ratio=_distance(left_nose, right_nose) / face_width,
+        philtrum_chin_ratio=abs(upper_lip.y - nose_base.y) / lower_height,
+        jaw_width_ratio=_distance(left_jaw, right_jaw) / face_width,
+        mouth_balance_delta=abs(right_mouth.y - left_mouth.y) / face_height,
     )
     return result
 
@@ -263,6 +394,16 @@ def _empty_metrics() -> LandmarkMetrics:
         mouth_width_ratio=0.0,
         lower_face_ratio=0.0,
         mouth_corner_delta=0.0,
+        upper_zone_ratio=0.0,
+        middle_zone_ratio=0.0,
+        lower_zone_ratio=0.0,
+        third_balance_error=0.0,
+        brow_eye_span_ratio=0.0,
+        brow_eye_gap_ratio=0.0,
+        nose_width_ratio=0.0,
+        philtrum_chin_ratio=0.0,
+        jaw_width_ratio=0.0,
+        mouth_balance_delta=0.0,
     )
     return result
 
@@ -383,51 +524,6 @@ def _score_from_delta(delta: float, tolerance: float) -> float:
 
 def _clamp(value: float, low: float, high: float) -> float:
     result = max(low, min(high, value))
-    return result
-
-
-def _face_shape_label(face_aspect_ratio: float) -> str:
-    result = "균형형 윤곽"
-    if face_aspect_ratio >= 1.45:
-        result = "세로로 긴 윤곽"
-    elif face_aspect_ratio <= 1.18:
-        result = "가로 안정감이 있는 윤곽"
-    return result
-
-
-def _eye_spacing_label(eye_spacing_ratio: float) -> str:
-    result = "눈 사이 간격이 균형적입니다"
-    if eye_spacing_ratio >= 0.34:
-        result = "눈 사이 간격이 넓은 편입니다"
-    elif eye_spacing_ratio <= 0.24:
-        result = "눈 사이 간격이 좁은 편입니다"
-    return result
-
-
-def _brow_label(eyebrow_score: float) -> str:
-    result = "눈썹과 눈 사이가 안정적인 편입니다"
-    if eyebrow_score >= 0.075:
-        result = "눈썹과 눈 사이가 여유 있는 편입니다"
-    elif eyebrow_score <= 0.045:
-        result = "눈썹과 눈 사이가 가까운 편입니다"
-    return result
-
-
-def _mouth_label(mouth_corner_delta: float) -> str:
-    result = "입꼬리 균형이 안정적입니다"
-    if mouth_corner_delta >= 0.018:
-        result = "입꼬리가 한쪽으로 기울어 보입니다"
-    elif mouth_corner_delta <= -0.018:
-        result = "입꼬리가 한쪽으로 기울어 보입니다"
-    return result
-
-
-def _lower_face_label(lower_face_ratio: float) -> str:
-    result = "하관 비율이 균형적입니다"
-    if lower_face_ratio >= 0.46:
-        result = "하관 비율이 긴 편입니다"
-    elif lower_face_ratio <= 0.34:
-        result = "하관 비율이 짧은 편입니다"
     return result
 
 
