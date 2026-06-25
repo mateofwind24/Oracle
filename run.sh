@@ -46,8 +46,10 @@ LLAMA_LOG_DIR="$ROOT_DIR/runs/logs"
 LLAMA_PID_FILE="$ROOT_DIR/runs/llama-server.pid"
 GEMMA3_1B_Q4_MODEL_URL="https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_0.gguf"
 GEMMA3_1B_Q4_MODEL_SHA256="27ee88e03be02e9ba73def9a819d570d8ad73716e50769e87f374ae394b0276e"
-PACKAGED_MODEL_URL="$GEMMA3_1B_Q4_MODEL_URL"
-PACKAGED_MODEL_SHA256="$GEMMA3_1B_Q4_MODEL_SHA256"
+GEMMA4_E2B_Q2_MODEL_URL="https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-UD-Q2_K_XL.gguf"
+GEMMA4_E2B_Q2_MODEL_SHA256="dd279a54c0c0dc9724ed11d7f73ad7fb4489a45f58fefe9447da2429a727de0c"
+PACKAGED_MODEL_URL="$GEMMA4_E2B_Q2_MODEL_URL"
+PACKAGED_MODEL_SHA256="$GEMMA4_E2B_Q2_MODEL_SHA256"
 
 # Execution configs set by parse_args
 LLAMA_THREADS=""
@@ -377,6 +379,8 @@ default_model_url_for_path() {
   result="$PACKAGED_MODEL_URL"
   if [[ "$model_name" == "gemma-3-1b-it-Q4_0.gguf" ]]; then
     result="$GEMMA3_1B_Q4_MODEL_URL"
+  elif [[ "$model_name" == "gemma-4-E2B-it-UD-Q2_K_XL.gguf" ]]; then
+    result="$GEMMA4_E2B_Q2_MODEL_URL"
   fi
   printf '%s\n' "$result"
 }
@@ -390,6 +394,8 @@ default_model_hash_for_path() {
   result="$PACKAGED_MODEL_SHA256"
   if [[ "$model_name" == "gemma-3-1b-it-Q4_0.gguf" ]]; then
     result="$GEMMA3_1B_Q4_MODEL_SHA256"
+  elif [[ "$model_name" == "gemma-4-E2B-it-UD-Q2_K_XL.gguf" ]]; then
+    result="$GEMMA4_E2B_Q2_MODEL_SHA256"
   fi
   printf '%s\n' "$result"
 }
@@ -520,8 +526,8 @@ ensure_model_file() {
     fail "Model path not set. Specify model with --model-path option"
   fi
   if [[ "${model_path##*/}" == "model.gguf" ]]; then
-    log "models/model.gguf is a legacy default; using Gemma 3 1B Q4"
-    model_path="$ROOT_DIR/models/gemma-3-1b-it-Q4_0.gguf"
+    log "models/model.gguf is a legacy default; using Gemma 4 E2B Q2"
+    model_path="$ROOT_DIR/models/gemma-4-E2B-it-UD-Q2_K_XL.gguf"
     export ORACLE_LLAMA_MODEL_PATH="$model_path"
   fi
   if [[ -f "$model_path" ]]; then
@@ -529,7 +535,13 @@ ensure_model_file() {
     return
   fi
 
-  if [[ "${model_path##*/}" == "gemma-3-1b-it-Q4_0.gguf" ]]; then
+  if [[ "${model_path##*/}" == "gemma-3-1b-it-Q4_0.gguf" || "${model_path##*/}" == "gemma-4-E2B-it-UD-Q2_K_XL.gguf" ]]; then
+    download_model_file "$model_path"
+    verify_model_hash "$model_path"
+    return
+  fi
+
+  if [[ "$model_path" != "$ROOT_DIR/models/gemma-4-E2B-it-UD-Q2_K_XL.gguf" ]]; then
     download_model_file "$model_path"
     verify_model_hash "$model_path"
     return
@@ -650,7 +662,7 @@ require_wrapped_command() {
   mode="$1"
   shift
   if [[ "$#" -eq 0 ]]; then
-    fail "usage: ./run.sh $mode <capture|prompt|prompt-run|llm|serve> [args...]"
+    fail "usage: ./run.sh $mode <capture|prompt|prompt-run|serve> [args...]"
   fi
 }
 
@@ -714,17 +726,7 @@ needs_llm_server() {
         ;;
       prompt-run)
         case "${2:-}" in
-          --help | -h | "")
-            result=1
-            ;;
-          *)
-            result=0
-            ;;
-        esac
-        ;;
-      llm)
-        case "${2:-}" in
-          --help | -h | "")
+          saju-reading | --help | -h | "")
             result=1
             ;;
           *)

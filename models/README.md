@@ -6,13 +6,13 @@ existing repo model before attempting any download.
 
 ## Default Runtime Model
 
-- Source: `unsloth/gemma-3-1b-it-GGUF`
-- File: `gemma-3-1b-it-Q4_0.gguf`
-- URL: `https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_0.gguf`
-- Size: `721,918,496` bytes
-- SHA256: `27ee88e03be02e9ba73def9a819d570d8ad73716e50769e87f374ae394b0276e`
+- Source: `unsloth/gemma-4-E2B-it-GGUF`
+- File: `gemma-4-E2B-it-UD-Q2_K_XL.gguf`
+- URL: `https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-UD-Q2_K_XL.gguf`
+- Size: `2,403,612,800` bytes
+- SHA256: `dd279a54c0c0dc9724ed11d7f73ad7fb4489a45f58fefe9447da2429a727de0c`
 - License: Gemma
-- Path: `models/gemma-3-1b-it-Q4_0.gguf`
+- Path: `models/gemma-4-E2B-it-UD-Q2_K_XL.gguf`
 
 The model files are not committed to this repository. `*.tmp` files are used for
 resumable downloads, and completed files are moved into place after SHA256
