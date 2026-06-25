@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from oracle_report.saju.engine import ELEMENTS, SajuReading
+from oracle_report.saju.repository import normalize_gender
 
 
 @dataclass(frozen=True)
@@ -26,7 +27,7 @@ def recommend_faces(
 ) -> tuple[FaceRecommendation, ...]:
     _ensure_face_db(db_path)
     weak_element = _weakest_element(reading)
-    target = target_gender.strip()
+    target = _normalize_target_gender(target_gender)
     rows = _read_candidates(db_path)
     scored = [
         _score_candidate(row, target, weak_element)
@@ -36,6 +37,14 @@ def recommend_faces(
     filtered = [item for item in scored if item.score > 0]
     filtered.sort(key=lambda item: item.score, reverse=True)
     result = tuple(filtered[:limit])
+    return result
+
+
+def _normalize_target_gender(target_gender: str) -> str:
+    cleaned = target_gender.strip()
+    result = ""
+    if cleaned != "":
+        result = normalize_gender(cleaned)
     return result
 
 

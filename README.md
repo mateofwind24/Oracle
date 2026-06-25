@@ -1,26 +1,51 @@
 # Oracle Report
 
-Raspberry Pi에서 얼굴 캡처, 관상 보조 분석, 사주/만세력 조회, 개인/궁합 리포트를 실행하는 로컬 앱입니다. 기본 실행은 `./run.sh` 하나로 합니다.
+Raspberry Pi에서 얼굴 캡처, 관상 보조 분석, 사주/만세력 조회, 개인/궁합 리포트를 실행하는 로컬 앱입니다.
 
-## Modes
+이 프로젝트는 카메라 입력, 만세력 SQLite DB, 로컬 llama.cpp 호환 LLM, Flask UI를 묶어 전시/부트캠프용 리포트 생성 흐름을 제공합니다. 개인 정보와 캡처 이미지는 기본적으로 로컬 장치 안에서 처리합니다.
 
-- `debug`: 출력 로그와 산출물을 `runs/debug/<timestamp>/` 아래에 저장하고 화면에도 출력합니다.
-- `release`: 산출물을 임시 디렉터리에만 만들고 실행 뒤 삭제합니다.
-- `release`에서는 `--output`, `--output-dir`를 사용할 수 없습니다.
+## 주요 기능
 
-## Build
+- 개인 리포트: 얼굴 캡처, 사주/만세력 조회, 관상 메모, 얼굴 추천 후보를 종합한 HTML 리포트
+- 두 사람 궁합 리포트: 두 명의 사주/만세력과 순차 캡처 기반 관상 메모를 종합한 HTML 리포트
+- 로컬 LLM 실행: llama.cpp OpenAI-compatible API를 사용해 프롬프트 실행
+- 프롬프트 확인/실행 모드: 프롬프트만 출력하거나 LLM 결과만 출력
+- Raspberry Pi 실행 보조: `build.sh`, `run.sh`, `systemd/` 서비스 파일 제공
+
+## 프로젝트 구조
+
+```text
+.
+├── src/                 # 소스 코드
+│   └── oracle_report/
+├── tests/               # 테스트 코드
+├── test-results/        # 테스트 실행 결과 로그/리포트
+├── configs/             # 실행 설정과 프롬프트 템플릿
+├── data/                # 만세력/관상 규칙 SQLite DB
+├── docs/                # 설계 문서와 다이어그램
+├── models/              # 로컬 GGUF 모델 배치 위치
+├── scripts/             # 설치, DB 생성, 서비스 실행 보조 스크립트
+├── systemd/             # Raspberry Pi 서비스 파일
+├── README.md            # 프로젝트 개요
+├── RUN.md               # 실행/재현 문서
+├── requirements.txt     # 재현용 고정 버전 라이브러리 목록
+├── pyproject.toml       # Python 패키지 설정
+├── build.sh             # 빌드/설치 자동화
+└── run.sh               # 실행 진입점
+```
+
+Git 히스토리는 제출 시 `.git/` 디렉터리로 포함되며, 텍스트 제출이 필요하면 아래 명령으로 생성할 수 있습니다.
+
+```bash
+git log --oneline --decorate --graph --all > git_log.txt
+```
+
+## 빠른 시작
+
+자세한 실행, 재현, 설정 방법은 [RUN.md](RUN.md)를 확인하세요.
 
 ```bash
 ./run.sh build
-```
-
-이미 `models/*.gguf`가 있으면 모델 다운로드를 건너뜁니다.
-
-## Full Run
-
-웹 UI 실행:
-
-```bash
 ./run.sh
 ```
 
@@ -30,230 +55,17 @@ Raspberry Pi에서 얼굴 캡처, 관상 보조 분석, 사주/만세력 조회,
 http://<raspberry-pi-ip>:8501
 ```
 
-태어난 시간을 모르면 웹 UI의 태어난 시간에서 `모름`을 선택합니다. 이 경우 내부 만세력 조회는 기존 MVP 정책대로 `12:00` 오시 대표값을 사용하지만, 프로필에는 `birth_time_known=False`로 저장하고 리포트에는 시간 미상으로 표시합니다.
-
-## Prompt Debugging
-
-개인 리포트 관상 분석 LLM 프롬프트 확인:
-
-```bash
-./run.sh prompt personal-face-analysis \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30 \
-  --gender male
-```
-
-궁합 리포트 관상 분석 LLM 프롬프트 확인:
-
-```bash
-./run.sh prompt compatibility-face-analysis \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30 \
-  --gender male \
-  --mode 연인 \
-  --person-label "첫 번째 사람"
-```
-
-사주/만세력 조회 결과가 최종 리포트에 어떤 텍스트로 들어가는지 확인:
-
-```bash
-./run.sh prompt saju-reading \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30 \
-  --gender male
-```
-
-사주/만세력 조회 결과를 `configs/prompts.json`의 `saju_reading` 프롬프트에 넣고 실제 LLM 결과만 확인:
-
-```bash
-./run.sh llm saju-reading \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30 \
-  --gender male
-```
-
-개인 최종 리포트 프롬프트 확인:
-
-```bash
-./run.sh prompt personal-final \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30 \
-  --gender male \
-  --target-gender female \
-  --face-analysis "관상 분석 결과 예시" \
-  --recommendation-text "추천 후보 예시"
-```
-
-궁합 최종 리포트 프롬프트 확인:
-
-```bash
-./run.sh prompt compatibility-final \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30 \
-  --gender male \
-  --right-name "김영희" \
-  --right-birth-date 1997-05-20 \
-  --right-birth-time 09:00 \
-  --right-gender female \
-  --mode 연인 \
-  --face-analysis "두 사람 관상 분석 결과 예시"
-```
-
-개인 관상 분석 프롬프트를 실제 LLM에 보내고 결과 확인:
-
-```bash
-./run.sh prompt-run personal-face-analysis \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30 \
-  --gender male \
-  --image runs/session-001/capture.jpg
-```
-
-궁합 관상 분석 프롬프트를 실제 LLM에 보내고 결과 확인:
-
-```bash
-./run.sh prompt-run compatibility-face-analysis \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30 \
-  --gender male \
-  --mode 연인 \
-  --person-label "첫 번째 사람" \
-  --image runs/session-001/capture.jpg
-```
-
-개인 최종 리포트 프롬프트를 실제 LLM에 보내고 결과 확인:
-
-```bash
-./run.sh prompt-run personal-final \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30 \
-  --gender male \
-  --target-gender female \
-  --face-analysis "관상 분석 결과 예시" \
-  --recommendation-text "추천 후보 예시"
-```
-
-`llm`은 `prompt-run`과 같은 실행 경로를 쓰지만, 결과 확인용 이름입니다. 예를 들어 아래 두 명령은 모두 프롬프트를 로컬 LLM에 보내고 LLM 응답만 출력합니다.
-
-```bash
-./run.sh llm personal-final \
-  --name "홍길동" \
-  --birth-date 1995-03-15 \
-  --birth-time 14:30 \
-  --gender male \
-  --target-gender female \
-  --face-analysis "관상 분석 결과 예시" \
-  --recommendation-text "추천 후보 예시"
-```
-
-`personal-final` 출력 JSON은 Flask 결과 화면과 `runs/.../personal_report.html`에 같은 섹션 구조로 렌더링됩니다.
-
-정리하면 `personal-face-analysis`와 `compatibility-face-analysis`는 LLM 관상 모드에서만 쓰는 입력입니다. 랜드마크 모드는 프롬프트 없이 rule-based 관상 텍스트를 사용합니다. `prompt saju-reading`은 LLM에 넣기 전 사주/만세력 텍스트 블록만 확인하고, `llm saju-reading`은 같은 조회 결과를 `saju_reading` 템플릿에 넣어 LLM 응답만 출력합니다. `personal-final`과 `compatibility-final`은 사주/만세력 정보와 관상정보를 함께 넣은 최종 리포트 프롬프트입니다.
-
-프롬프트 템플릿 수정:
-
-```text
-configs/prompts.json
-```
-
-주요 템플릿 키:
-
-- `saju_reading`: 이름, 생년월일, 시간, 성별로 만세력 DB를 조회한 뒤 LLM에 보내는 사주 해설 프롬프트
-- `personal_face_analysis`: 캡처 이미지 기반 개인 관상 메모 프롬프트
-- `compatibility_face_analysis`: 캡처 이미지 기반 궁합 관상 메모 프롬프트
-- `personal_final`: 사주/만세력, 관상 메모, 얼굴 추천 정보를 합친 개인 최종 JSON 리포트 프롬프트
-- `compatibility_final`: 두 사람의 사주/만세력과 관상 메모를 합친 궁합 최종 JSON 리포트 프롬프트
-
-LLM 결과만 확인할 때 자주 쓰는 설정:
-
-```env
-ORACLE_PROMPTS_PATH=configs/prompts.json
-ORACLE_LLM_BASE_URL=http://127.0.0.1:8080/v1
-ORACLE_REPORT_LLM_MODEL=local-model
-ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS=1800
-ORACLE_MANSE_DB_PATH=data/manse.sqlite
-```
-
-## Capture Debugging
-
-얼굴 캡처만 디버그 실행:
-
-```bash
-./run.sh debug capture
-```
-
-얼굴 캡처만 릴리즈 실행:
-
-```bash
-./run.sh release capture
-```
-
-랜드마크 규칙 기반 관상 모드로 캡처 디버깅:
-
-```bash
-./run.sh debug capture --face-analysis-mode 2
-```
-
-## Useful Settings
-
-`run.sh` 상단 또는 `.env`에서 자주 바꾸는 값:
-
-```env
-ORACLE_APP_PORT=8501
-ORACLE_LLAMA_MODEL_PATH=models/gemma-3-1b-it-Q4_0.gguf
-ORACLE_CAMERA_INDEX=0
-ORACLE_SHOW_PREVIEW=0
-ORACLE_FACE_ANALYSIS_MODE=1
-ORACLE_PROMPTS_PATH=configs/prompts.json
-```
-
-관상 모드:
-
-- `ORACLE_FACE_ANALYSIS_MODE=1`: 캡처 이미지 기반 LLM 관상 분석
-- `ORACLE_FACE_ANALYSIS_MODE=2`: MediaPipe 랜드마크 규칙 기반 분석
-
-태어난 시간 선택:
-
-- `모름`: 내부 조회는 `12:00` 오시 대표값, 리포트 표시는 시간 미상
-- `자시`부터 `해시`: 선택한 2시간 단위 시지의 대표시간으로 만세력 DB 조회
-
-## Verification
+## 테스트
 
 ```bash
 python -m pytest
 ```
 
-## Project Structure
+최근 테스트 결과는 [test-results/pytest-latest.txt](test-results/pytest-latest.txt)에 저장합니다.
 
-```text
-.
-├── build.sh
-├── run.sh
-├── configs/
-│   └── prompts.json
-├── data/
-│   └── manse.sqlite
-├── docs/
-├── models/
-│   └── README.md
-├── scripts/
-├── src/
-│   └── oracle_report/
-│       ├── cli.py
-│       ├── config.py
-│       ├── report.py
-│       ├── web.py
-│       ├── workflow.py
-│       ├── saju/
-│       └── vision/
-└── tests/
-```
+## 주요 설정 파일
+
+- [configs/prompts.json](configs/prompts.json): LLM 프롬프트 템플릿
+- [.env.example](.env.example): 실행 환경 변수 예시
+- [configs/raspberry_pi.env](configs/raspberry_pi.env): Raspberry Pi 기본 설정 예시
+- [requirements.txt](requirements.txt): 고정 버전 라이브러리 목록

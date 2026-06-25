@@ -10,5 +10,7 @@ captures/
 *.egg-info/
 models/*.gguf
 models/*.gguf.tmp
+data/face_recommendations.sqlite
+data/face_recommenations.sqlite
 llama.cpp/
 data/*.sqlite
