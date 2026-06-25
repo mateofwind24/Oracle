@@ -4,8 +4,7 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-# Edit this block on Raspberry Pi before running ./run.sh.
-# Defaults are repo-relative, so /home/willtek/work/oracle works after clone.
+# Defaults are repo-relative
 RUN_ORACLE_APP_HOST="${RUN_ORACLE_APP_HOST:-0.0.0.0}"
 RUN_ORACLE_APP_PORT="${RUN_ORACLE_APP_PORT:-8501}"
 RUN_ORACLE_APP_DEBUG="${RUN_ORACLE_APP_DEBUG:-0}"
@@ -16,14 +15,14 @@ RUN_ORACLE_FACE_LLM_MODEL="${RUN_ORACLE_FACE_LLM_MODEL:-$RUN_ORACLE_LLM_MODEL}"
 RUN_ORACLE_FACE_LLM_SEND_IMAGE="${RUN_ORACLE_FACE_LLM_SEND_IMAGE:-0}"
 RUN_ORACLE_REPORT_LLM_MODEL="${RUN_ORACLE_REPORT_LLM_MODEL:-$RUN_ORACLE_LLM_MODEL}"
 RUN_ORACLE_REPORT_LLM_SEND_IMAGE="${RUN_ORACLE_REPORT_LLM_SEND_IMAGE:-0}"
-RUN_ORACLE_LLM_TIMEOUT_SECONDS="${RUN_ORACLE_LLM_TIMEOUT_SECONDS:-120}"
-RUN_ORACLE_FACE_LLM_MAX_OUTPUT_TOKENS="${RUN_ORACLE_FACE_LLM_MAX_OUTPUT_TOKENS:-700}"
-RUN_ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS="${RUN_ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS:-1800}"
+RUN_ORACLE_LLM_TIMEOUT_SECONDS="${RUN_ORACLE_LLM_TIMEOUT_SECONDS:-300}"
+RUN_ORACLE_FACE_LLM_MAX_OUTPUT_TOKENS="${RUN_ORACLE_FACE_LLM_MAX_OUTPUT_TOKENS:-2048}"
+RUN_ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS="${RUN_ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS:-8192}"
 
 RUN_ORACLE_START_LLAMA_SERVER="${RUN_ORACLE_START_LLAMA_SERVER:-1}"
-RUN_ORACLE_LLAMA_MODEL_PATH="${RUN_ORACLE_LLAMA_MODEL_PATH:-$ROOT_DIR/models/gemma-3-1b-it-Q4_0.gguf}"
+RUN_ORACLE_LLAMA_MODEL_PATH=""
 RUN_ORACLE_LLAMA_SERVER_BIN="${RUN_ORACLE_LLAMA_SERVER_BIN:-llama-server}"
-RUN_LLAMA_CONTEXT_SIZE="${RUN_LLAMA_CONTEXT_SIZE:-4096}"
+RUN_LLAMA_CONTEXT_SIZE="${RUN_LLAMA_CONTEXT_SIZE:-8192}"
 
 RUN_ORACLE_CAMERA_INDEX="${RUN_ORACLE_CAMERA_INDEX:-0}"
 RUN_ORACLE_FRAME_WIDTH="${RUN_ORACLE_FRAME_WIDTH:-640}"
@@ -42,13 +41,22 @@ RUN_ORACLE_FACE_DB_PATH="${RUN_ORACLE_FACE_DB_PATH:-$ROOT_DIR/data/face_recommen
 
 VENV_DIR="${ORACLE_VENV_DIR:-$ROOT_DIR/.venv}"
 DEPS_DIR="${ORACLE_DEPS_DIR:-$ROOT_DIR/.deps}"
-LLAMA_CPP_DIR="${ORACLE_LLAMA_CPP_DIR:-$DEPS_DIR/llama.cpp}"
+ORACLE_LLAMA_CPP_DIR="${ORACLE_LLAMA_CPP_DIR:-$ROOT_DIR/llama.cpp}"
 LLAMA_LOG_DIR="$ROOT_DIR/runs/logs"
 LLAMA_PID_FILE="$ROOT_DIR/runs/llama-server.pid"
 GEMMA3_1B_Q4_MODEL_URL="https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_0.gguf"
 GEMMA3_1B_Q4_MODEL_SHA256="27ee88e03be02e9ba73def9a819d570d8ad73716e50769e87f374ae394b0276e"
 PACKAGED_MODEL_URL="$GEMMA3_1B_Q4_MODEL_URL"
 PACKAGED_MODEL_SHA256="$GEMMA3_1B_Q4_MODEL_SHA256"
+
+# Execution configs set by parse_args
+LLAMA_THREADS=""
+LLAMA_NGL=""
+LLAMA_BATCH_SIZE=""
+LLAMA_EXTRA_ARGS=""
+PYTHON_ENV="auto"
+BUILD_JOBS=""
+POSITIONAL_ARGS=()
 
 log() {
   printf '[run] %s\n' "$*"
@@ -63,25 +71,193 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
-activate_venv() {
-  if [[ -f "$VENV_DIR/bin/activate" ]]; then
-    # shellcheck source=/dev/null
-    source "$VENV_DIR/bin/activate"
-  elif [[ -f "$VENV_DIR/Scripts/activate" ]]; then
-    # shellcheck source=/dev/null
-    source "$VENV_DIR/Scripts/activate"
-  else
-    log "venv not found; running build.sh first"
-    "$ROOT_DIR/build.sh"
+print_help() {
+  cat <<EOF
+Usage: $0 [options] [command] [command_args...]
+
+Commands:
+  build                    Build the project (forwards options to build.sh)
+  debug <cmd> [args...]    Run in debug mode (saves outputs to runs/debug/)
+  release <cmd> [args...]  Run in release mode (temp output dir, deleted after run)
+  capture                  Run capture only
+  prompt <args...>         Debug prompt generation
+  prompt-run <args...>     Run prompt generation with LLM call
+  (empty)                  Start Flask web server (default)
+
+Wrapper Options:
+  -h, --help               Show this help message
+  -m, --model-path PATH    Path to the GGUF model file
+  -p, --port PORT          Port for the Flask app (default: 8501)
+  --host HOST              Host for the Flask app (default: 0.0.0.0)
+  -t, --threads THREADS    Number of threads for llama.cpp server
+  -ngl, --ngl LAYERS       Number of GPU layers to offload to GPU (llama.cpp)
+  -c, --ctx-size SIZE      Context size for llama.cpp (default: 4096)
+  -b, --batch-size SIZE    Batch size for llama.cpp
+  -j, --jobs JOBS          Number of build jobs (used with build command)
+  --face-analysis-mode M   Face analysis mode (1 = LLM, 2 = landmarks)
+  --python-env ENV         Force Python env type (active-conda, conda, uv, venv, auto)
+  --llama-dir DIR          Path to llama.cpp repository
+  --extra-llama-args ARGS  Additional raw command-line arguments for llama-server
+EOF
+}
+
+parse_args() {
+  POSITIONAL_ARGS=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        print_help
+        exit 0
+        ;;
+      -m|--model-path)
+        RUN_ORACLE_LLAMA_MODEL_PATH="$2"
+        shift 2
+        ;;
+      -p|--port)
+        RUN_ORACLE_APP_PORT="$2"
+        shift 2
+        ;;
+      --host)
+        RUN_ORACLE_APP_HOST="$2"
+        shift 2
+        ;;
+      -t|--threads)
+        LLAMA_THREADS="$2"
+        shift 2
+        ;;
+      -ngl|--ngl|--n-gpu-layers)
+        LLAMA_NGL="$2"
+        shift 2
+        ;;
+      -c|--ctx-size|--context-size)
+        RUN_LLAMA_CONTEXT_SIZE="$2"
+        shift 2
+        ;;
+      -b|--batch-size)
+        LLAMA_BATCH_SIZE="$2"
+        shift 2
+        ;;
+      -j|--jobs)
+        BUILD_JOBS="$2"
+        shift 2
+        ;;
+      --face-analysis-mode)
+        RUN_ORACLE_FACE_ANALYSIS_MODE="$2"
+        shift 2
+        ;;
+      --python-env)
+        PYTHON_ENV="$2"
+        shift 2
+        ;;
+      --llama-dir)
+        ORACLE_LLAMA_CPP_DIR="$2"
+        shift 2
+        ;;
+      --extra-llama-args)
+        LLAMA_EXTRA_ARGS="$2"
+        shift 2
+        ;;
+      *)
+        POSITIONAL_ARGS+=("$1")
+        shift
+        ;;
+    esac
+  done
+}
+
+detect_cuda() {
+  if command_exists nvcc; then
+    return 0
+  fi
+  local p
+  for p in /usr/local/cuda/bin /usr/local/cuda-*/bin; do
+    if [[ -x "$p/nvcc" ]]; then
+      export PATH="$p:$PATH"
+      if [[ -d "${p%/bin}/lib64" ]]; then
+        export LD_LIBRARY_PATH="${p%/bin}/lib64:${LD_LIBRARY_PATH:-}"
+      fi
+      return 0
+    fi
+  done
+  if command_exists nvidia-smi; then
+    return 0
+  fi
+  return 1
+}
+
+setup_python_env() {
+  local env_type="${PYTHON_ENV:-auto}"
+
+  # 1. Active Conda env
+  if [[ "$env_type" == "active-conda" || ( "$env_type" == "auto" && -n "${CONDA_PREFIX:-}" ) ]]; then
+    if [[ -n "${CONDA_PREFIX:-}" ]]; then
+      log "Using active Conda environment: ${CONDA_DEFAULT_ENV:-oracle}"
+      return 0
+    elif [[ "$env_type" == "active-conda" ]]; then
+      fail "active-conda specified but no Conda environment is active."
+    fi
+  fi
+
+  # 2. Conda 'oracle' env
+  if [[ "$env_type" == "conda" || "$env_type" == "auto" ]] && command_exists conda; then
+    if conda env list | grep -q -E "^oracle[[:space:]]"; then
+      local conda_path
+      conda_path="$(conda info --base)"
+      if [[ -f "$conda_path/etc/profile.d/conda.sh" ]]; then
+        # shellcheck source=/dev/null
+        source "$conda_path/etc/profile.d/conda.sh"
+        conda activate oracle
+        if [[ "${CONDA_DEFAULT_ENV:-}" == "oracle" ]]; then
+          return 0
+        fi
+      fi
+    fi
+    if [[ "$env_type" == "conda" ]]; then
+      fail "Conda was specified, but 'oracle' environment could not be found/activated."
+    fi
+  fi
+
+  # 3. UV virtualenv
+  if [[ "$env_type" == "uv" || "$env_type" == "auto" ]] && command_exists uv; then
     if [[ -f "$VENV_DIR/bin/activate" ]]; then
       # shellcheck source=/dev/null
       source "$VENV_DIR/bin/activate"
-    elif [[ -f "$VENV_DIR/Scripts/activate" ]]; then
-      # shellcheck source=/dev/null
-      source "$VENV_DIR/Scripts/activate"
-    else
-      fail "venv activation failed after build"
+      return 0
     fi
+  fi
+
+  # 4. Fallback to standard venv
+  if [[ -f "$VENV_DIR/bin/activate" ]]; then
+    # shellcheck source=/dev/null
+    source "$VENV_DIR/bin/activate"
+    return 0
+  fi
+
+  # If nothing is found/activated, trigger build first!
+  log "No Python environment activated or found. Running build.sh to set up environment..."
+  local build_flags=()
+  if [[ "$PYTHON_ENV" != "auto" ]]; then
+    build_flags+=(--python-env "$PYTHON_ENV")
+  fi
+  if [[ -n "$ORACLE_LLAMA_CPP_DIR" ]]; then
+    build_flags+=(--llama-dir "$ORACLE_LLAMA_CPP_DIR")
+  fi
+  if [[ -n "$BUILD_JOBS" ]]; then
+    build_flags+=(-j "$BUILD_JOBS")
+  fi
+  if [[ -n "$RUN_ORACLE_LLAMA_MODEL_PATH" ]]; then
+    build_flags+=(--model-path "$RUN_ORACLE_LLAMA_MODEL_PATH")
+  fi
+  
+  "$ROOT_DIR/build.sh" "${build_flags[@]}"
+  
+  # Try activating again after build
+  if [[ -f "$VENV_DIR/bin/activate" ]]; then
+    # shellcheck source=/dev/null
+    source "$VENV_DIR/bin/activate"
+    return 0
+  else
+    fail "Python environment setup failed after running build.sh"
   fi
 }
 
@@ -121,7 +297,7 @@ apply_run_config() {
   export ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS="$RUN_ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS"
 
   export ORACLE_START_LLAMA_SERVER="$RUN_ORACLE_START_LLAMA_SERVER"
-  export ORACLE_LLAMA_MODEL_PATH="$RUN_ORACLE_LLAMA_MODEL_PATH"
+  export ORACLE_LLAMA_MODEL_PATH="${ORACLE_LLAMA_MODEL_PATH:-$RUN_ORACLE_LLAMA_MODEL_PATH}"
   export ORACLE_LLAMA_SERVER_BIN="$RUN_ORACLE_LLAMA_SERVER_BIN"
   export LLAMA_CONTEXT_SIZE="$RUN_LLAMA_CONTEXT_SIZE"
 
@@ -139,6 +315,8 @@ apply_run_config() {
   export ORACLE_OUTPUT_DIR="$RUN_ORACLE_OUTPUT_DIR"
   export ORACLE_MANSE_DB_PATH="$RUN_ORACLE_MANSE_DB_PATH"
   export ORACLE_FACE_DB_PATH="$RUN_ORACLE_FACE_DB_PATH"
+
+  export ORACLE_LLAMA_CPP_DIR="$ORACLE_LLAMA_CPP_DIR"
 }
 
 llm_host_port() {
@@ -177,8 +355,14 @@ find_llama_server() {
     command -v "$ORACLE_LLAMA_SERVER_BIN"
   elif command_exists llama-server; then
     command -v llama-server
-  elif [[ -x "$LLAMA_CPP_DIR/build/bin/llama-server" ]]; then
-    printf '%s\n' "$LLAMA_CPP_DIR/build/bin/llama-server"
+  elif [[ -d "$ORACLE_LLAMA_CPP_DIR" ]]; then
+    local found_bin
+    found_bin="$(find "$ORACLE_LLAMA_CPP_DIR" -type f -name 'llama-server' -executable | head -n 1)"
+    if [[ -n "$found_bin" ]]; then
+      printf '%s\n' "$found_bin"
+    else
+      return 1
+    fi
   else
     return 1
   fi
@@ -230,8 +414,24 @@ configured_model_hash_for_path() {
   model_path="$1"
   configured_hash="${ORACLE_LLAMA_MODEL_SHA256:-}"
   result="$(default_model_hash_for_path "$model_path")"
-  if [[ -n "$configured_hash" && "$configured_hash" != "$PACKAGED_MODEL_SHA256" ]]; then
-    result="$configured_hash"
+  
+  local model_name="${model_path##*/}"
+  if [[ "$model_name" == "gemma-3-1b-it-Q4_0.gguf" ]]; then
+    if [[ -n "$configured_hash" ]]; then
+      result="$configured_hash"
+    fi
+  else
+    if [[ -n "${RUN_ORACLE_LLAMA_MODEL_PATH:-}" ]]; then
+      result=""
+    else
+      local env_model_path="${ORACLE_LLAMA_MODEL_PATH:-}"
+      local env_model_name="${env_model_path##*/}"
+      if [[ -n "$env_model_name" && "$model_name" == "$env_model_name" && -n "$configured_hash" ]]; then
+        result="$configured_hash"
+      else
+        result=""
+      fi
+    fi
   fi
   printf '%s\n' "$result"
 }
@@ -258,7 +458,7 @@ find_repo_model_file() {
   local model_file
   model_file=""
   if [[ -d "$ROOT_DIR/models" ]]; then
-    model_file="$(find "$ROOT_DIR/models" -maxdepth 1 -type f -name '*.gguf' |
+    model_file="$(find "$ROOT_DIR/models" -type f -name '*.gguf' |
       sort |
       head -n 1)"
   fi
@@ -315,9 +515,9 @@ download_model_file() {
 ensure_model_file() {
   local model_path
   local existing_model_path
-  model_path="${ORACLE_LLAMA_MODEL_PATH:-${LLAMA_MODEL:-}}"
+  model_path="$ORACLE_LLAMA_MODEL_PATH"
   if [[ -z "$model_path" ]]; then
-    fail "set ORACLE_LLAMA_MODEL_PATH in .env to an existing .gguf model"
+    fail "Model path not set. Specify model with --model-path option"
   fi
   if [[ "${model_path##*/}" == "model.gguf" ]]; then
     log "models/model.gguf is a legacy default; using Gemma 3 1B Q4"
@@ -360,7 +560,7 @@ start_llama_server() {
 
   local model_path
   ensure_model_file
-  model_path="${ORACLE_LLAMA_MODEL_PATH:-${LLAMA_MODEL:-}}"
+  model_path="$ORACLE_LLAMA_MODEL_PATH"
 
   local server_bin
   server_bin="$(find_llama_server)" ||
@@ -369,16 +569,51 @@ start_llama_server() {
   read -r host port < <(llm_host_port)
   mkdir -p "$LLAMA_LOG_DIR" "$ROOT_DIR/runs"
   log "starting llama.cpp server on $host:$port"
-  "$server_bin" \
-    -m "$model_path" \
-    --host "$host" \
-    --port "$port" \
-    -c "${LLAMA_CONTEXT_SIZE:-4096}" \
-    >"$LLAMA_LOG_DIR/llama-server.log" 2>&1 &
+
+  local server_args=(
+    -m "$model_path"
+    --host "$host"
+    --port "$port"
+    -c "${LLAMA_CONTEXT_SIZE:-4096}"
+    -fa off
+    -ctk q4_0
+    --reasoning-format none
+  )
+
+  # Check GPU/CUDA and automatically set GPU layers if NGL is not explicitly set
+  local use_cuda=0
+  if detect_cuda; then
+    use_cuda=1
+  fi
+
+  if [[ -n "$LLAMA_NGL" ]]; then
+    server_args+=(-ngl "$LLAMA_NGL")
+  elif [[ "$use_cuda" -eq 1 ]]; then
+    log "CUDA detected, automatically setting --n-gpu-layers 99 to offload all layers to GPU"
+    server_args+=(-ngl 99)
+  fi
+
+  if [[ -n "$LLAMA_THREADS" ]]; then
+    server_args+=(-t "$LLAMA_THREADS")
+  fi
+
+  if [[ -n "$LLAMA_BATCH_SIZE" ]]; then
+    server_args+=(-b "$LLAMA_BATCH_SIZE")
+  fi
+
+  if [[ -n "$LLAMA_EXTRA_ARGS" ]]; then
+    # split arguments safely
+    # shellcheck disable=SC2206
+    server_args+=($LLAMA_EXTRA_ARGS)
+  fi
+
+  log "llama-server arguments: ${server_args[*]}"
+
+  "$server_bin" "${server_args[@]}" >"$LLAMA_LOG_DIR/llama-server.log" 2>&1 &
   printf '%s\n' "$!" >"$LLAMA_PID_FILE"
 
   local attempt
-  for attempt in $(seq 1 60); do
+  for attempt in $(seq 1 180); do
     if server_ready; then
       log "llama.cpp server ready"
       return
@@ -500,35 +735,67 @@ needs_llm_server() {
       *)
         result=0
         ;;
-    esac
+      esac
   fi
   return "$result"
 }
 
 main() {
-  if [[ "${1:-}" == "build" ]]; then
-    "$ROOT_DIR/build.sh"
+  # Parse options
+  parse_args "$@"
+
+  # If build is requested, forward relevant build options
+  local cmd="${POSITIONAL_ARGS[0]:-}"
+  if [[ "$cmd" == "build" ]]; then
+    local build_args=("${POSITIONAL_ARGS[@]:1}")
+    if [[ -n "$BUILD_JOBS" ]]; then
+      build_args+=(-j "$BUILD_JOBS")
+    fi
+    if [[ -n "$PYTHON_ENV" ]]; then
+      build_args+=(--python-env "$PYTHON_ENV")
+    fi
+    if [[ -n "$RUN_ORACLE_LLAMA_MODEL_PATH" ]]; then
+      build_args+=(--model-path "$RUN_ORACLE_LLAMA_MODEL_PATH")
+    fi
+    if [[ -n "$ORACLE_LLAMA_CPP_DIR" ]]; then
+      build_args+=(--llama-dir "$ORACLE_LLAMA_CPP_DIR")
+    fi
+    if detect_cuda; then
+      build_args+=(--cuda)
+    else
+      build_args+=(--cpu)
+    fi
+    "$ROOT_DIR/build.sh" "${build_args[@]}"
     return
   fi
 
-  activate_venv
+  # Activate python environment
+  setup_python_env
   load_env
+
+  # Apply arguments to runtime variables
+  if [[ -n "$RUN_ORACLE_LLAMA_MODEL_PATH" ]]; then
+    export ORACLE_LLAMA_MODEL_PATH="$RUN_ORACLE_LLAMA_MODEL_PATH"
+  else
+    # Fallback to env or default
+    export ORACLE_LLAMA_MODEL_PATH="${ORACLE_LLAMA_MODEL_PATH:-$ROOT_DIR/models/gemma-3-1b-it-Q4_0.gguf}"
+  fi
+
   apply_run_config
 
-  case "${1:-}" in
+  # Re-evaluate command from positional arguments
+  case "$cmd" in
     debug)
-      shift
-      run_debug_mode "$@"
+      run_debug_mode "${POSITIONAL_ARGS[@]:1}"
       ;;
     release)
-      shift
-      run_release_mode "$@"
+      run_release_mode "${POSITIONAL_ARGS[@]:1}"
       ;;
     *)
-      if needs_llm_server "$@"; then
+      if needs_llm_server "${POSITIONAL_ARGS[@]}"; then
         start_llama_server
       fi
-      run_oracle "$@"
+      run_oracle "${POSITIONAL_ARGS[@]}"
       ;;
   esac
 }

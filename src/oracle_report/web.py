@@ -109,6 +109,7 @@ def create_app() -> Flask:
                     gender=_form_value("gender"),
                     target_gender=_form_value("target_gender"),
                     face_analysis_mode=_form_int("face_analysis_mode", 1),
+                    skip_face=_form_bool("skip_face", False),
                 )
                 workflow_result = run_personal_workflow(
                     workflow_input=workflow_input,
@@ -133,6 +134,7 @@ def create_app() -> Flask:
             gender=_form_value("gender"),
             target_gender=_form_value("target_gender"),
             face_analysis_mode=_form_int("face_analysis_mode", 1),
+            skip_face=_form_bool("skip_face", False),
         )
 
         def run_job() -> str:
@@ -272,6 +274,14 @@ def _form_int(name: str, default: int) -> int:
     return result
 
 
+def _form_bool(name: str, default: bool) -> bool:
+    raw_value = _form_value(name)
+    result = default
+    if raw_value != "":
+        result = raw_value.lower() in ("1", "true", "yes", "y", "on")
+    return result
+
+
 def _preview_capture_runner(config, output_dir: Path | None = None):
     result = run_capture(
         config,
@@ -353,13 +363,17 @@ def _personal_form() -> str:
     result = f"""
     <form method="post" class="panel workflow-form" data-workflow-api="/api/personal">
       <h2>개인 리포트</h2>
+      <input type="hidden" name="skip_face" value="0">
       <label>이름<input name="name" required></label>
       <label>생년월일<input name="birth_date" type="date" required></label>
       <label>태어난 시간<span class="hint">모르면 모름 선택</span><select name="birth_time">{birth_time_options}</select></label>
       <label>성별<select name="gender" required>{gender_options}</select></label>
       <label>추천받고 싶은 얼굴 성별<select name="target_gender">{target_gender_options}</select></label>
       <label>관상 분석 모드<select name="face_analysis_mode">{mode_options}</select></label>
-      <button type="submit">개인 리포트 촬영 시작</button>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button type="submit" onclick="this.form.skip_face.value='0';">개인 리포트 촬영 시작</button>
+        <button type="submit" onclick="this.form.skip_face.value='1';" style="background: #4b5563; border-color: #4b5563;">관상 없이 사주만 보기</button>
+      </div>
     </form>
     {_capture_preview_panel()}
     """
@@ -608,16 +622,23 @@ def _render_page(title: str, body: str) -> str:
           forms.forEach((form) => {{
             form.addEventListener("submit", async (event) => {{
               event.preventDefault();
+              const skipFaceInput = form.querySelector('[name="skip_face"]');
+              const skipFace = skipFaceInput && skipFaceInput.value === "1";
               const preview = document.querySelector(".capture-preview");
               const previewImage = document.getElementById("capture-preview-image");
               const status = document.getElementById("workflow-status");
               const result = document.getElementById("workflow-result");
-              preview.hidden = false;
               result.innerHTML = "";
-              status.textContent = "촬영 중";
-              previewImage.src = "/video-feed?ts=" + Date.now();
-              const button = form.querySelector("button");
-              button.disabled = true;
+              if (skipFace) {{
+                preview.hidden = true;
+                status.textContent = "리포트 생성 중";
+              }} else {{
+                preview.hidden = false;
+                status.textContent = "촬영 중";
+                previewImage.src = "/video-feed?ts=" + Date.now();
+              }}
+              const buttons = form.querySelectorAll("button");
+              buttons.forEach(btn => btn.disabled = true);
               try {{
                 const startResponse = await fetch(form.dataset.workflowApi, {{
                   method: "POST",
@@ -629,7 +650,7 @@ def _render_page(title: str, body: str) -> str:
                 result.innerHTML = '<section class="error"><strong>처리 중 오류가 발생했습니다.</strong><p>' + String(error) + '</p></section>';
                 status.textContent = "오류";
               }} finally {{
-                button.disabled = false;
+                buttons.forEach(btn => btn.disabled = false);
               }}
             }});
           }});
@@ -637,7 +658,7 @@ def _render_page(title: str, body: str) -> str:
           async function pollWorkflow(jobId, status, result) {{
             let done = false;
             while (!done) {{
-              await new Promise((resolve) => setTimeout(resolve, 800));
+              await new Promise((resolve) => setTimeout(resolve, 5000));
               const response = await fetch("/api/jobs/" + encodeURIComponent(jobId));
               const payload = await response.json();
               if (payload.status === "complete") {{

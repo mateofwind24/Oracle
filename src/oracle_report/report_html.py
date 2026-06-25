@@ -154,6 +154,7 @@ class _PersonalReportView:
     recommendation_lead: str
     recommendation_cards: tuple[_RecommendationCard, ...]
     disclaimer: str
+    skip_face: bool = False
 
 
 @dataclass(frozen=True)
@@ -182,6 +183,7 @@ def render_personal_report_html(
     recommendations: tuple[FaceRecommendation, ...],
     generated_text: str,
     full_document: bool = True,
+    skip_face: bool = False,
 ) -> str:
     view = _build_personal_report_view(
         profile,
@@ -189,6 +191,7 @@ def render_personal_report_html(
         face_analysis,
         recommendations,
         generated_text,
+        skip_face=skip_face,
     )
     body = _render_report_body(view)
     style = _report_style()
@@ -274,6 +277,7 @@ def _build_personal_report_view(
     face_analysis: str,
     recommendations: tuple[FaceRecommendation, ...],
     generated_text: str,
+    skip_face: bool = False,
 ) -> _PersonalReportView:
     payload = _load_generated_payload(generated_text)
     reading = manse_lookup.reading
@@ -354,6 +358,7 @@ def _build_personal_report_view(
             "disclaimer",
             "이 리포트는 얼굴 관찰과 사주/만세력 데이터를 바탕으로 생성된 재미용 콘텐츠입니다. 운명을 단정하지 않으며 참고로만 즐겨 주세요.",
         ),
+        skip_face=skip_face,
     )
     return result
 
@@ -732,11 +737,13 @@ def _first_nonempty_line(text: str, fallback: str) -> str:
 
 
 def _render_report_body(view: _PersonalReportView) -> str:
+    eyebrow_text = "Oracle · 사주 리포트" if view.skip_face else "Oracle · 관상 &amp; 사주 종합 리포트"
+    gwansang_html = "" if view.skip_face else _render_part("gwansang", "相", "관상 — 얼굴이 말하는 것", view.face_subtitle, view.face_blocks)
     result = f"""
 <div class="oracle-report">
 <div class="wrap">
   <header class="fade">
-    <div class="eyebrow">Oracle · 관상 &amp; 사주 종합 리포트</div>
+    <div class="eyebrow">{eyebrow_text}</div>
     <div class="ilgan {escape(view.day_master_class)}">{escape(view.day_master_hanja)}<span class="ko">{escape(view.day_master_label)}</span></div>
     <div class="name">{escape(view.name)} 님</div>
     <div class="meta">{escape(view.meta)}</div>
@@ -744,7 +751,7 @@ def _render_report_body(view: _PersonalReportView) -> str:
   </header>
   {_render_element_balance(view)}
   {_render_pillars(view)}
-  {_render_part("gwansang", "相", "관상 — 얼굴이 말하는 것", view.face_subtitle, view.face_blocks)}
+  {gwansang_html}
   {_render_part("saju", "命", "사주 — 타고난 기운의 설계도", view.saju_subtitle, view.saju_blocks)}
   {_render_synthesis(view)}
   {_render_tags(view.tags)}
@@ -938,11 +945,20 @@ def _render_block(block: _ReportBlock) -> str:
 
 
 def _render_synthesis(view: _PersonalReportView) -> str:
-    convergence = "\n".join(
-        f"""      <div class="cv"><span class="g">{escape(item.face)}</span><span class="eq">＝</span><span class="s">{escape(item.saju)}</span></div>"""
-        for item in view.convergence
-    )
-    result = f"""
+    if view.skip_face:
+        result = f"""
+  <section class="synth fade">
+    <div class="b-title serif">{escape(view.synth_title)}</div>
+    <div class="b-body">{_paragraphs(view.synth_body)}</div>
+    <div class="b-body synth-summary">{_paragraphs(view.synth_summary)}</div>
+  </section>
+"""
+    else:
+        convergence = "\n".join(
+            f"""      <div class="cv"><span class="g">{escape(item.face)}</span><span class="eq">＝</span><span class="s">{escape(item.saju)}</span></div>"""
+            for item in view.convergence
+        )
+        result = f"""
   <section class="synth fade">
     <div class="b-title serif">{escape(view.synth_title)}</div>
     <div class="b-body">{_paragraphs(view.synth_body)}</div>
