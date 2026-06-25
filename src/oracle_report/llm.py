@@ -8,6 +8,9 @@ from typing import Any
 from oracle_report.config import LlmConfig
 
 
+_INCOMPLETE_FINISH_REASONS = frozenset(("length",))
+
+
 class LlamaCppChatClient:
     def __init__(self, config: LlmConfig) -> None:
         self._config = config
@@ -29,23 +32,32 @@ class LlamaCppChatClient:
             raise RuntimeError(
                 f"local llama.cpp request failed: HTTP {response.status_code}",
             )
-        root = response.json()
-        result = _extract_output_text(root)
-
         elapsed = t1 - t0
+        root = response.json()
         usage = root.get("usage", {}) if isinstance(root.get("usage"), dict) else {}
         completion_tokens = usage.get("completion_tokens", 0)
         prompt_tokens = usage.get("prompt_tokens", 0)
-        
+        finish_reason = _extract_finish_reason(root)
+        result = _extract_output_text(root)
+
         speed_str = ""
         if completion_tokens > 0 and elapsed > 0:
             speed = completion_tokens / elapsed
             speed_str = f" ({speed:.2f} tokens/sec)"
-        
+
         print(
             f"[LLM] Inference complete: prompt_tokens={prompt_tokens}, "
-            f"completion_tokens={completion_tokens}, elapsed={elapsed:.2f}s{speed_str}"
+            f"completion_tokens={completion_tokens}, "
+            f"finish_reason={finish_reason or 'unknown'}, "
+            f"elapsed={elapsed:.2f}s{speed_str}"
         )
+        if finish_reason in _INCOMPLETE_FINISH_REASONS:
+            raise RuntimeError(
+                "incomplete LLM response: "
+                f"finish_reason={finish_reason}, "
+                f"completion_tokens={completion_tokens}, "
+                f"max_output_tokens={self._config.max_output_tokens}",
+            )
         return result
 
     def _build_payload(self, prompt: str, image_path: Path | None) -> dict[str, Any]:
@@ -91,6 +103,18 @@ def _extract_output_text(root: dict[str, Any]) -> str:
                 result = _message_content_to_text(message.get("content"))
     if result.strip() == "":
         raise RuntimeError("empty LLM response")
+    return result
+
+
+def _extract_finish_reason(root: dict[str, Any]) -> str:
+    result = ""
+    choices = root.get("choices")
+    if isinstance(choices, list) and choices:
+        first_choice = choices[0]
+        if isinstance(first_choice, dict):
+            finish_reason = first_choice.get("finish_reason")
+            if isinstance(finish_reason, str):
+                result = finish_reason
     return result
 
 

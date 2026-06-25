@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 from oracle_report.config import LlmConfig, load_face_llm_config, load_llm_config
-from oracle_report.llm import LlamaCppChatClient, _extract_output_text
+from oracle_report.llm import (
+    LlamaCppChatClient,
+    _extract_finish_reason,
+    _extract_output_text,
+)
 
 
 def test_default_llm_config_uses_llama_cpp(monkeypatch) -> None:
@@ -74,3 +78,21 @@ def test_extracts_chat_completion_text() -> None:
     )
 
     assert text == "리포트 본문"
+
+
+def test_extracts_chat_completion_finish_reason() -> None:
+    finish_reason = _extract_finish_reason(
+        {
+            "choices": [
+                {
+                    "finish_reason": "length",
+                    "message": {
+                        "role": "assistant",
+                        "content": "잘린 리포트",
+                    },
+                },
+            ],
+        },
+    )
+
+    assert finish_reason == "length"
