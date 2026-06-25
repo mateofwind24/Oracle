@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oracle 리포트 · 김승진</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=Song+Myung&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F1E7; --paper-2:#FBF8F1; --ink:#2A2520; --ink-soft:#6B6256;
+    --line:#DAD0BE;
+    --mok:#3A7D5C;    /* 목 木 */
+    --hwa:#C25239;    /* 화 火 */
+    --to:#CC9A3B;     /* 토 土 */
+    --geum:#9A958B;   /* 금 金 */
+    --su:#2E4258;     /* 수 水 */
+    --gold:#A8823C;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"Gowun Dodum",sans-serif; line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(circle at 20% 10%, rgba(58,125,92,.04), transparent 40%),
+                     radial-gradient(circle at 85% 30%, rgba(194,82,57,.04), transparent 40%);
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:0 22px}
+  .serif{font-family:"Gowun Batang",serif}
+
+  /* ── hero ── */
+  header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:12px;letter-spacing:.42em;color:var(--gold);text-transform:uppercase;margin-bottom:26px}
+  .ilgan{font-family:"Song Myung",serif;font-size:120px;line-height:1;color:var(--mok);position:relative;display:inline-block}
+  .ilgan .ko{font-family:"Gowun Batang",serif;font-size:20px;color:var(--ink-soft);position:absolute;bottom:14px;right:-8px;transform:translateX(100%)}
+  .name{font-family:"Gowun Batang",serif;font-size:30px;font-weight:700;margin-top:18px}
+  .meta{font-size:14px;color:var(--ink-soft);margin-top:8px;letter-spacing:.04em}
+  .essence{font-family:"Gowun Batang",serif;font-size:19px;margin-top:24px;color:var(--ink);max-width:30ch;margin-left:auto;margin-right:auto}
+
+  /* ── 오행 밸런스 (signature) ── */
+  .ohaeng{margin:46px 0;padding:30px 26px;background:var(--paper-2);border:1px solid var(--line);border-radius:6px}
+  .ohaeng h3{font-family:"Gowun Batang",serif;font-size:13px;letter-spacing:.3em;color:var(--ink-soft);text-align:center;margin-bottom:26px;font-weight:400}
+  .bars{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;height:140px}
+  .bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+  .col{width:100%;border-radius:4px 4px 0 0;position:relative;transition:height .9s cubic-bezier(.2,.7,.2,1)}
+  .bar .han{font-family:"Song Myung",serif;font-size:26px;margin-top:10px;color:var(--ink)}
+  .bar .cnt{font-size:12px;color:var(--ink-soft);margin-top:2px}
+  .bar.empty .col{background:transparent;border:1.5px dashed var(--su);height:14px!important}
+  .bar.empty .label-miss{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--su);white-space:nowrap;font-weight:700}
+  .bar.empty .han{color:var(--su);opacity:.55}
+
+  /* ── 명식 표 ── */
+  .myeongsik{margin:46px 0}
+  .myeongsik .cap{font-family:"Gowun Batang",serif;font-size:13px;letter-spacing:.3em;color:var(--ink-soft);text-align:center;margin-bottom:18px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .pcol{text-align:center}
+  .pcol .ptitle{font-size:12px;color:var(--ink-soft);margin-bottom:6px}
+  .cell{border-radius:5px;padding:12px 4px;color:#fff}
+  .cell .ch{font-family:"Song Myung",serif;font-size:34px;line-height:1.1}
+  .cell .ss{font-size:11px;opacity:.92;margin-top:3px}
+  .cell.gan{margin-bottom:6px}
+  .c-mok{background:var(--mok)} .c-hwa{background:var(--hwa)}
+  .c-to{background:var(--to)} .c-geum{background:var(--geum)} .c-su{background:var(--su)}
+
+  /* ── section ── */
+  .part{margin:56px 0 0}
+  .part-head{display:flex;align-items:baseline;gap:14px;padding-bottom:14px;border-bottom:2px solid var(--ink);margin-bottom:30px}
+  .part-num{font-family:"Song Myung",serif;font-size:40px;line-height:1;color:var(--gold)}
+  .part-title{font-family:"Gowun Batang",serif;font-size:24px;font-weight:700}
+  .part-sub{font-size:13px;color:var(--ink-soft);margin-left:auto}
+
+  .block{margin-bottom:34px}
+  .b-cat{font-size:11px;letter-spacing:.25em;color:var(--gold);text-transform:uppercase;margin-bottom:8px}
+  .b-title{font-family:"Gowun Batang",serif;font-size:21px;font-weight:700;line-height:1.4;margin-bottom:10px}
+  .b-sum{font-size:14px;color:var(--mok);font-weight:400;margin-bottom:12px;padding-left:14px;border-left:3px solid var(--mok)}
+  .part.saju .b-sum{color:var(--hwa);border-color:var(--hwa)}
+  .b-body{font-size:15.5px;color:var(--ink)}
+
+  /* ── 통합 ── */
+  .synth{margin:60px 0 0;padding:38px 30px;background:linear-gradient(135deg, rgba(58,125,92,.07), rgba(194,82,57,.07));border:1px solid var(--line);border-radius:8px}
+  .synth .b-title{font-size:24px;text-align:center;margin-bottom:18px}
+  .synth .b-body{font-size:15.5px}
+  .converge{margin:24px 0 4px;display:flex;flex-direction:column;gap:10px}
+  .cv{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;font-size:13.5px}
+  .cv .g{color:var(--mok);text-align:right} .cv .s{color:var(--hwa)}
+  .cv .eq{color:var(--gold);font-family:"Gowun Batang",serif;font-weight:700}
+
+  /* ── tags ── */
+  .tags{margin:46px 0;text-align:center}
+  .tags h3{font-family:"Gowun Batang",serif;font-size:13px;letter-spacing:.3em;color:var(--ink-soft);margin-bottom:18px;font-weight:400}
+  .chip{display:inline-block;margin:5px;padding:9px 18px;background:var(--paper-2);border:1px solid var(--su);color:var(--su);border-radius:30px;font-size:14px;font-family:"Gowun Batang",serif}
+
+  /* ── 궁합 얼굴 추천 ── */
+  .reco{margin:60px 0 0}
+  .reco-head{text-align:center;margin-bottom:8px}
+  .reco-head .b-title{font-size:24px}
+  .reco-lead{text-align:center;font-size:14px;color:var(--ink-soft);max-width:42ch;margin:0 auto 30px;line-height:1.75}
+  .reco-lead b{color:var(--su)}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .card{background:var(--paper-2);border:1px solid var(--line);border-radius:8px;padding:18px 16px 20px;text-align:center;position:relative;transition:transform .25s ease, box-shadow .25s ease}
+  .card:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(46,66,88,.12)}
+  .card .rank{position:absolute;top:12px;left:14px;font-family:"Song Myung",serif;font-size:13px;color:var(--gold)}
+  .face{width:86px;height:86px;border-radius:50%;margin:6px auto 14px;background:linear-gradient(135deg,#dfe6e9,#c7d0d6);display:flex;align-items:center;justify-content:center;border:2px solid var(--su)}
+  .face svg{width:46px;height:46px;fill:var(--su);opacity:.7}
+  .card .nm{font-family:"Gowun Batang",serif;font-size:16px;font-weight:700}
+  .score{font-family:"Song Myung",serif;font-size:30px;color:var(--su);line-height:1.1;margin:4px 0 2px}
+  .score span{font-size:14px;color:var(--ink-soft)}
+  .reason{font-size:12.5px;color:var(--ink);line-height:1.6;margin-top:8px}
+  .mtag{display:inline-block;margin-top:12px;padding:3px 10px;background:rgba(46,66,88,.08);color:var(--su);border-radius:20px;font-size:11px}
+  @media (max-width:560px){.cards{grid-template-columns:1fr;gap:12px}}
+
+  footer{text-align:center;padding:44px 0 60px;border-top:1px solid var(--line);margin-top:50px}
+  footer .logo{font-family:"Song Myung",serif;font-size:22px;letter-spacing:.2em;color:var(--ink)}
+  footer .disc{font-size:11.5px;color:var(--ink-soft);margin-top:12px;max-width:46ch;margin-left:auto;margin-right:auto;line-height:1.7}
+
+  .fade{opacity:0;transform:translateY(16px);animation:rise .8s ease forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.fade{animation:none;opacity:1;transform:none}.col{transition:none}}
+  @media (max-width:560px){
+    .ilgan{font-size:88px} .name{font-size:24px}
+    .cell .ch{font-size:26px} .part-title{font-size:20px}
+    .cv{grid-template-columns:1fr;text-align:center;gap:2px} .cv .g{text-align:center}
+  }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <header class="fade">
+    <div class="eyebrow">Oracle · 관상 &amp; 사주 종합 리포트</div>
+    <div class="ilgan" style="color:var(--su)">壬<span class="ko">임수 · 陽水</span></div>
+    <div class="name">김승진 님</div>
+    <div class="meta">1999. 08. 18 · 시간 미입력 · 남성 · 양력</div>
+    <p class="essence serif">묵직한 안정과 신뢰가 무기, 평생의 숙제는 ‘한 발 먼저 표현하기’인 사람</p>
+  </header>
+
+  <!-- 오행 밸런스 -->
+  <section class="ohaeng fade">
+    <h3>오 행 의 균 형</h3>
+    <div class="bars">
+      <div class="bar"><div class="col c-mok" style="height:100%"></div><div class="han">木</div><div class="cnt">목 · 2</div></div>
+      <div class="bar empty"><span class="label-miss" style="color:var(--hwa)">비어 있음</span><div class="col" style="border-color:var(--hwa)"></div><div class="han" style="color:var(--hwa)">火</div><div class="cnt">화 · 0</div></div>
+      <div class="bar"><div class="col c-to" style="height:50%"></div><div class="han">土</div><div class="cnt">토 · 1</div></div>
+      <div class="bar"><div class="col c-geum" style="height:50%"></div><div class="han">金</div><div class="cnt">금 · 1</div></div>
+      <div class="bar"><div class="col c-su" style="height:100%"></div><div class="han">水</div><div class="cnt">수 · 2</div></div>
+    </div>
+    <p style="text-align:center;font-size:13px;color:var(--ink-soft);margin-top:22px;line-height:1.7">
+      물(水)과 나무(木)는 넉넉한데 불(火)이 한 점도 없어요.<br>이 ‘비어 있는 불’ — 즉 열정과 표현 — 이 김승진 님 리포트의 키워드예요.
+    </p>
+  </section>
+
+  <!-- 명식 -->
+  <section class="myeongsik fade">
+    <div class="cap serif">사 주 명 식 (四柱命式)</div>
+    <div class="grid4">
+      <div class="pcol">
+        <div class="ptitle">시주</div>
+        <div class="cell gan" style="background:#E6E0D4;color:var(--ink-soft)"><div class="ch" style="font-size:24px">—</div><div class="ss">시간 미입력</div></div>
+        <div class="cell" style="background:#E6E0D4;color:var(--ink-soft)"><div class="ch" style="font-size:24px">—</div><div class="ss">시간 미입력</div></div>
+      </div>
+      <div class="pcol">
+        <div class="ptitle">일주 (나)</div>
+        <div class="cell gan c-su"><div class="ch">壬</div><div class="ss">임 · 일간</div></div>
+        <div class="cell c-mok"><div class="ch">寅</div><div class="ss">인 · 식신</div></div>
+      </div>
+      <div class="pcol">
+        <div class="ptitle">월주</div>
+        <div class="cell gan c-su"><div class="ch">壬</div><div class="ss">임 · 비견</div></div>
+        <div class="cell c-geum"><div class="ch">申</div><div class="ss">신 · 정인</div></div>
+      </div>
+      <div class="pcol">
+        <div class="ptitle">연주</div>
+        <div class="cell gan c-to"><div class="ch">己</div><div class="ss">기 · 정관</div></div>
+        <div class="cell c-mok"><div class="ch">卯</div><div class="ss">묘 · 상관</div></div>
+      </div>
+    </div>
+    <p style="text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:14px">※ 태어난 시간을 입력하지 않아 시주(時柱)는 비워두고, 연·월·일 3주만으로 해석했어요.</p>
+  </section>
+
+  <!-- 관상 -->
+  <section class="part gwansang fade">
+    <div class="part-head">
+      <div class="part-num">相</div>
+      <div class="part-title">관상 — 얼굴이 말하는 것</div>
+      <div class="part-sub">둥근형 · 토+수형</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">종합 형국</div>
+      <div class="b-title">급할 게 없는 사람의 단단함</div>
+      <div class="b-sum">화려하진 않아도 오래 볼수록 신뢰가 쌓이는 상</div>
+      <div class="b-body">얼굴이 둥글고 볼에 살이 적당히 있으셔서 토(土)랑 수(水) 기운이 섞여 있어요. 이게 묵직하게 안정감을 주면서도 사람을 품는 인상이라는 뜻이거든요. 눈매가 차분하고 표정에 들뜸이 없으셔서, 첫인상부터 ‘믿고 맡겨도 될 것 같은’ 분위기가 흘러요. 튀는 상이 아니라, 오래 볼수록 신뢰가 쌓이는 슬로우 스타터형 얼굴이에요.</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">타고난 성향과 심리</div>
+      <div class="b-title">감정 기복? 그게 뭔데</div>
+      <div class="b-sum">진중하고 신중한 뚝심형, 대신 속은 잘 안 보임</div>
+      <div class="b-body">눈썹이 일자에 가깝고 눈이 차분하셔서 감정 기복이 크지 않고 진중한 편이에요. 이게 한번 마음먹으면 꾸준히 밀고 가는 뚝심으로 이어지거든요. 다문 입과 잔잔한 눈매는 속을 쉽게 드러내지 않는 신중함을 뜻하고요. 다만 그만큼 생각을 안에 담아두는 편이라, 가끔은 먼저 말로 꺼내주면 주변이 더 편해져요.</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">재물운과 적성</div>
+      <div class="b-title">한 우물 파서 채우는 타입</div>
+      <div class="b-sum">꾸준함과 전문성으로 쌓는 재물</div>
+      <div class="b-body">코끝이 둥글고 살집이 있으셔서, 관상에서 보는 재물 모으는 힘이 있는 코예요. 둥근 얼굴의 안정형 기질이랑 합쳐지면, 한 방보다 꾸준함·전문성으로 차곡차곡 쌓는 쪽이 잘 맞는다는 뜻이고요. 변동 큰 일보다 틀이 잡힌 조직이나 깊게 파는 전문 분야에서 빛나는 상이에요.</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">연애운과 인간관계</div>
+      <div class="b-title">표현은 적어도 진심은 풀세트</div>
+      <div class="b-sum">진중하게 다가가는 믿음직형, 표현이 숙제</div>
+      <div class="b-body">눈매가 차분하고 입을 다문 인상이라, 먼저 들이대기보다 진중하게 다가가는 스타일이에요. 이게 한번 마음 주면 오래가고 믿음직한 연애로 이어지거든요. 근데 표현을 잘 안 하는 편이라 상대가 가끔 ‘무슨 생각이지?’ 할 수 있어요. 진심은 충분하니까 표현만 한 스푼 더 얹으면 관계가 훨씬 매끄러워져요.</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">인생의 흐름 · 삼정</div>
+      <div class="b-title">뒤로 갈수록 단단해지는 곡선</div>
+      <div class="b-sum">중·후반이 탄탄해지는 흐름</div>
+      <div class="b-body">이마(초년)는 앞머리에 가려 정확히 보긴 어렵지만, 코로 대표되는 중정이 안정적이라 중년 커리어가 단단하게 받쳐줘요. 볼과 턱(하정)에 살이 있어 말년 여유도 나쁘지 않고요. 이마(관록궁)를 살짝 드러내는 스타일은 사회운·명예운을 더 키워주니 한 번씩 시도해봐도 좋아요.</div>
+    </div>
+  </section>
+
+  <!-- 사주 -->
+  <section class="part saju fade">
+    <div class="part-head">
+      <div class="part-num">命</div>
+      <div class="part-title">사주 — 타고난 기운의 설계도</div>
+      <div class="part-sub">임수 · 정관+정인 · 화0</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">종합 형국</div>
+      <div class="b-title">사주 구조의 설계도: 당신의 삶은 어떤 건축물인가요?</div>
+      <div class="b-body">당신의 사주는 마치 튼튼한 기둥과 재료로 이루어진 건물 같아요. 연주(태어난 해)는 토(흙)와 목(나무)의 기운이 강하고, 월주(태어난 달)는 물과 금의 기운으로 연결되어 있죠. 이 구조를 보면, 현실 감각이 뛰어나고 안정적인 기반을 다지려는 성향이 엿보여요. 삶의 기본 틀은 단단하게 세우려는 모습이 명확해요.</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">타고난 성향과 심리 패턴</div>
+      <div class="b-title">내면의 설계: 어떤 마음으로 세상을 바라보고 있나요?</div>
+      <div class="b-body">당신은 기본적으로 현실을 꼼꼼하게 따져보는 스타일이 강해요. 다른 사람과의 관계에서 중요한 것은 실속과 안정감이라고 여기는 태도예요. 내면에서는 이 기준을 지키고 싶어 하는 마음이 크니, 때로는 너무 신중해져서 결정을 내리는 데 시간이 걸릴 수 있어요.</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">재물운과 적성</div>
+      <div class="b-title">돈 버는 방식: 당신의 재능을 어디에 투자해야 할까요?</div>
+      <div class="b-body">당신의 사주 구조를 보면, 현실 감각이 높고 실질적인 가치를 중요하게 생각하는 경향이 있어요. 돈을 벌 때는 겉으로 보이는 것보다 실속과 실질적인 성과를 따르는 방식이 잘 맞아요. 복잡한 계획보다는 눈에 보이는 성과를 중요하게 여기는 게 좋아요.</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">연애운과 인간관계</div>
+      <div class="b-title">인간관계의 밸런스: 관계에서 놓치지 말아야 할 포인트는?</div>
+      <div class="b-body">사람들과의 관계에서 안정감과 실속을 중요시하는 성향이 강해요. 주변에서도 당신을 현실적인 사람으로 보는데, 이 점을 잘 살리면 인간관계가 더 안정적으로 풀릴 수 있어요. 다만 너무 계산적으로 접근하면 소통이 겉도는 느낌을 줄 수 있으니, 솔직한 감정 표현이 필요해요.</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">2026년 올해의 운세</div>
+      <div class="b-title">불의 해, 다시 점검 모드</div>
+      <div class="b-body">2026년은 병오년으로, 불과 뜨거운 기운이 들어와요. 사주에 불(火)이 비어 있던 김승진 님에게는, 이 강한 화 기운이 안정된 구조를 다시 한번 점검하게 만드는 역할을 해요. 겉으로 보기에 시원시원하게 상황을 정리하고, 에너지를 재충전하는 기회로 삼을 수 있는 해예요.</div>
+    </div>
+
+    <div class="block">
+      <div class="b-cat">총평 및 인생의 조언</div>
+      <div class="b-title">균형 잡는 삶의 태도: 앞으로 나아가기 위한 방향은?</div>
+      <div class="b-body">삶을 살아가면서 너무 꽉 막히지 않고, 현실과 이상 사이에서 균형을 잡는 연습이 필요해요. 중요한 건 큰 그림을 놓치지 않으면서도 세부 사항에 너무 집착하지 않는 유연한 태도를 가지는 거예요.</div>
+    </div>
+  </section>
+
+  <!-- 고민 답변 (Q&A) -->
+  <section class="synth fade" style="background:linear-gradient(135deg, rgba(204,154,59,.10), rgba(46,66,88,.06))">
+    <div class="b-cat" style="text-align:center">YOUR QUESTION · 고민에 대한 답변</div>
+    <div class="b-title serif">“올해 주식으로 돈을 벌 수 있을까요?”</div>
+    <div class="b-body">명리학적으로 보면 김승진 님의 성향은 ‘실속’과 ‘현실성’을 중요시하는 쪽이에요. 그래서 단순한 투기보다는, 실질적인 가치와 연결된 방식으로 접근하는 게 유리해요. 투자할 때는 감정에 치우치지 않고 냉정하게 데이터를 분석해서 판단하는 태도가 가장 잘 맞고요. 한 방을 노리기보다 꾸준히 쌓는 전략이 김승진 님 그릇과 가장 어울려요.</div>
+  </section>
+
+  <!-- 통합 -->
+  <section class="synth fade">
+    <div class="b-title serif">관상도 사주도, 같은 말을 하고 있어요</div>
+    <div class="b-body">얼굴과 사주가 약속한 듯 같은 결론을 가리켜요. 타고난 무기와 평생의 숙제가 양쪽에서 정확히 겹치거든요.</div>
+    <div class="converge">
+      <div class="cv"><span class="g">둥근 얼굴·차분한 눈 (관상)</span><span class="eq">＝</span><span class="s">정관+정인의 안정 (사주)</span></div>
+      <div class="cv"><span class="g">둥근 코끝의 재물 (관상)</span><span class="eq">＝</span><span class="s">현실감각·실속 (사주)</span></div>
+      <div class="cv"><span class="g">다문 입·적은 표현 (관상)</span><span class="eq">＝</span><span class="s">솔직한 감정표현이 숙제 (사주)</span></div>
+      <div class="cv"><span class="g">묵직한 슬로우 스타터 (관상)</span><span class="eq">＝</span><span class="s">비어 있는 불 = 열정 보완 (사주)</span></div>
+    </div>
+    <div class="b-body" style="margin-top:22px">정리하면 — 타고난 무기는 <b>안정 · 신뢰 · 신중함</b>, 평생의 숙제는 <b>‘열정과 표현을 한 발 먼저 꺼내기’</b>. 이게 김승진 님의 얼굴과 사주가 함께 내놓은 한 줄 답이에요.</div>
+  </section>
+
+  <!-- tags -->
+  <section class="tags fade">
+    <h3>나 를 채 워 주 는 키 워 드</h3>
+    <span class="chip" style="border-color:var(--hwa);color:var(--hwa)">화(火) · 열정</span>
+    <span class="chip" style="border-color:var(--hwa);color:var(--hwa)">적극적인 표현</span>
+    <span class="chip" style="border-color:var(--hwa);color:var(--hwa)">새로운 도전</span>
+    <span class="chip" style="border-color:var(--hwa);color:var(--hwa)">밝은 컬러 · 레드</span>
+    <span class="chip" style="border-color:var(--hwa);color:var(--hwa)">감정 나누기</span>
+  </section>
+
+  <!-- 궁합 얼굴 추천 -->
+  <section class="reco fade">
+    <div class="reco-head"><div class="b-cat">FACE MATCH · 궁합 좋은 얼굴 추천</div>
+      <div class="b-title serif">당신의 ‘비어 있는 불’을 채워줄 얼굴</div></div>
+    <p class="reco-lead">김승진 님은 <b>화(火) 기운이 0</b>이라, 밝고 표현이 풍부한 화의 인상을 가진 상과 만나면 균형이 맞아요. 그래서 ‘나랑 닮은 차분한 얼굴’보다 <b>나에게 없는 열정을 채워주는 얼굴</b> 위주로 골랐어요. (추천 대상: 여성)</p>
+    <div class="cards">
+      <div class="card" style="--su:var(--hwa)">
+        <div class="rank">No.1</div>
+        <div class="face" style="border-color:var(--hwa)"><svg viewBox="0 0 24 24" style="fill:var(--hwa)"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5Z"/></svg></div>
+        <div class="nm">추천상대 A</div>
+        <div class="score" style="color:var(--hwa)">86<span>점</span></div>
+        <div class="reason">눈이 크고 표정이 밝은, 화(火)의 기운이 강한 상이에요. 차분한 당신에게 활기와 웃음을 불어넣어 주는 얼굴이거든요.</div>
+        <span class="mtag" style="background:rgba(194,82,57,.10);color:var(--hwa)">부족오행 보완 · 火</span>
+      </div>
+      <div class="card" style="--su:var(--hwa)">
+        <div class="rank">No.2</div>
+        <div class="face" style="border-color:var(--hwa)"><svg viewBox="0 0 24 24" style="fill:var(--hwa)"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5Z"/></svg></div>
+        <div class="nm">추천상대 B</div>
+        <div class="score" style="color:var(--hwa)">81<span>점</span></div>
+        <div class="reason">입꼬리가 올라가고 말에 생기가 도는 상이에요. 표현이 적은 당신의 속마음을 자연스럽게 끌어내 주는 인상이고요.</div>
+        <span class="mtag" style="background:rgba(194,82,57,.10);color:var(--hwa)">관상 상보 · 표현력</span>
+      </div>
+      <div class="card" style="--su:var(--hwa)">
+        <div class="rank">No.3</div>
+        <div class="face" style="border-color:var(--hwa)"><svg viewBox="0 0 24 24" style="fill:var(--hwa)"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5Z"/></svg></div>
+        <div class="nm">추천상대 C</div>
+        <div class="score" style="color:var(--hwa)">78<span>점</span></div>
+        <div class="reason">이마가 환하고 눈썹에 생기가 있어 추진력이 보이는 상이에요. 신중한 당신과 박자를 맞춰 새로운 도전을 함께할 동반자형이고요.</div>
+        <span class="mtag" style="background:rgba(194,82,57,.10);color:var(--hwa)">기운 보완 · 활력</span>
+      </div>
+    </div>
+    <p style="text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:18px">※ 내부 얼굴 DB에서 궁합 점수 상위 3명을 추렸어요. 얼굴 이미지는 데모용 placeholder예요.</p>
+  </section>
+
+  <footer>
+    <div class="logo">ORACLE</div>
+    <p class="disc">이 리포트는 관상(MediaPipe 얼굴 분석)과 사주(룰 기반 만세력 엔진) 데이터를 바탕으로 생성된 재미용 콘텐츠예요. 운명을 단정하지 않으며, 삶의 방향을 가볍게 비추는 참고로 즐겨 주세요.</p>
+  </footer>
+
+</div>
+</body>
+</html>
