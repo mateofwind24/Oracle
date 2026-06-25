@@ -385,25 +385,27 @@ def _personal_form() -> str:
             <label>이름</label>
             <input name="name" placeholder="이름을 입력하세요" required>
           </div>
-          <div class="field">
-            <label>생년월일</label>
-            <input name="birth_date" type="date" required>
-          </div>
-          <div class="field">
-            <label>태어난 시간<span class="hint">모르면 '모름'을 선택하세요</span></label>
-            <select name="birth_time">{birth_time_options}</select>
-          </div>
-          <div class="field">
-            <label>성별</label>
-            <select name="gender" required>{gender_options}</select>
-          </div>
-          <div class="field">
-            <label>추천받고 싶은 얼굴 성별</label>
-            <select name="target_gender">{target_gender_options}</select>
-          </div>
-          <div class="field">
-            <label>관상 분석 모드</label>
-            <select name="face_analysis_mode">{mode_options}</select>
+          <div class="field-grid">
+            <div class="field">
+              <label>생년월일</label>
+              <input name="birth_date" type="date" required>
+            </div>
+            <div class="field">
+              <label>태어난 시간<span class="hint">모르면 '모름'을 선택하세요</span></label>
+              <select name="birth_time">{birth_time_options}</select>
+            </div>
+            <div class="field">
+              <label>성별</label>
+              <select name="gender" required>{gender_options}</select>
+            </div>
+            <div class="field">
+              <label>추천받고 싶은 얼굴 성별</label>
+              <select name="target_gender">{target_gender_options}</select>
+            </div>
+            <div class="field field-wide">
+              <label>관상 분석 모드</label>
+              <select name="face_analysis_mode">{mode_options}</select>
+            </div>
           </div>
           <div class="actions">
             <button type="submit" class="btn btn-primary" onclick="this.form.skip_face.value='0';">개인 리포트 촬영 시작</button>
@@ -578,6 +580,9 @@ def _render_page(
             background: var(--paper);
             color: var(--ink);
           }}
+          * {{
+            box-sizing: border-box;
+          }}
           body {{
             margin: 0;
             min-height: 100vh;
@@ -593,8 +598,8 @@ def _render_page(
             padding: 32px 0;
           }}
           main.input-page {{
-            width: min(540px, calc(100vw - 40px));
-            padding: 48px 0;
+            width: min(860px, calc(100vw - 48px));
+            padding: 24px 0;
           }}
           h1 {{
             margin: 0 0 24px;
@@ -633,11 +638,11 @@ def _render_page(
           }}
           .brand {{
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 18px;
           }}
           .brand .logo {{
             font-family: "Song Myung", serif;
-            font-size: 34px;
+            font-size: 31px;
             letter-spacing: 0.22em;
             color: var(--ink);
           }}
@@ -646,10 +651,10 @@ def _render_page(
             letter-spacing: 0.4em;
             color: var(--gold);
             text-transform: uppercase;
-            margin-top: 10px;
+            margin-top: 6px;
           }}
           .brand .ornament {{
-            margin: 16px auto 0;
+            margin: 12px auto 0;
             width: 50px;
             height: 1px;
             background: var(--gold);
@@ -670,7 +675,7 @@ def _render_page(
             background: var(--paper-2);
             border: 1px solid var(--line);
             border-radius: 10px;
-            padding: 38px 34px 32px;
+            padding: 30px 34px 26px;
             box-shadow: 0 14px 40px -22px rgba(46, 37, 32, 0.4);
             position: relative;
           }}
@@ -685,11 +690,11 @@ def _render_page(
           .card-head {{
             position: relative;
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 22px;
           }}
           .card-head h1 {{
             font-family: "Gowun Batang", serif;
-            font-size: 24px;
+            font-size: 23px;
             font-weight: 700;
             margin: 0;
           }}
@@ -702,7 +707,18 @@ def _render_page(
             position: relative;
           }}
           .field {{
-            margin-bottom: 22px;
+            margin-bottom: 0;
+          }}
+          .field.lead {{
+            margin-bottom: 16px;
+          }}
+          .field-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px 18px;
+          }}
+          .field-wide {{
+            grid-column: 1 / -1;
           }}
           .grid {{
             display: grid;
@@ -742,7 +758,7 @@ def _render_page(
             width: 100%;
             color: var(--ink);
             background: #ffffff;
-            padding: 13px 15px;
+            padding: 12px 15px;
             transition: border-color 0.18s, box-shadow 0.18s;
           }}
           input::placeholder {{
@@ -783,7 +799,7 @@ def _render_page(
           .actions {{
             display: flex;
             gap: 10px;
-            margin-top: 30px;
+            margin-top: 22px;
           }}
           .btn {{
             flex: 1;
@@ -821,7 +837,7 @@ def _render_page(
             text-align: center;
             font-size: 11px;
             color: var(--ink-soft);
-            margin: 22px 0 0;
+            margin: 16px 0 0;
             line-height: 1.7;
           }}
           pre {{
@@ -888,11 +904,17 @@ def _render_page(
           }}
           @media (max-width: 480px) {{
             main.input-page {{
-              width: min(100vw - 32px, 540px);
+              width: min(100vw - 32px, 860px);
               padding: 34px 0;
             }}
             .input-card {{
               padding: 30px 22px 26px;
+            }}
+            .field-grid {{
+              grid-template-columns: 1fr;
+            }}
+            .field-wide {{
+              grid-column: auto;
             }}
             .actions {{
               flex-direction: column;
