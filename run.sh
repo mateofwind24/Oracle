@@ -41,7 +41,7 @@ RUN_ORACLE_FACE_DB_PATH="${RUN_ORACLE_FACE_DB_PATH:-$ROOT_DIR/data/face_recommen
 
 VENV_DIR="${ORACLE_VENV_DIR:-$ROOT_DIR/.venv}"
 DEPS_DIR="${ORACLE_DEPS_DIR:-$ROOT_DIR/.deps}"
-ORACLE_LLAMA_CPP_DIR="${ORACLE_LLAMA_CPP_DIR:-$HOME/llama.cpp}"
+ORACLE_LLAMA_CPP_DIR="${ORACLE_LLAMA_CPP_DIR:-$ROOT_DIR/llama.cpp}"
 LLAMA_LOG_DIR="$ROOT_DIR/runs/logs"
 LLAMA_PID_FILE="$ROOT_DIR/runs/llama-server.pid"
 GEMMA3_1B_Q4_MODEL_URL="https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_0.gguf"
@@ -355,8 +355,14 @@ find_llama_server() {
     command -v "$ORACLE_LLAMA_SERVER_BIN"
   elif command_exists llama-server; then
     command -v llama-server
-  elif [[ -x "$ORACLE_LLAMA_CPP_DIR/build/bin/llama-server" ]]; then
-    printf '%s\n' "$ORACLE_LLAMA_CPP_DIR/build/bin/llama-server"
+  elif [[ -d "$ORACLE_LLAMA_CPP_DIR" ]]; then
+    local found_bin
+    found_bin="$(find "$ORACLE_LLAMA_CPP_DIR" -type f -name 'llama-server' -executable | head -n 1)"
+    if [[ -n "$found_bin" ]]; then
+      printf '%s\n' "$found_bin"
+    else
+      return 1
+    fi
   else
     return 1
   fi
@@ -452,7 +458,7 @@ find_repo_model_file() {
   local model_file
   model_file=""
   if [[ -d "$ROOT_DIR/models" ]]; then
-    model_file="$(find "$ROOT_DIR/models" -maxdepth 1 -type f -name '*.gguf' |
+    model_file="$(find "$ROOT_DIR/models" -type f -name '*.gguf' |
       sort |
       head -n 1)"
   fi

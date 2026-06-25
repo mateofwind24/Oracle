@@ -2,7 +2,7 @@
 
 ## Assumptions
 
-`../tmi`에서 별도 라즈베리파이 하드웨어 스펙 파일은 찾지 못했습니다. 그래서 기본값은 Raspberry Pi 4/5급에서 USB 카메라 또는 libcamera로 노출된 카메라를 쓰는 보수적 설정입니다. 기본 설치 경로는 `/home/willtek/work/oracle`입니다.
+`../tmi`에서 별도 라즈베리파이 하드웨어 스펙 파일은 찾지 못했습니다. 그래서 기본값은 Raspberry Pi 4/5급에서 USB 카메라 또는 libcamera로 노출된 카메라를 쓰는 보수적 설정입니다. 기본 설치 경로는 `/home/hyukju/work/oracle`입니다.
 
 ## Camera
 
@@ -30,10 +30,10 @@ CSI 카메라가 OpenCV에 직접 노출되지 않으면 `libcamera-vid` 또는 
 ## Install
 
 ```bash
-mkdir -p /home/willtek/work
-cd /home/willtek/work
+mkdir -p /home/hyukju/work
+cd /home/hyukju/work
 git clone <repo-url> oracle
-cd /home/willtek/work/oracle
+cd /home/hyukju/work/oracle
 sudo apt-get update
 sudo apt-get install -y python3-opencv libatlas-base-dev
 python -m venv .venv
@@ -46,7 +46,7 @@ cp .env.example .env
 다운로드를 한 번에 준비합니다.
 
 ```bash
-cd /home/willtek/work/oracle
+cd /home/hyukju/work/oracle
 ORACLE_SKIP_TESTS=1 ./build.sh
 ```
 
@@ -64,7 +64,7 @@ MediaPipe FaceMesh 박스와 랜드마크 점을 함께 그립니다.
 텍스트 전용 모델:
 
 ```bash
-llama-server -m /home/willtek/work/oracle/models/gemma-3-1b-it-Q4_0.gguf --host 127.0.0.1 --port 8080 -c 4096
+llama-server -m /home/hyukju/work/oracle/models/gemma-3-1b-it-Q4_0.gguf --host 127.0.0.1 --port 8080 -c 4096
 ```
 
 비전 모델을 쓸 때는 해당 모델의 llama.cpp 문서에 맞춰 projector/mmproj 옵션을 함께 지정합니다. 텍스트 전용 서버에서는 `.env`에 아래 값을 둡니다.
@@ -85,4 +85,4 @@ sudo systemctl start llama-server
 sudo systemctl start oracle-report
 ```
 
-서비스 파일은 기본적으로 `/home/willtek/work/oracle`과 `User=willtek`을 기준으로 작성되어 있습니다. 다른 위치나 계정을 쓰면 `systemd/*.service`의 `WorkingDirectory`, `User`, 모델 경로를 바꿔야 합니다.
+서비스 파일은 기본적으로 `/home/hyukju/work/oracle`과 `User=hyukju`을 기준으로 작성되어 있습니다. 다른 위치나 계정을 쓰면 `systemd/*.service`의 `WorkingDirectory`, `User`, 모델 경로를 바꿔야 합니다.

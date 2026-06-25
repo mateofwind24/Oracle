@@ -1,0 +1,16 @@
+[Unit]
+Description=llama.cpp local LLM server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory={{ORACLE_DIR}}
+Environment=LLAMA_MODEL={{ORACLE_DIR}}/models/gemma-3-1b-it-Q4_0.gguf
+ExecStart={{ORACLE_DIR}}/scripts/run_llama_server.sh ${LLAMA_MODEL}
+Restart=on-failure
+RestartSec=5
+User={{ORACLE_USER}}
+
+[Install]
+WantedBy=multi-user.target

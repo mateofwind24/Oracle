@@ -14,20 +14,38 @@ class LlamaCppChatClient:
 
     def generate(self, prompt: str, image_path: Path | None = None) -> str:
         import requests
+        import time
 
         payload = self._build_payload(prompt, image_path)
+        t0 = time.perf_counter()
         response = requests.post(
             self._chat_completions_url(),
             headers={"Content-Type": "application/json"},
             data=json.dumps(payload),
             timeout=self._config.timeout_seconds,
         )
+        t1 = time.perf_counter()
         if response.status_code < 200 or response.status_code >= 300:
             raise RuntimeError(
                 f"local llama.cpp request failed: HTTP {response.status_code}",
             )
         root = response.json()
         result = _extract_output_text(root)
+
+        elapsed = t1 - t0
+        usage = root.get("usage", {}) if isinstance(root.get("usage"), dict) else {}
+        completion_tokens = usage.get("completion_tokens", 0)
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        
+        speed_str = ""
+        if completion_tokens > 0 and elapsed > 0:
+            speed = completion_tokens / elapsed
+            speed_str = f" ({speed:.2f} tokens/sec)"
+        
+        print(
+            f"[LLM] Inference complete: prompt_tokens={prompt_tokens}, "
+            f"completion_tokens={completion_tokens}, elapsed={elapsed:.2f}s{speed_str}"
+        )
         return result
 
     def _build_payload(self, prompt: str, image_path: Path | None) -> dict[str, Any]:

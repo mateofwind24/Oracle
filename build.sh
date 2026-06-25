@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 VENV_DIR="${ORACLE_VENV_DIR:-$ROOT_DIR/.venv}"
 DEPS_DIR="${ORACLE_DEPS_DIR:-$ROOT_DIR/.deps}"
-DEFAULT_LLAMA_CPP_DIR="${ORACLE_LLAMA_CPP_DIR:-$HOME/llama.cpp}"
+DEFAULT_LLAMA_CPP_DIR="${ORACLE_LLAMA_CPP_DIR:-$ROOT_DIR/llama.cpp}"
 LLAMA_CPP_DIR=""
 
 GEMMA3_1B_Q4_MODEL_PATH="$ROOT_DIR/models/gemma-3-1b-it-Q4_0.gguf"
@@ -61,7 +61,7 @@ Options:
   --auto-gpu               Auto-detect CUDA capability (default)
   --python-env ENV         Force python env type: active-conda, conda, uv, venv, or auto (default: auto)
   --model-path PATH        Set GGUF model path (default: models/gemma-3-1b-it-Q4_0.gguf)
-  --llama-dir DIR          Directory for llama.cpp source/build (default: ~/llama.cpp)
+  --llama-dir DIR          Directory for llama.cpp source/build (default: ./llama.cpp)
 EOF
   exit 0
 }
@@ -480,7 +480,7 @@ find_repo_model_file() {
   local model_file
   model_file=""
   if [[ -d "$ROOT_DIR/models" ]]; then
-    model_file="$(find "$ROOT_DIR/models" -maxdepth 1 -type f -name '*.gguf' |
+    model_file="$(find "$ROOT_DIR/models" -type f -name '*.gguf' |
       sort |
       head -n 1)"
   fi
@@ -633,6 +633,26 @@ ensure_manse_db() {
     --end-year "$end_year"
 }
 
+generate_systemd_services() {
+  local template_dir="$ROOT_DIR/systemd"
+  local current_user
+  current_user="$(id -un)"
+
+  log "generating systemd service files dynamically for user=$current_user, dir=$ROOT_DIR"
+
+  if [[ -f "$template_dir/llama-server.service.template" ]]; then
+    sed -e "s|{{ORACLE_DIR}}|$ROOT_DIR|g" \
+        -e "s|{{ORACLE_USER}}|$current_user|g" \
+        "$template_dir/llama-server.service.template" > "$template_dir/llama-server.service"
+  fi
+
+  if [[ -f "$template_dir/oracle-report.service.template" ]]; then
+    sed -e "s|{{ORACLE_DIR}}|$ROOT_DIR|g" \
+        -e "s|{{ORACLE_USER}}|$current_user|g" \
+        "$template_dir/oracle-report.service.template" > "$template_dir/oracle-report.service"
+  fi
+}
+
 run_verification() {
   if [[ "${ORACLE_SKIP_TESTS:-0}" == "1" ]]; then
     log "skipping tests because ORACLE_SKIP_TESTS=1"
@@ -680,6 +700,7 @@ main() {
   ensure_model_file
   ensure_gemma3_1b_q4_model_file
   ensure_manse_db
+  generate_systemd_services
   run_verification
   log "build complete"
 }

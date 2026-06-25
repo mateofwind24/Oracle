@@ -669,7 +669,7 @@ def _render_page(title: str, body: str) -> str:
           async function pollWorkflow(jobId, status, result) {{
             let done = false;
             while (!done) {{
-              await new Promise((resolve) => setTimeout(resolve, 800));
+              await new Promise((resolve) => setTimeout(resolve, 5000));
               const response = await fetch("/api/jobs/" + encodeURIComponent(jobId));
               const payload = await response.json();
               if (payload.status === "complete") {{
