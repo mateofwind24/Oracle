@@ -61,6 +61,24 @@ def build_personal_final_prompt(
     return result
 
 
+def build_saju_reading_prompt(
+    birth_profile: BirthProfile,
+    saju_text: str,
+) -> str:
+    result = render_prompt_template(
+        "saju_reading",
+        {
+            "name": birth_profile.name,
+            "gender": _gender_text(birth_profile),
+            "birth_datetime": birth_profile.birth_datetime.isoformat(sep=" "),
+            "birth_time_text": _birth_time_text(birth_profile),
+            "timezone": birth_profile.timezone,
+            "saju_text": saju_text,
+        },
+    )
+    return result
+
+
 def build_compatibility_final_prompt(
     left_profile: BirthProfile,
     right_profile: BirthProfile,

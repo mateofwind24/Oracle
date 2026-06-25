@@ -66,6 +66,16 @@ http://<raspberry-pi-ip>:8501
   --gender male
 ```
 
+사주/만세력 조회 결과를 `configs/prompts.json`의 `saju_reading` 프롬프트에 넣고 실제 LLM 결과만 확인:
+
+```bash
+./run.sh llm saju-reading \
+  --name "홍길동" \
+  --birth-date 1995-03-15 \
+  --birth-time 14:30 \
+  --gender male
+```
+
 개인 최종 리포트 프롬프트 확인:
 
 ```bash
@@ -132,14 +142,45 @@ http://<raspberry-pi-ip>:8501
   --recommendation-text "추천 후보 예시"
 ```
 
+`llm`은 `prompt-run`과 같은 실행 경로를 쓰지만, 결과 확인용 이름입니다. 예를 들어 아래 두 명령은 모두 프롬프트를 로컬 LLM에 보내고 LLM 응답만 출력합니다.
+
+```bash
+./run.sh llm personal-final \
+  --name "홍길동" \
+  --birth-date 1995-03-15 \
+  --birth-time 14:30 \
+  --gender male \
+  --target-gender female \
+  --face-analysis "관상 분석 결과 예시" \
+  --recommendation-text "추천 후보 예시"
+```
+
 `personal-final` 출력 JSON은 Flask 결과 화면과 `runs/.../personal_report.html`에 같은 섹션 구조로 렌더링됩니다.
 
-정리하면 `personal-face-analysis`와 `compatibility-face-analysis`는 LLM 관상 모드에서만 쓰는 입력입니다. 랜드마크 모드는 프롬프트 없이 rule-based 관상 텍스트를 사용합니다. `saju-reading`은 LLM에 넣기 전 사주/만세력 텍스트 블록만 확인합니다. `personal-final`과 `compatibility-final`은 사주/만세력 정보와 관상정보를 함께 넣은 최종 리포트 프롬프트입니다.
+정리하면 `personal-face-analysis`와 `compatibility-face-analysis`는 LLM 관상 모드에서만 쓰는 입력입니다. 랜드마크 모드는 프롬프트 없이 rule-based 관상 텍스트를 사용합니다. `prompt saju-reading`은 LLM에 넣기 전 사주/만세력 텍스트 블록만 확인하고, `llm saju-reading`은 같은 조회 결과를 `saju_reading` 템플릿에 넣어 LLM 응답만 출력합니다. `personal-final`과 `compatibility-final`은 사주/만세력 정보와 관상정보를 함께 넣은 최종 리포트 프롬프트입니다.
 
 프롬프트 템플릿 수정:
 
 ```text
 configs/prompts.json
+```
+
+주요 템플릿 키:
+
+- `saju_reading`: 이름, 생년월일, 시간, 성별로 만세력 DB를 조회한 뒤 LLM에 보내는 사주 해설 프롬프트
+- `personal_face_analysis`: 캡처 이미지 기반 개인 관상 메모 프롬프트
+- `compatibility_face_analysis`: 캡처 이미지 기반 궁합 관상 메모 프롬프트
+- `personal_final`: 사주/만세력, 관상 메모, 얼굴 추천 정보를 합친 개인 최종 JSON 리포트 프롬프트
+- `compatibility_final`: 두 사람의 사주/만세력과 관상 메모를 합친 궁합 최종 JSON 리포트 프롬프트
+
+LLM 결과만 확인할 때 자주 쓰는 설정:
+
+```env
+ORACLE_PROMPTS_PATH=configs/prompts.json
+ORACLE_LLM_BASE_URL=http://127.0.0.1:8080/v1
+ORACLE_REPORT_LLM_MODEL=local-model
+ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS=1800
+ORACLE_MANSE_DB_PATH=data/manse.sqlite
 ```
 
 ## Capture Debugging

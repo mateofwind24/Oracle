@@ -7,6 +7,7 @@ from pathlib import Path
 from oracle_report.models import BirthProfile
 from oracle_report.physiognomy import FaceReadingInput
 from oracle_report.report import (
+    build_compatibility_final_prompt,
     build_compatibility_face_analysis_prompt,
     build_personal_face_analysis_prompt,
     build_personal_final_prompt,
@@ -54,6 +55,28 @@ def test_personal_final_prompt_contains_json_schema() -> None:
     assert "관상 입력" in prompt
     assert "보조 해석" not in prompt
     assert "주의 문구" not in prompt
+
+
+def test_compatibility_final_prompt_contains_json_schema() -> None:
+    left = BirthProfile(name="left", birth_datetime=datetime(1995, 3, 15, 14, 30))
+    right = BirthProfile(name="right", birth_datetime=datetime(1997, 5, 20, 9, 0))
+
+    prompt = build_compatibility_final_prompt(
+        left,
+        right,
+        "연인",
+        "첫 번째 사주 입력",
+        "두 번째 사주 입력",
+        "궁합 관상 입력",
+    )
+
+    assert "\"pair_blocks\"" in prompt
+    assert "\"saju_blocks\"" in prompt
+    assert "\"action_title\"" in prompt
+    assert "첫 번째 사주 입력" in prompt
+    assert "두 번째 사주 입력" in prompt
+    assert "궁합 관상 입력" in prompt
+    assert "Markdown으로만" not in prompt
 
 
 def test_prompt_template_can_be_overridden_from_json(

@@ -415,7 +415,7 @@ require_wrapped_command() {
   mode="$1"
   shift
   if [[ "$#" -eq 0 ]]; then
-    fail "usage: ./run.sh $mode <capture|prompt|prompt-run|serve> [args...]"
+    fail "usage: ./run.sh $mode <capture|prompt|prompt-run|llm|serve> [args...]"
   fi
 }
 
@@ -479,7 +479,17 @@ needs_llm_server() {
         ;;
       prompt-run)
         case "${2:-}" in
-          saju-reading | --help | -h | "")
+          --help | -h | "")
+            result=1
+            ;;
+          *)
+            result=0
+            ;;
+        esac
+        ;;
+      llm)
+        case "${2:-}" in
+          --help | -h | "")
             result=1
             ;;
           *)

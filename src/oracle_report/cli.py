@@ -20,6 +20,7 @@ from oracle_report.report import (
     build_compatibility_final_prompt,
     build_personal_face_analysis_prompt,
     build_personal_final_prompt,
+    build_saju_reading_prompt,
 )
 from oracle_report.saju.engine import SajuReading
 from oracle_report.saju.repository import ManseLookupResult, ManseRepository
@@ -44,6 +45,8 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "prompt":
             result = _run_prompt_command(args)
         elif args.command == "prompt-run":
+            result = _run_prompt_result_command(args)
+        elif args.command == "llm":
             result = _run_prompt_result_command(args)
         else:
             parser.print_help()
@@ -74,6 +77,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     prompt_run = subparsers.add_parser("prompt-run", help="run one workflow prompt")
     _add_prompt_args(prompt_run)
+
+    llm = subparsers.add_parser(
+        "llm",
+        help="run one workflow prompt and print only LLM output",
+    )
+    _add_prompt_args(llm)
 
     result = parser
     return result
@@ -142,20 +151,29 @@ def _run_prompt_command(args: argparse.Namespace) -> int:
 
 
 def _run_prompt_result_command(args: argparse.Namespace) -> int:
-    prompt_text = _build_prompt_text(args)
+    prompt_text = _build_llm_prompt_text(args)
     output_text = prompt_text
     if args.target in ("personal-face-analysis", "compatibility-face-analysis"):
         output_text = LlamaCppChatClient(load_face_llm_config()).generate(
             prompt_text,
             image_path=args.image,
         )
-    elif args.target in ("personal-final", "compatibility-final"):
+    elif args.target in ("saju-reading", "personal-final", "compatibility-final"):
         output_text = LlamaCppChatClient(load_report_llm_config()).generate(
             prompt_text,
             image_path=None,
         )
     print(output_text)
     result = 0
+    return result
+
+
+def _build_llm_prompt_text(args: argparse.Namespace) -> str:
+    result = _build_prompt_text(args)
+    if args.target == "saju-reading":
+        profile = _build_prompt_birth_profile(args)
+        manse_lookup = _lookup_manse(args, profile)
+        result = build_saju_reading_prompt(profile, manse_lookup.formatted_text)
     return result
 
 

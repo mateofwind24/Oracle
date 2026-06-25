@@ -162,6 +162,8 @@ def test_prompt_command_prints_compatibility_final_prompt(
     assert "미입력" in output
     assert "정오 기준" in output
     assert "pair face analysis fixture" in output
+    assert "\"pair_blocks\"" in output
+    assert "\"action_title\"" in output
 
 
 def _build_test_manse_db(tmp_path: Path) -> Path:

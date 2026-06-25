@@ -26,7 +26,10 @@ from oracle_report.report import (
     build_personal_face_analysis_prompt,
     build_personal_final_prompt,
 )
-from oracle_report.report_html import render_personal_report_html
+from oracle_report.report_html import (
+    render_compatibility_report_html,
+    render_personal_report_html,
+)
 from oracle_report.saju.repository import ManseLookupResult, ManseRepository
 from oracle_report.vision.runtime import run_capture
 
@@ -84,6 +87,8 @@ class PersonalWorkflowResult:
 @dataclass(frozen=True)
 class CompatibilityWorkflowResult:
     markdown: str
+    report_html: str
+    report_fragment_html: str
     output_path: Path
     left_capture_path: Path
     right_capture_path: Path
@@ -361,17 +366,42 @@ def run_compatibility_workflow(
         right_manse,
         face_analysis.text,
     )
-    output_path = output_dir / "compatibility_report.md"
+    report_html = timing_recorder.run(
+        "render_report_html",
+        render_compatibility_report_html,
+        left_profile,
+        right_profile,
+        mode,
+        left_manse,
+        right_manse,
+        face_analysis.text,
+        markdown,
+    )
+    report_fragment_html = timing_recorder.run(
+        "render_report_fragment_html",
+        render_compatibility_report_html,
+        left_profile,
+        right_profile,
+        mode,
+        left_manse,
+        right_manse,
+        face_analysis.text,
+        markdown,
+        False,
+    )
+    output_path = output_dir / "compatibility_report.html"
     timing_recorder.run(
         "save_report",
         output_path.write_text,
-        markdown,
+        report_html,
         encoding="utf-8",
     )
     timing_recorder.finish_total()
     timing_log_path = timing_recorder.write_log(output_dir / "timings.log")
     result = CompatibilityWorkflowResult(
         markdown=markdown,
+        report_html=report_html,
+        report_fragment_html=report_fragment_html,
         output_path=output_path,
         left_capture_path=capture_artifact.left.image_path,
         right_capture_path=capture_artifact.right.image_path,

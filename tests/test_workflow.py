@@ -24,6 +24,40 @@ class FakeLlmClient:
         result = "LLM 결과"
         if "출력 형식" in prompt and image_path is not None:
             result = "## 관상정보\n- 얼굴 인상 태그: 차분함"
+        elif "pair_blocks" in prompt:
+            result = json.dumps(
+                {
+                    "essence": "두 사람 궁합 핵심 문장",
+                    "pair_subtitle": "관계 분위기 테스트",
+                    "pair_blocks": [
+                        {
+                            "category": "관계 카테고리",
+                            "title": "관계 제목",
+                            "summary": "관계 요약",
+                            "body": "관계 본문",
+                        },
+                    ],
+                    "saju_subtitle": "궁합 사주 테스트",
+                    "saju_blocks": [
+                        {
+                            "category": "궁합 사주 카테고리",
+                            "title": "궁합 사주 제목",
+                            "summary": "궁합 사주 요약",
+                            "body": "궁합 사주 본문",
+                        },
+                    ],
+                    "synthesis_title": "궁합 종합 제목",
+                    "synthesis_body": "궁합 종합 본문",
+                    "convergence": [
+                        {"face": "궁합 관상 근거", "saju": "궁합 사주 근거"},
+                    ],
+                    "action_title": "궁합 행동 제목",
+                    "action_body": "궁합 행동 본문",
+                    "tags": ["궁합 테스트 태그"],
+                    "disclaimer": "궁합 테스트 고지",
+                },
+                ensure_ascii=False,
+            )
         elif "face_blocks" in prompt:
             result = json.dumps(
                 {
@@ -60,8 +94,6 @@ class FakeLlmClient:
                 },
                 ensure_ascii=False,
             )
-        elif "궁합 리포트" in prompt:
-            result = "# 궁합 리포트\n## 관계를 좋게 만드는 행동 제안\n대화"
         return result
 
 
@@ -172,7 +204,11 @@ def test_compatibility_workflow_runs_without_real_camera_or_llm(tmp_path: Path) 
     assert "compatibility_workflow" in result.timing_log_path.read_text(
         encoding="utf-8",
     )
-    assert "궁합 리포트" in result.markdown
+    assert result.output_path.name == "compatibility_report.html"
+    assert result.report_html.startswith("<!DOCTYPE html>")
+    assert "oracle-report" in result.report_fragment_html
+    assert "두 사람 궁합 핵심 문장" in result.report_html
+    assert "궁합 행동 제목" in result.report_html
     assert result.left_capture_path.parent.name == "person_1"
     assert result.right_capture_path.parent.name == "person_2"
 

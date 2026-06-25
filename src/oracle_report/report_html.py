@@ -121,6 +121,16 @@ class _RecommendationCard:
 
 
 @dataclass(frozen=True)
+class _CompatibilityPersonView:
+    name: str
+    meta: str
+    day_master_hanja: str
+    day_master_label: str
+    day_master_class: str
+    element_note: str
+
+
+@dataclass(frozen=True)
 class _PersonalReportView:
     name: str
     meta: str
@@ -143,6 +153,25 @@ class _PersonalReportView:
     recommendation_title: str
     recommendation_lead: str
     recommendation_cards: tuple[_RecommendationCard, ...]
+    disclaimer: str
+
+
+@dataclass(frozen=True)
+class _CompatibilityReportView:
+    left: _CompatibilityPersonView
+    right: _CompatibilityPersonView
+    mode: str
+    essence: str
+    pair_subtitle: str
+    pair_blocks: tuple[_ReportBlock, ...]
+    saju_subtitle: str
+    saju_blocks: tuple[_ReportBlock, ...]
+    synth_title: str
+    synth_body: str
+    convergence: tuple[_Convergence, ...]
+    action_title: str
+    action_body: str
+    tags: tuple[str, ...]
     disclaimer: str
 
 
@@ -170,6 +199,55 @@ def render_personal_report_html(
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Oracle 리포트 · {escape(view.name)}</title>
+{_font_links()}
+<style>
+{style}
+</style>
+</head>
+<body>
+{body}
+</body>
+</html>
+"""
+    else:
+        result = f"""{_font_links()}
+<style>
+{style}
+</style>
+{body}
+"""
+    return result
+
+
+def render_compatibility_report_html(
+    left_profile: BirthProfile,
+    right_profile: BirthProfile,
+    mode: str,
+    left_manse: ManseLookupResult,
+    right_manse: ManseLookupResult,
+    face_analysis: str,
+    generated_text: str,
+    full_document: bool = True,
+) -> str:
+    view = _build_compatibility_report_view(
+        left_profile,
+        right_profile,
+        mode,
+        left_manse,
+        right_manse,
+        face_analysis,
+        generated_text,
+    )
+    body = _render_compatibility_report_body(view)
+    style = _report_style()
+    title = f"Oracle 궁합 리포트 · {view.left.name} × {view.right.name}"
+    if full_document:
+        result = f"""<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{escape(title)}</title>
 {_font_links()}
 <style>
 {style}
@@ -276,6 +354,182 @@ def _build_personal_report_view(
             "disclaimer",
             "이 리포트는 얼굴 관찰과 사주/만세력 데이터를 바탕으로 생성된 재미용 콘텐츠입니다. 운명을 단정하지 않으며 참고로만 즐겨 주세요.",
         ),
+    )
+    return result
+
+
+def _build_compatibility_report_view(
+    left_profile: BirthProfile,
+    right_profile: BirthProfile,
+    mode: str,
+    left_manse: ManseLookupResult,
+    right_manse: ManseLookupResult,
+    face_analysis: str,
+    generated_text: str,
+) -> _CompatibilityReportView:
+    payload = _load_generated_payload(generated_text)
+    left_view = _compatibility_person_view(left_profile, left_manse)
+    right_view = _compatibility_person_view(right_profile, right_manse)
+    saju_text = "\n".join(
+        (
+            left_manse.reading.interpretation,
+            right_manse.reading.interpretation,
+        ),
+    )
+    result = _CompatibilityReportView(
+        left=left_view,
+        right=right_view,
+        mode=mode,
+        essence=_payload_text(
+            payload,
+            "essence",
+            f"{left_profile.name} 님과 {right_profile.name} 님은 {mode} 관계에서 서로의 리듬을 맞춰 가는 쪽이 중요한 조합입니다.",
+        ),
+        pair_subtitle=_payload_text(
+            payload,
+            "pair_subtitle",
+            "얼굴 관찰과 관계 분위기",
+        ),
+        pair_blocks=_payload_blocks(
+            payload,
+            "pair_blocks",
+            _default_compatibility_pair_blocks(mode, face_analysis),
+        ),
+        saju_subtitle=_payload_text(
+            payload,
+            "saju_subtitle",
+            "사주 흐름과 상호 보완",
+        ),
+        saju_blocks=_payload_blocks(
+            payload,
+            "saju_blocks",
+            _default_compatibility_saju_blocks(mode, left_manse, right_manse),
+        ),
+        synth_title=_payload_text(
+            payload,
+            "synthesis_title",
+            f"{mode} 관계에서 함께 살아나는 지점",
+        ),
+        synth_body=_payload_text(
+            payload,
+            "synthesis_body",
+            "두 사람의 사주 흐름과 얼굴 관찰 메모가 만나는 지점을 중심으로 관계의 분위기를 읽습니다.",
+        ),
+        convergence=_payload_convergence(payload, face_analysis, saju_text),
+        action_title=_payload_text(
+            payload,
+            "action_title",
+            "관계를 좋게 만드는 행동 제안",
+        ),
+        action_body=_payload_text(
+            payload,
+            "action_body",
+            "중요한 대화는 한 번에 결론을 내리기보다 서로의 속도를 확인하면서 이어 가는 편이 좋습니다. 감정이 올라오는 순간에는 바로 판단하기보다 상대가 원하는 반응과 실제 의도를 나누어 확인해 보세요.",
+        ),
+        tags=_payload_tags(payload, (mode, "상호 보완", "소통 리듬", "관계 균형")),
+        disclaimer=_payload_text(
+            payload,
+            "disclaimer",
+            "이 리포트는 사주 데이터와 얼굴 관찰 메모를 바탕으로 생성한 참고용 엔터테인먼트 콘텐츠입니다. 관계를 단정하거나 실제 미래를 예언하지 않습니다.",
+        ),
+    )
+    return result
+
+
+def _compatibility_person_view(
+    profile: BirthProfile,
+    manse_lookup: ManseLookupResult,
+) -> _CompatibilityPersonView:
+    chart = manse_lookup.reading.chart
+    day_element = STEM_ELEMENTS[chart.day.stem_index]
+    strongest = _strongest_element(manse_lookup.reading.element_counts)
+    weakest = _weakest_element(manse_lookup.reading.element_counts)
+    birth_date_text = profile.birth_datetime.strftime("%Y. %m. %d")
+    birth_time_text = profile.birth_datetime.strftime("%H:%M")
+    if not profile.birth_time_known:
+        birth_time_text = "시간 미상 (정오 보조 기준)"
+    meta = f"{birth_date_text} · {birth_time_text} · {profile.gender or '성별 미입력'}"
+    result = _CompatibilityPersonView(
+        name=profile.name,
+        meta=meta,
+        day_master_hanja=_STEM_HANJA[chart.day.stem_index],
+        day_master_label=(
+            f"{chart.day.stem}{day_element} · "
+            f"{_POLARITY_HANJA.get(chart.day.polarity, chart.day.polarity)}"
+            f"{_ELEMENT_HANJA[day_element]}"
+        ),
+        day_master_class=_ELEMENT_CLASS[day_element],
+        element_note=f"{strongest} 기운이 강하고 {weakest} 기운을 보완하면 균형이 좋아집니다.",
+    )
+    return result
+
+
+def _default_compatibility_pair_blocks(
+    mode: str,
+    face_analysis: str,
+) -> tuple[Mapping[str, str], ...]:
+    face_line = _first_nonempty_line(face_analysis, "두 사람의 얼굴 관찰 메모를 관계 분위기 참고 자료로 사용했습니다.")
+    result = (
+        {
+            "category": "관계의 첫인상",
+            "title": f"{mode} 관계에서 먼저 보이는 분위기",
+            "summary": "두 사람의 표정 안정감과 시선 분위기를 관계의 첫 리듬으로 읽습니다.",
+            "body": f"{face_line} 얼굴 관찰은 관계를 단정하는 기준이 아니라 대화 분위기를 구체화하는 보조 자료입니다.",
+        },
+        {
+            "category": "소통 리듬",
+            "title": "말을 주고받을 때 맞춰야 할 속도",
+            "summary": "시선과 표정의 안정감은 대화의 긴장도를 낮추는 방향으로 해석합니다.",
+            "body": "서로 반응 속도가 다를 수 있으므로 중요한 이야기는 한 번에 몰아가기보다 짧게 확인하며 이어가는 편이 좋습니다. 먼저 분위기를 부드럽게 만든 뒤 핵심을 말하면 관계의 마찰이 줄어듭니다.",
+        },
+        {
+            "category": "관계 강점",
+            "title": "서로에게 편안함을 주는 지점",
+            "summary": "얼굴 관찰 메모에서 안정적으로 반복되는 인상을 관계 강점으로 연결합니다.",
+            "body": "한쪽이 방향을 잡고 다른 한쪽이 분위기를 조율하면 관계가 더 부드럽게 흐릅니다. 서로의 표현 방식이 다르다는 점을 인정하면 장점이 더 잘 살아납니다.",
+        },
+        {
+            "category": "주의할 점",
+            "title": "오해가 생기기 쉬운 순간",
+            "summary": "표정이나 말투를 바로 결론으로 해석하지 않는 것이 중요합니다.",
+            "body": "상대의 반응이 느리거나 조용해 보일 때 관심이 없다고 단정하지 않는 편이 좋습니다. 확인 질문을 짧게 던지고 답을 기다리는 방식이 관계 안정에 도움이 됩니다.",
+        },
+    )
+    return result
+
+
+def _default_compatibility_saju_blocks(
+    mode: str,
+    left_manse: ManseLookupResult,
+    right_manse: ManseLookupResult,
+) -> tuple[Mapping[str, str], ...]:
+    left_summary = " ".join(left_manse.reading.summary_lines)
+    right_summary = " ".join(right_manse.reading.summary_lines)
+    result = (
+        {
+            "category": "사주 기반 관계 구조",
+            "title": "두 사람의 기본 기운",
+            "summary": "각자의 일간과 오행 분포를 비교해 관계의 큰 흐름을 봅니다.",
+            "body": f"첫 번째 사람은 {left_summary} 두 번째 사람은 {right_summary} 이 차이는 {mode} 관계에서 서로가 어떤 속도로 움직이는지 참고하는 기준이 됩니다.",
+        },
+        {
+            "category": "상호 보완",
+            "title": "강한 기운과 부족한 기운의 맞물림",
+            "summary": "한쪽의 강점이 다른 쪽의 부족한 리듬을 보완할 수 있는지 살핍니다.",
+            "body": "사주 데이터는 좋고 나쁨을 가르는 기준이 아니라 관계에서 어느 부분을 의식적으로 맞추면 좋은지 보여주는 지도에 가깝습니다. 강한 기운은 추진력으로 살리고 약한 기운은 생활 습관과 대화 방식으로 보완하는 편이 좋습니다.",
+        },
+        {
+            "category": "갈등 관리",
+            "title": "관계가 흔들릴 때 먼저 볼 지점",
+            "summary": "속도 차이와 표현 방식 차이가 갈등의 출발점이 될 수 있습니다.",
+            "body": "두 사람의 리듬이 다를 때는 누가 옳은지보다 어떤 방식으로 조율할지에 초점을 맞추는 편이 좋습니다. 특히 감정이 올라온 순간에는 결론보다 상황 정리가 먼저입니다.",
+        },
+        {
+            "category": "실천 제안",
+            "title": f"{mode} 관계를 오래 좋게 만드는 습관",
+            "summary": "반복 가능한 행동 제안으로 관계 운용 방식을 정리합니다.",
+            "body": "서로에게 기대하는 반응을 말로 확인하고, 중요한 결정은 하루 정도 간격을 두고 다시 보는 습관이 좋습니다. 작은 약속을 지키는 경험이 쌓이면 관계의 신뢰감도 안정됩니다.",
+        },
     )
     return result
 
@@ -505,6 +759,99 @@ def _render_report_body(view: _PersonalReportView) -> str:
     return result
 
 
+def _render_compatibility_report_body(view: _CompatibilityReportView) -> str:
+    result = f"""
+<div class="oracle-report compatibility-report">
+<div class="wrap">
+  <header class="fade">
+    <div class="eyebrow">Oracle · 두 사람 궁합 리포트</div>
+    <div class="pair-mark">
+      {_render_person_mark(view.left)}
+      <span class="pair-x">×</span>
+      {_render_person_mark(view.right)}
+    </div>
+    <div class="name">{escape(view.left.name)} 님과 {escape(view.right.name)} 님</div>
+    <div class="meta">{escape(view.mode)} 궁합 · 사주와 얼굴 관찰 종합</div>
+    <p class="essence serif">{escape(view.essence)}</p>
+  </header>
+  {_render_pair_profiles(view)}
+  {_render_part("pair", "01", "두 사람의 관계 분위기", view.pair_subtitle, view.pair_blocks)}
+  {_render_part("saju", "02", "사주로 보는 상호 보완", view.saju_subtitle, view.saju_blocks)}
+  {_render_compatibility_synthesis(view)}
+  {_render_action_panel(view)}
+  {_render_tags(view.tags)}
+  <footer>
+    <div class="logo">ORACLE</div>
+    <p class="disc">{escape(view.disclaimer)}</p>
+  </footer>
+</div>
+</div>
+"""
+    return result
+
+
+def _render_person_mark(person: _CompatibilityPersonView) -> str:
+    result = f"""
+      <span class="person-mark {escape(person.day_master_class)}">
+        <span class="person-hanja">{escape(person.day_master_hanja)}</span>
+        <span class="person-ko">{escape(person.day_master_label)}</span>
+      </span>
+"""
+    return result
+
+
+def _render_pair_profiles(view: _CompatibilityReportView) -> str:
+    result = f"""
+  <section class="pair-profiles fade">
+    {_render_pair_profile(view.left, "첫 번째 사람")}
+    {_render_pair_profile(view.right, "두 번째 사람")}
+  </section>
+"""
+    return result
+
+
+def _render_pair_profile(person: _CompatibilityPersonView, label: str) -> str:
+    result = f"""
+    <div class="person-card">
+      <div class="b-cat">{escape(label)}</div>
+      <div class="person-name serif">{escape(person.name)} 님</div>
+      <div class="person-meta">{escape(person.meta)}</div>
+      <div class="person-day {escape(person.day_master_class)}">{escape(person.day_master_hanja)}</div>
+      <div class="person-label">{escape(person.day_master_label)}</div>
+      <p>{escape(person.element_note)}</p>
+    </div>
+"""
+    return result
+
+
+def _render_compatibility_synthesis(view: _CompatibilityReportView) -> str:
+    convergence = "\n".join(
+        f"""      <div class="cv"><span class="g">{escape(item.face)}</span><span class="eq">↔</span><span class="s">{escape(item.saju)}</span></div>"""
+        for item in view.convergence
+    )
+    result = f"""
+  <section class="synth fade">
+    <div class="b-title serif">{escape(view.synth_title)}</div>
+    <div class="b-body">{_paragraphs(view.synth_body)}</div>
+    <div class="converge">
+{convergence}
+    </div>
+  </section>
+"""
+    return result
+
+
+def _render_action_panel(view: _CompatibilityReportView) -> str:
+    result = f"""
+  <section class="action-panel fade">
+    <div class="b-cat">ACTION GUIDE</div>
+    <div class="b-title serif">{escape(view.action_title)}</div>
+    <div class="b-body">{_paragraphs(view.action_body)}</div>
+  </section>
+"""
+    return result
+
+
 def _render_element_balance(view: _PersonalReportView) -> str:
     max_count = max(view.element_counts.values()) if view.element_counts else 1
     bars = []
@@ -683,9 +1030,12 @@ header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)
 .ilgan{font-family:"Song Myung",serif;font-size:120px;line-height:1;position:relative;display:inline-block}
 .ilgan.c-mok{color:var(--mok)}.ilgan.c-hwa{color:var(--hwa)}.ilgan.c-to{color:var(--to)}.ilgan.c-geum{color:var(--geum)}.ilgan.c-su{color:var(--su)}
 .ilgan .ko{font-family:"Gowun Batang",serif;font-size:20px;color:var(--ink-soft);position:absolute;bottom:14px;right:-8px;transform:translateX(100%)}
+.pair-mark{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0 18px}.pair-x{font-family:"Gowun Batang",serif;font-size:34px;color:var(--gold)}
+.person-mark{display:flex;flex-direction:column;align-items:center;justify-content:center;width:116px;height:116px;border-radius:50%;color:#fff}.person-mark .person-hanja{font-family:"Song Myung",serif;font-size:54px;line-height:1}.person-mark .person-ko{font-family:"Gowun Batang",serif;font-size:12px;margin-top:6px;color:rgba(255,255,255,.92)}
 .name{font-family:"Gowun Batang",serif;font-size:30px;font-weight:700;margin-top:18px}
 .meta{font-size:14px;color:var(--ink-soft);margin-top:8px;letter-spacing:.04em}
 .essence{font-family:"Gowun Batang",serif;font-size:19px;margin-top:24px;color:var(--ink);max-width:30ch;margin-left:auto;margin-right:auto}
+.pair-profiles{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:46px 0}.person-card{background:var(--paper-2);border:1px solid var(--line);border-radius:8px;padding:24px 22px;text-align:center}.person-name{font-size:22px;font-weight:700;margin:4px 0}.person-meta{font-size:13px;color:var(--ink-soft);margin-bottom:16px}.person-day{font-family:"Song Myung",serif;font-size:48px;line-height:1;color:#fff;width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}.person-label{font-size:13px;color:var(--ink-soft);margin-bottom:12px}.person-card p{font-size:13.5px;color:var(--ink);line-height:1.65}
 .ohaeng{margin:46px 0;padding:30px 26px;background:var(--paper-2);border:1px solid var(--line);border-radius:6px}
 .ohaeng h3,.myeongsik .cap,.tags h3{font-family:"Gowun Batang",serif;font-size:13px;letter-spacing:.3em;color:var(--ink-soft);text-align:center;margin-bottom:26px;font-weight:400}
 .bars{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;height:140px}
@@ -708,6 +1058,7 @@ header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)
 .b-sum{font-size:14px;color:var(--mok);font-weight:400;margin-bottom:12px;padding-left:14px;border-left:3px solid var(--mok)}.part.saju .b-sum{color:var(--hwa);border-color:var(--hwa)}.b-body{font-size:15.5px;color:var(--ink)}
 .synth{margin:60px 0 0;padding:38px 30px;background:linear-gradient(135deg,rgba(58,125,92,.07),rgba(194,82,57,.07));border:1px solid var(--line);border-radius:8px}.synth .b-title{font-size:24px;text-align:center;margin-bottom:18px}.synth-summary{margin-top:22px}
 .converge{margin:24px 0 4px;display:flex;flex-direction:column;gap:10px}.cv{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;font-size:13.5px}.cv .g{color:var(--mok);text-align:right}.cv .s{color:var(--hwa)}.cv .eq{color:var(--gold);font-family:"Gowun Batang",serif;font-weight:700}
+.action-panel{margin:44px 0 0;padding:30px 28px;background:var(--paper-2);border:1px solid var(--line);border-radius:8px}.action-panel .b-title{font-size:23px;margin-bottom:14px}
 .tags{margin:46px 0;text-align:center}.tags h3{margin-bottom:18px}.chip{display:inline-block;margin:5px;padding:9px 18px;background:var(--paper-2);border:1px solid var(--su);color:var(--su);border-radius:30px;font-size:14px;font-family:"Gowun Batang",serif}
 .reco{margin:60px 0 0}.reco-head{text-align:center;margin-bottom:8px}.reco-head .b-title{font-size:24px}.reco-lead{text-align:center;font-size:14px;color:var(--ink-soft);max-width:42ch;margin:0 auto 30px;line-height:1.75}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .card{background:var(--paper-2);border:1px solid var(--line);border-radius:8px;padding:18px 16px 20px;text-align:center;position:relative;transition:transform .25s ease,box-shadow .25s ease}.card:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(46,66,88,.12)}
@@ -715,6 +1066,6 @@ header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)
 .card .nm{font-family:"Gowun Batang",serif;font-size:16px;font-weight:700}.score{font-family:"Song Myung",serif;font-size:30px;color:var(--su);line-height:1.1;margin:4px 0 2px}.score span{font-size:14px;color:var(--ink-soft)}.reason{font-size:12.5px;color:var(--ink);line-height:1.6;margin-top:8px}.mtag{display:inline-block;margin-top:12px;padding:3px 10px;background:rgba(46,66,88,.08);color:var(--su);border-radius:20px;font-size:11px}.reco-note{text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:18px}
 footer{text-align:center;padding:44px 0 60px;border-top:1px solid var(--line);margin-top:50px}footer .logo{font-family:"Song Myung",serif;font-size:22px;letter-spacing:.2em;color:var(--ink)}footer .disc{font-size:11.5px;color:var(--ink-soft);margin-top:12px;max-width:46ch;margin-left:auto;margin-right:auto;line-height:1.7}
 .fade{opacity:0;transform:translateY(16px);animation:rise .8s ease forwards}@keyframes rise{to{opacity:1;transform:none}}@media (prefers-reduced-motion:reduce){.fade{animation:none;opacity:1;transform:none}.col{transition:none}}
-@media (max-width:560px){.ilgan{font-size:88px}.name{font-size:24px}.cell .ch{font-size:26px}.part-title{font-size:20px}.cards{grid-template-columns:1fr;gap:12px}.cv{grid-template-columns:1fr;text-align:center;gap:2px}.cv .g{text-align:center}.part-head{display:block}.part-sub{margin-left:0;margin-top:6px}.grid4{gap:6px}.wrap{padding:0 16px}}
+@media (max-width:560px){.ilgan{font-size:88px}.name{font-size:24px}.cell .ch{font-size:26px}.part-title{font-size:20px}.cards,.pair-profiles{grid-template-columns:1fr;gap:12px}.pair-mark{gap:10px}.person-mark{width:92px;height:92px}.person-mark .person-hanja{font-size:42px}.pair-x{font-size:26px}.cv{grid-template-columns:1fr;text-align:center;gap:2px}.cv .g{text-align:center}.part-head{display:block}.part-sub{margin-left:0;margin-top:6px}.grid4{gap:6px}.wrap{padding:0 16px}}
 """
     return result.strip()
