@@ -44,6 +44,8 @@ DEPS_DIR="${ORACLE_DEPS_DIR:-$ROOT_DIR/.deps}"
 ORACLE_LLAMA_CPP_DIR="${ORACLE_LLAMA_CPP_DIR:-$ROOT_DIR/llama.cpp}"
 LLAMA_LOG_DIR="$ROOT_DIR/runs/logs"
 LLAMA_PID_FILE="$ROOT_DIR/runs/llama-server.pid"
+GEMMA3_1B_Q4_MODEL="$ROOT_DIR/models/gemma-3-1b-it-Q4_0.gguf"
+GEMMA4_E2B_Q2_MODEL="$ROOT_DIR/models/gemma-4-E2B-it-UD-Q2_K_XL.gguf"
 GEMMA3_1B_Q4_MODEL_URL="https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_0.gguf"
 GEMMA3_1B_Q4_MODEL_SHA256="27ee88e03be02e9ba73def9a819d570d8ad73716e50769e87f374ae394b0276e"
 GEMMA4_E2B_Q2_MODEL_URL="https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-UD-Q2_K_XL.gguf"
@@ -527,7 +529,7 @@ ensure_model_file() {
   fi
   if [[ "${model_path##*/}" == "model.gguf" ]]; then
     log "models/model.gguf is a legacy default; using Gemma 4 E2B Q2"
-    model_path="$ROOT_DIR/models/gemma-4-E2B-it-UD-Q2_K_XL.gguf"
+    model_path="$GEMMA4_E2B_Q2_MODEL"
     export ORACLE_LLAMA_MODEL_PATH="$model_path"
   fi
   if [[ -f "$model_path" ]]; then
@@ -541,7 +543,7 @@ ensure_model_file() {
     return
   fi
 
-  if [[ "$model_path" != "$ROOT_DIR/models/gemma-4-E2B-it-UD-Q2_K_XL.gguf" ]]; then
+  if [[ "$model_path" != "$GEMMA4_E2B_Q2_MODEL" ]]; then
     download_model_file "$model_path"
     verify_model_hash "$model_path"
     return
@@ -589,6 +591,7 @@ start_llama_server() {
     -c "${LLAMA_CONTEXT_SIZE:-4096}"
     -fa off
     -ctk q4_0
+    --reasoning off
     --reasoning-format none
   )
 
@@ -780,7 +783,7 @@ main() {
     export ORACLE_LLAMA_MODEL_PATH="$RUN_ORACLE_LLAMA_MODEL_PATH"
   else
     # Fallback to env or default
-    export ORACLE_LLAMA_MODEL_PATH="${ORACLE_LLAMA_MODEL_PATH:-$ROOT_DIR/models/gemma-3-1b-it-Q4_0.gguf}"
+    export ORACLE_LLAMA_MODEL_PATH="${ORACLE_LLAMA_MODEL_PATH:-$GEMMA4_E2B_Q2_MODEL}"
   fi
 
   apply_run_config
