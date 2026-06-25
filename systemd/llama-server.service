@@ -5,12 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/willtek/work/oracle
-Environment=LLAMA_MODEL=/home/willtek/work/oracle/models/gemma-3-1b-it-Q4_0.gguf
-ExecStart=/home/willtek/work/oracle/scripts/run_llama_server.sh ${LLAMA_MODEL}
+WorkingDirectory=/home/hyukju/oracle
+Environment=LLAMA_MODEL=/home/hyukju/oracle/models/gemma-3-1b-it-Q4_0.gguf
+ExecStart=/home/hyukju/oracle/scripts/run_llama_server.sh ${LLAMA_MODEL}
 Restart=on-failure
 RestartSec=5
-User=willtek
+User=hyukju
 
 [Install]
 WantedBy=multi-user.target

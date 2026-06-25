@@ -6,12 +6,21 @@ cd "$ROOT_DIR"
 
 VENV_DIR="${ORACLE_VENV_DIR:-$ROOT_DIR/.venv}"
 DEPS_DIR="${ORACLE_DEPS_DIR:-$ROOT_DIR/.deps}"
-LLAMA_CPP_DIR="${ORACLE_LLAMA_CPP_DIR:-$DEPS_DIR/llama.cpp}"
+DEFAULT_LLAMA_CPP_DIR="${ORACLE_LLAMA_CPP_DIR:-$ROOT_DIR/llama.cpp}"
+LLAMA_CPP_DIR=""
+
 GEMMA3_1B_Q4_MODEL_PATH="$ROOT_DIR/models/gemma-3-1b-it-Q4_0.gguf"
 GEMMA3_1B_Q4_MODEL_URL="https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_0.gguf"
 GEMMA3_1B_Q4_MODEL_SHA256="27ee88e03be02e9ba73def9a819d570d8ad73716e50769e87f374ae394b0276e"
 PACKAGED_MODEL_URL="$GEMMA3_1B_Q4_MODEL_URL"
 PACKAGED_MODEL_SHA256="$GEMMA3_1B_Q4_MODEL_SHA256"
+
+# Options populated by parser
+BUILD_JOBS=""
+FORCE_CUDA="auto"
+PYTHON_ENV="auto"
+MODEL_PATH=""
+python_env_mode="auto"
 
 log() {
   printf '[build] %s\n' "$*"
@@ -33,11 +42,90 @@ is_linux() {
 sudo_cmd() {
   if [[ "$(id -u)" -eq 0 ]]; then
     printf ''
-  elif command_exists sudo; then
+  elif command_exists sudo && sudo -n true 2>/dev/null; then
     printf 'sudo'
   else
     printf '__missing_sudo__'
   fi
+}
+
+usage() {
+  cat <<EOF
+Usage: $0 [options]
+
+Options:
+  -h, --help               Show this help message
+  -j, --jobs JOBS          Number of build jobs (default: auto-detected CPU cores)
+  --cuda                   Force build llama.cpp with CUDA support
+  --cpu                    Force build llama.cpp in CPU-only mode
+  --auto-gpu               Auto-detect CUDA capability (default)
+  --python-env ENV         Force python env type: active-conda, conda, uv, venv, or auto (default: auto)
+  --model-path PATH        Set GGUF model path (default: models/gemma-3-1b-it-Q4_0.gguf)
+  --llama-dir DIR          Directory for llama.cpp source/build (default: ./llama.cpp)
+EOF
+  exit 0
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        usage
+        ;;
+      -j|--jobs)
+        BUILD_JOBS="$2"
+        shift 2
+        ;;
+      --cuda)
+        FORCE_CUDA="1"
+        shift
+        ;;
+      --cpu)
+        FORCE_CUDA="0"
+        shift
+        ;;
+      --auto-gpu)
+        FORCE_CUDA="auto"
+        shift
+        ;;
+      --python-env)
+        PYTHON_ENV="$2"
+        shift 2
+        ;;
+      --model-path)
+        MODEL_PATH="$2"
+        shift 2
+        ;;
+      --llama-dir)
+        LLAMA_CPP_DIR="$2"
+        shift 2
+        ;;
+      *)
+        log "Warning: Unknown option $1"
+        shift
+        ;;
+    esac
+  done
+}
+
+detect_cuda() {
+  if command_exists nvcc; then
+    return 0
+  fi
+  local p
+  for p in /usr/local/cuda/bin /usr/local/cuda-*/bin; do
+    if [[ -x "$p/nvcc" ]]; then
+      export PATH="$p:$PATH"
+      if [[ -d "${p%/bin}/lib64" ]]; then
+        export LD_LIBRARY_PATH="${p%/bin}/lib64:${LD_LIBRARY_PATH:-}"
+      fi
+      return 0
+    fi
+  done
+  if command_exists nvidia-smi; then
+    return 0
+  fi
+  return 1
 }
 
 install_apt_packages() {
@@ -46,12 +134,27 @@ install_apt_packages() {
   fi
 
   local packages=("$@")
+  local filtered_packages=()
+  local pkg
+  for pkg in "${packages[@]}"; do
+    if [[ "$python_env_mode" == "conda" || "$python_env_mode" == "active-conda" || "$python_env_mode" == "uv" ]]; then
+      # Skip python/opencv system packages in conda/uv
+      if [[ "$pkg" =~ ^python3.* || "$pkg" == "python3-opencv" || "$pkg" == "opencv-data" || "$pkg" == "libatlas-base-dev" ]]; then
+        continue
+      fi
+    fi
+    filtered_packages+=("$pkg")
+  done
+
+  if [[ "${#filtered_packages[@]}" -eq 0 ]]; then
+    return
+  fi
+
   local missing=()
-  local package
-  for package in "${packages[@]}"; do
-    if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null |
+  for pkg in "${filtered_packages[@]}"; do
+    if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null |
       grep -q 'install ok installed'; then
-      missing+=("$package")
+      missing+=("$pkg")
     fi
   done
 
@@ -63,12 +166,14 @@ install_apt_packages() {
   local sudo_bin
   sudo_bin="$(sudo_cmd)"
   if [[ "$sudo_bin" == "__missing_sudo__" ]]; then
-    fail "missing apt packages (${missing[*]}), but sudo is not available"
+    log "Warning: missing apt packages (${missing[*]}), but sudo is not available. Continuing anyway..."
+    return
   fi
 
   log "installing apt packages: ${missing[*]}"
-  $sudo_bin apt-get update
-  $sudo_bin apt-get install -y "${missing[@]}"
+  if ! $sudo_bin apt-get update || ! $sudo_bin apt-get install -y "${missing[@]}"; then
+    log "Warning: failed to install some apt packages. Continuing anyway..."
+  fi
 }
 
 python_cmd() {
@@ -81,16 +186,73 @@ python_cmd() {
   fi
 }
 
-activate_venv() {
-  if [[ -f "$VENV_DIR/bin/activate" ]]; then
+setup_python_env() {
+  local env_type="${PYTHON_ENV:-auto}"
+  log "Setting up Python environment (mode: $env_type)..."
+
+  # 1. Active Conda env
+  if [[ "$env_type" == "active-conda" || ( "$env_type" == "auto" && -n "${CONDA_PREFIX:-}" ) ]]; then
+    if [[ -n "${CONDA_PREFIX:-}" ]]; then
+      log "Using already active Conda environment: ${CONDA_DEFAULT_ENV:-oracle} (Prefix: $CONDA_PREFIX)"
+      if python -c "import pip" >/dev/null 2>&1; then
+        python_env_mode="active-conda"
+        return 0
+      else
+        log "Warning: Conda prefix is set but python does not have pip. Falling back."
+      fi
+    elif [[ "$env_type" == "active-conda" ]]; then
+      fail "active-conda specified but no Conda environment is active."
+    fi
+  fi
+
+  # 2. Conda 'oracle' env
+  if [[ "$env_type" == "conda" || "$env_type" == "auto" ]] && command_exists conda; then
+    if conda env list | grep -q -E "^oracle[[:space:]]"; then
+      log "Conda environment 'oracle' exists. Activating..."
+      local conda_path
+      conda_path="$(conda info --base)"
+      if [[ -f "$conda_path/etc/profile.d/conda.sh" ]]; then
+        # shellcheck source=/dev/null
+        source "$conda_path/etc/profile.d/conda.sh"
+        conda activate oracle
+        if [[ "${CONDA_DEFAULT_ENV:-}" == "oracle" ]]; then
+          python_env_mode="conda"
+          return 0
+        fi
+      fi
+    fi
+    if [[ "$env_type" == "conda" ]]; then
+      fail "Conda was specified, but 'oracle' environment could not be found/activated."
+    fi
+  fi
+
+  # 3. UV virtualenv
+  if [[ "$env_type" == "uv" || "$env_type" == "auto" ]] && command_exists uv; then
+    log "uv found. Creating/using virtualenv via uv..."
+    if [[ ! -d "$VENV_DIR" ]]; then
+      uv venv "$VENV_DIR"
+    fi
     # shellcheck source=/dev/null
     source "$VENV_DIR/bin/activate"
-  elif [[ -f "$VENV_DIR/Scripts/activate" ]]; then
-    # shellcheck source=/dev/null
-    source "$VENV_DIR/Scripts/activate"
-  else
-    fail "venv activation file not found under $VENV_DIR"
+    python_env_mode="uv"
+    return 0
   fi
+
+  # 4. Fallback to standard venv
+  log "Using standard python venv at $VENV_DIR"
+  local py
+  py="$(python_cmd)"
+  if [[ ! -d "$VENV_DIR" ]]; then
+    if is_linux; then
+      "$py" -m venv --system-site-packages "$VENV_DIR"
+    else
+      "$py" -m venv "$VENV_DIR"
+    fi
+  fi
+  # shellcheck source=/dev/null
+  source "$VENV_DIR/bin/activate"
+  python_env_mode="venv"
+  return 0
 }
 
 python_deps_ready() {
@@ -113,41 +275,38 @@ raise SystemExit(0 if not missing else 1)
 PY
 }
 
-ensure_python_env() {
-  local py
-  local venv_created
-  py="$(python_cmd)"
-  venv_created=0
-
-  if [[ ! -d "$VENV_DIR" ]]; then
-    log "creating Python venv at $VENV_DIR"
-    if is_linux; then
-      "$py" -m venv --system-site-packages "$VENV_DIR"
+install_deps() {
+  if [[ "$python_env_mode" == "uv" ]]; then
+    uv pip install --upgrade pip setuptools wheel
+    if python -c 'import cv2' >/dev/null 2>&1; then
+      log "OpenCV already importable; installing quality/test deps with uv"
+      uv pip install -e ".[quality,test]"
     else
-      "$py" -m venv "$VENV_DIR"
+      log "OpenCV not importable; installing camera/quality/test deps with uv"
+      uv pip install -e ".[camera,quality,test]"
     fi
-    venv_created=1
   else
-    log "Python venv already exists"
+    python -m pip install --upgrade pip setuptools wheel
+    if python -c 'import cv2' >/dev/null 2>&1; then
+      log "OpenCV already importable; installing quality/test deps with pip"
+      python -m pip install -e ".[quality,test]"
+    else
+      log "OpenCV not importable; installing camera/quality/test deps with pip"
+      python -m pip install -e ".[camera,quality,test]"
+    fi
   fi
+}
 
-  activate_venv
-  if [[ "$venv_created" -eq 0 ]] && python_deps_ready &&
+ensure_python_env() {
+  if python_deps_ready &&
     command_exists oracle-report &&
     command_exists oracle-build-manse-db; then
     log "Python dependencies already installed"
     return
   fi
 
-  python -m pip install --upgrade pip setuptools wheel
-
-  if python -c 'import cv2' >/dev/null 2>&1; then
-    log "OpenCV already importable; installing Python app/quality/test deps"
-    python -m pip install -e ".[quality,test]"
-  else
-    log "OpenCV not importable; installing Python camera/quality/test deps"
-    python -m pip install -e ".[camera,quality,test]"
-  fi
+  log "Installing Python dependencies..."
+  install_deps
 
   python -c 'import cv2' >/dev/null 2>&1 ||
     fail "OpenCV import failed after installation"
@@ -167,7 +326,7 @@ ensure_llama_cpp() {
   command_exists git || fail "git is required to clone llama.cpp"
   command_exists cmake || fail "cmake is required to build llama.cpp"
 
-  mkdir -p "$DEPS_DIR"
+  mkdir -p "$(dirname "$LLAMA_CPP_DIR")"
   if [[ ! -d "$LLAMA_CPP_DIR/.git" ]]; then
     log "cloning llama.cpp into $LLAMA_CPP_DIR"
     git clone --depth 1 https://github.com/ggml-org/llama.cpp "$LLAMA_CPP_DIR"
@@ -176,14 +335,36 @@ ensure_llama_cpp() {
   fi
 
   log "configuring llama.cpp"
-  cmake -S "$LLAMA_CPP_DIR" -B "$LLAMA_CPP_DIR/build" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DGGML_NATIVE=ON \
+  local cmake_flags=(
+    -DCMAKE_BUILD_TYPE=Release
+    -DGGML_NATIVE=ON
     -DGGML_OPENMP=ON
+  )
+
+  local use_cuda=0
+  if [[ "${FORCE_CUDA:-auto}" == "1" ]]; then
+    use_cuda=1
+  elif [[ "${FORCE_CUDA:-auto}" == "0" ]]; then
+    use_cuda=0
+  else
+    if detect_cuda; then
+      use_cuda=1
+    fi
+  fi
+
+  if [[ "$use_cuda" -eq 1 ]]; then
+    log "CUDA detected or requested. Building llama.cpp with CUDA support (-DGGML_CUDA=ON)..."
+    cmake_flags+=(-DGGML_CUDA=ON)
+  else
+    log "Building llama.cpp in CPU-only mode..."
+  fi
+
+  cmake -S "$LLAMA_CPP_DIR" -B "$LLAMA_CPP_DIR/build" "${cmake_flags[@]}"
 
   log "building llama-server"
-  cmake --build "$LLAMA_CPP_DIR/build" --config Release --target llama-server \
-    -j "${BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '2')}"
+  local jobs="${BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '2')}"
+  log "Running cmake --build with jobs: $jobs"
+  cmake --build "$LLAMA_CPP_DIR/build" --config Release --target llama-server -j "$jobs"
 }
 
 ensure_env_file() {
@@ -255,8 +436,24 @@ configured_model_hash_for_path() {
   model_path="$1"
   configured_hash="${ORACLE_LLAMA_MODEL_SHA256:-}"
   result="$(default_model_hash_for_path "$model_path")"
-  if [[ -n "$configured_hash" && "$configured_hash" != "$PACKAGED_MODEL_SHA256" ]]; then
-    result="$configured_hash"
+  
+  local model_name="${model_path##*/}"
+  if [[ "$model_name" == "gemma-3-1b-it-Q4_0.gguf" ]]; then
+    if [[ -n "$configured_hash" ]]; then
+      result="$configured_hash"
+    fi
+  else
+    if [[ -n "${MODEL_PATH:-}" ]]; then
+      result=""
+    else
+      local env_model_path="${ORACLE_LLAMA_MODEL_PATH:-}"
+      local env_model_name="${env_model_path##*/}"
+      if [[ -n "$env_model_name" && "$model_name" == "$env_model_name" && -n "$configured_hash" ]]; then
+        result="$configured_hash"
+      else
+        result=""
+      fi
+    fi
   fi
   printf '%s\n' "$result"
 }
@@ -283,7 +480,7 @@ find_repo_model_file() {
   local model_file
   model_file=""
   if [[ -d "$ROOT_DIR/models" ]]; then
-    model_file="$(find "$ROOT_DIR/models" -maxdepth 1 -type f -name '*.gguf' |
+    model_file="$(find "$ROOT_DIR/models" -type f -name '*.gguf' |
       sort |
       head -n 1)"
   fi
@@ -436,6 +633,26 @@ ensure_manse_db() {
     --end-year "$end_year"
 }
 
+generate_systemd_services() {
+  local template_dir="$ROOT_DIR/systemd"
+  local current_user
+  current_user="$(id -un)"
+
+  log "generating systemd service files dynamically for user=$current_user, dir=$ROOT_DIR"
+
+  if [[ -f "$template_dir/llama-server.service.template" ]]; then
+    sed -e "s|{{ORACLE_DIR}}|$ROOT_DIR|g" \
+        -e "s|{{ORACLE_USER}}|$current_user|g" \
+        "$template_dir/llama-server.service.template" > "$template_dir/llama-server.service"
+  fi
+
+  if [[ -f "$template_dir/oracle-report.service.template" ]]; then
+    sed -e "s|{{ORACLE_DIR}}|$ROOT_DIR|g" \
+        -e "s|{{ORACLE_USER}}|$current_user|g" \
+        "$template_dir/oracle-report.service.template" > "$template_dir/oracle-report.service"
+  fi
+}
+
 run_verification() {
   if [[ "${ORACLE_SKIP_TESTS:-0}" == "1" ]]; then
     log "skipping tests because ORACLE_SKIP_TESTS=1"
@@ -448,6 +665,19 @@ run_verification() {
 }
 
 main() {
+  parse_args "$@"
+
+  if [[ -z "$LLAMA_CPP_DIR" ]]; then
+    LLAMA_CPP_DIR="$DEFAULT_LLAMA_CPP_DIR"
+  fi
+
+  if [[ -n "$MODEL_PATH" ]]; then
+    GEMMA3_1B_Q4_MODEL_PATH="$MODEL_PATH"
+  fi
+
+  # Call setup_python_env first to determine the package environment mode
+  setup_python_env
+
   install_apt_packages \
     python3 \
     python3-venv \
@@ -470,6 +700,7 @@ main() {
   ensure_model_file
   ensure_gemma3_1b_q4_model_file
   ensure_manse_db
+  generate_systemd_services
   run_verification
   log "build complete"
 }

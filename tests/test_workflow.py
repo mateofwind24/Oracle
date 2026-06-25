@@ -271,3 +271,34 @@ def _fake_single_capture(
         face_analysis="## 관상정보\n- 분석 모드: 랜드마크 룰 기반",
     )
     return result
+
+
+def test_personal_workflow_skips_face(tmp_path: Path) -> None:
+    capture_config = _capture_config(tmp_path)
+    manse_db_path = _build_test_manse_db(tmp_path)
+    workflow_input = PersonalWorkflowInput(
+        name="홍길동",
+        birth_date="1995-03-15",
+        birth_time="",
+        gender="남성",
+        target_gender="여성",
+        skip_face=True,
+    )
+
+    result = run_personal_workflow(
+        workflow_input=workflow_input,
+        capture_config=capture_config,
+        face_llm_config=_llm_config(),
+        report_llm_config=_llm_config(),
+        manse_db_path=manse_db_path,
+        recommendation_db_path=tmp_path / "faces.sqlite",
+        face_client=FailingFaceClient(),  # Should not be called!
+        report_client=FakeLlmClient(),
+        capture_runner=None,  # Should not be called!
+    )
+
+    assert result.output_path.exists()
+    assert result.capture_path is None
+    assert result.face_analysis == ""
+    assert "관상" not in result.report_html
+

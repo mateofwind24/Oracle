@@ -1,0 +1,10 @@
+# Reproducible dependency snapshot for Oracle Report.
+# pyproject.toml remains the package metadata source; this file pins install versions.
+Flask==3.0.3
+mediapipe==0.10.14
+numpy==1.26.4
+opencv-python==4.10.0.84
+Pillow==10.4.0
+pytest==8.3.3
+python-dotenv==1.0.1
+requests==2.32.3

@@ -55,6 +55,7 @@ class PersonalWorkflowInput:
     gender: str
     target_gender: str
     face_analysis_mode: int = FACE_ANALYSIS_MODE_LLM_IMAGE
+    skip_face: bool = False
 
 
 @dataclass(frozen=True)
@@ -77,7 +78,7 @@ class PersonalWorkflowResult:
     report_html: str
     report_fragment_html: str
     output_path: Path
-    capture_path: Path
+    capture_path: Path | None
     recommendations: tuple[FaceRecommendation, ...]
     face_analysis: str
     manse_status: str
@@ -194,35 +195,50 @@ def run_personal_workflow(
         active_face_client = face_client or LlamaCppChatClient(face_llm_config)
     active_report_client = report_client or LlamaCppChatClient(report_llm_config)
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        manse_future = executor.submit(
-            _timed_call,
+    capture_artifact = None
+    if not workflow_input.skip_face:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            manse_future = executor.submit(
+                _timed_call,
+                "manse_lookup",
+                repository.lookup,
+                profile,
+            )
+            capture_future = executor.submit(
+                _timed_call,
+                "capture",
+                capture_runner,
+                active_capture_config,
+                output_dir,
+            )
+            capture_timed = capture_future.result()
+            timing_recorder.add(capture_timed.timing)
+            capture_artifact = capture_timed.value
+            manse_timed = manse_future.result()
+            timing_recorder.add(manse_timed.timing)
+            manse_lookup = manse_timed.value
+    else:
+        manse_timed = _timed_call(
             "manse_lookup",
             repository.lookup,
             profile,
         )
-        capture_future = executor.submit(
-            _timed_call,
-            "capture",
-            capture_runner,
-            active_capture_config,
-            output_dir,
-        )
-        capture_timed = capture_future.result()
-        timing_recorder.add(capture_timed.timing)
-        capture_artifact = capture_timed.value
-        manse_timed = manse_future.result()
         timing_recorder.add(manse_timed.timing)
         manse_lookup = manse_timed.value
 
-    face_analysis = timing_recorder.run(
-        "face_analysis",
-        _build_single_face_analysis,
-        active_face_client,
-        profile,
-        capture_artifact,
-        face_analysis_mode,
-    )
+    if not workflow_input.skip_face and capture_artifact is not None:
+        face_analysis = timing_recorder.run(
+            "face_analysis",
+            _build_single_face_analysis,
+            active_face_client,
+            profile,
+            capture_artifact,
+            face_analysis_mode,
+        )
+        face_analysis_text = face_analysis.text
+    else:
+        face_analysis_text = ""
+
     recommendations = timing_recorder.run(
         "recommend_faces",
         recommend_faces,
@@ -236,7 +252,7 @@ def run_personal_workflow(
         active_report_client,
         profile,
         manse_lookup,
-        face_analysis.text,
+        face_analysis_text,
         recommendations,
     )
     report_html = timing_recorder.run(
@@ -244,19 +260,22 @@ def run_personal_workflow(
         render_personal_report_html,
         profile,
         manse_lookup,
-        face_analysis.text,
+        face_analysis_text,
         recommendations,
         markdown,
+        True,
+        workflow_input.skip_face,
     )
     report_fragment_html = timing_recorder.run(
         "render_report_fragment_html",
         render_personal_report_html,
         profile,
         manse_lookup,
-        face_analysis.text,
+        face_analysis_text,
         recommendations,
         markdown,
         False,
+        workflow_input.skip_face,
     )
     output_path = output_dir / "personal_report.html"
     timing_recorder.run(
@@ -265,6 +284,7 @@ def run_personal_workflow(
         report_html,
         encoding="utf-8",
     )
+    (output_dir / "personal_report.md").write_text(markdown, encoding="utf-8")
     timing_recorder.finish_total()
     timing_log_path = timing_recorder.write_log(output_dir / "timings.log")
     result = PersonalWorkflowResult(
@@ -272,9 +292,9 @@ def run_personal_workflow(
         report_html=report_html,
         report_fragment_html=report_fragment_html,
         output_path=output_path,
-        capture_path=capture_artifact.image_path,
+        capture_path=capture_artifact.image_path if capture_artifact is not None else None,
         recommendations=recommendations,
-        face_analysis=face_analysis.text,
+        face_analysis=face_analysis_text,
         manse_status="조회 완료",
         timing_log_path=timing_log_path,
     )
