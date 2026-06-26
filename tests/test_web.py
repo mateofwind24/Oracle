@@ -14,6 +14,46 @@ def test_favicon_returns_no_content() -> None:
     assert response.status_code == 204
 
 
+def test_home_page_uses_oracle_home_layout_and_hover_effects() -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import create_app
+
+    app = create_app()
+
+    response = app.test_client().get("/")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'class="oracle-home-shell"' in html
+    assert 'ORACLE<span class="stamp serif">運</span>' in html
+    assert 'class="hero"' in html
+    assert 'class="mode solo"' in html
+    assert 'href="/personal"' in html
+    assert 'class="mode pair"' in html
+    assert 'href="/compatibility"' in html
+    assert ".mode:hover" in html
+    assert "transform: translateY(-6px);" in html
+    assert ".mode:hover .go .arr" in html
+    assert "transform: translateX(4px);" in html
+
+
+def test_home_page_serves_saju_illustration() -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import create_app
+
+    app = create_app()
+    client = app.test_client()
+
+    response = client.get("/")
+    html = response.get_data(as_text=True)
+    image_response = client.get("/static/assets/saju.jpg")
+
+    assert response.status_code == 200
+    assert 'src="/static/assets/saju.jpg"' in html
+    assert image_response.status_code == 200
+    assert image_response.content_type == "image/jpeg"
+
+
 def test_personal_page_includes_visible_workflow_loading_state() -> None:
     pytest.importorskip("flask")
     from oracle_report.web import create_app

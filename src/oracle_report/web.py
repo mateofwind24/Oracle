@@ -93,7 +93,7 @@ def create_app() -> Flask:
             <div class="halo"></div>
             <div class="ring"></div>
             <div class="illust">
-              <img src="" alt="관상 일러스트" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+              <img src="/static/assets/saju.jpg" alt="관상 일러스트" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
               <div class="ph" style="display:none"><span class="em">🔮</span>assets/saju.jpg<br>관상 일러스트 삽입</div>
             </div>
           </div>
