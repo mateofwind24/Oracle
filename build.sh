@@ -291,7 +291,6 @@ modules = (
     "cv2",
     "dotenv",
     "flask",
-    "mediapipe",
     "numpy",
     "oracle_report",
     "PIL",
@@ -307,20 +306,32 @@ install_deps() {
   if [[ "$python_env_mode" == "uv" ]]; then
     uv pip install --upgrade pip setuptools wheel
     if python -c 'import cv2' >/dev/null 2>&1; then
-      log "OpenCV already importable; installing quality/test deps with uv"
-      uv pip install -e ".[quality,test]"
+      log "OpenCV already importable; trying to install quality/test deps with uv"
+      if ! uv pip install -e ".[quality,test]"; then
+        log "Warning: mediapipe (quality extra) installation failed. Trying fallback to test-only deps..."
+        uv pip install -e ".[test]"
+      fi
     else
-      log "OpenCV not importable; installing camera/quality/test deps with uv"
-      uv pip install -e ".[camera,quality,test]"
+      log "OpenCV not importable; trying to install camera/quality/test deps with uv"
+      if ! uv pip install -e ".[camera,quality,test]"; then
+        log "Warning: mediapipe (quality extra) installation failed. Trying fallback to camera/test deps..."
+        uv pip install -e ".[camera,test]"
+      fi
     fi
   else
     python -m pip install --upgrade pip setuptools wheel
     if python -c 'import cv2' >/dev/null 2>&1; then
-      log "OpenCV already importable; installing quality/test deps with pip"
-      python -m pip install -e ".[quality,test]"
+      log "OpenCV already importable; trying to install quality/test deps with pip"
+      if ! python -m pip install -e ".[quality,test]"; then
+        log "Warning: mediapipe (quality extra) installation failed. Trying fallback to test-only deps..."
+        python -m pip install -e ".[test]"
+      fi
     else
-      log "OpenCV not importable; installing camera/quality/test deps with pip"
-      python -m pip install -e ".[camera,quality,test]"
+      log "OpenCV not importable; trying to install camera/quality/test deps with pip"
+      if ! python -m pip install -e ".[camera,quality,test]"; then
+        log "Warning: mediapipe (quality extra) installation failed. Trying fallback to camera/test deps..."
+        python -m pip install -e ".[camera,test]"
+      fi
     fi
   fi
 }
