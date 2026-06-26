@@ -41,6 +41,13 @@ from oracle_report.vision.runtime import run_capture
 _DEFAULT_FACE_ANALYSIS_TEXT = "관상 분석 결과를 여기에 넣습니다."
 _DEFAULT_FACE_DB_PATH = "data/face_recommendations.sqlite"
 _UNKNOWN_BIRTH_TIME_VALUES = frozenset(("", "모름", "미상", "unknown", "none"))
+_TOKEN_TABLE_HEADERS = (
+    "name",
+    "id_slot",
+    "prefix_tokens",
+    "body_template_tokens",
+    "full_template_tokens",
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -210,13 +217,53 @@ def _run_token_command(args: argparse.Namespace) -> int:
         body_tokens = counter.count(info.body_template)
         full_text = _join_prompt_parts(info.prefix, info.body_template)
         full_tokens = counter.count(full_text)
-        rows.append((info.name, info.slot_id, prefix_tokens, body_tokens, full_tokens))
+        slot_text = "" if info.slot_id is None else str(info.slot_id)
+        rows.append(
+            (
+                info.name,
+                slot_text,
+                str(prefix_tokens),
+                str(body_tokens),
+                str(full_tokens),
+            ),
+        )
     print(f"source={counter.source}")
-    print("name\tid_slot\tprefix_tokens\tbody_template_tokens\tfull_template_tokens")
-    for name, slot_id, prefix_tokens, body_tokens, full_tokens in rows:
-        slot_text = "" if slot_id is None else str(slot_id)
-        print(f"{name}\t{slot_text}\t{prefix_tokens}\t{body_tokens}\t{full_tokens}")
+    for line in _format_table(_TOKEN_TABLE_HEADERS, rows):
+        print(line)
     result = 0
+    return result
+
+
+def _format_table(
+    headers: tuple[str, ...],
+    rows: list[tuple[str, ...]],
+) -> list[str]:
+    all_rows = [headers, *rows]
+    widths = _table_widths(all_rows)
+    result = [_format_table_row(headers, widths)]
+    for row in rows:
+        result.append(_format_table_row(row, widths))
+    return result
+
+
+def _table_widths(rows: list[tuple[str, ...]]) -> tuple[int, ...]:
+    widths = [0] * len(rows[0])
+    for row in rows:
+        for index, cell in enumerate(row):
+            widths[index] = max(widths[index], len(cell))
+    result = tuple(widths)
+    return result
+
+
+def _format_table_row(row: tuple[str, ...], widths: tuple[int, ...]) -> str:
+    cells = []
+    last_index = len(row) - 1
+    for index, cell in enumerate(row):
+        if index == last_index:
+            cells.append(cell)
+        else:
+            cells.append(cell.ljust(widths[index]))
+    result = "  ".join(cells).rstrip()
     return result
 
 

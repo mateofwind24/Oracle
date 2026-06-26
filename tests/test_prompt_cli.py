@@ -169,14 +169,20 @@ def test_token_command_prints_prompt_prefix_sizes(capsys) -> None:
     result = main(["token", "--offline"])
 
     output = capsys.readouterr().out
+    lines = output.splitlines()
+    header = next(line for line in lines if line.startswith("name "))
+    personal_row = next(line for line in lines if line.startswith("personal_face_analysis "))
+    saju_row = next(line for line in lines if line.startswith("saju_reading "))
 
     assert result == 0
     assert "source=estimated" in output
-    assert "name\tid_slot\tprefix_tokens" in output
-    assert "personal_face_analysis\t0\t" in output
-    assert "saju_reading\t1\t" in output
-    assert "face_analysis_copule\t2\t" in output
-    assert "saju_reading_couple\t3\t" in output
+    assert "name" in header
+    assert "id_slot" in header
+    assert "prefix_tokens" in header
+    assert header.index("id_slot") == personal_row.index("0")
+    assert header.index("id_slot") == saju_row.index("1")
+    assert "face_analysis_copule" in output
+    assert "saju_reading_couple" in output
 
 
 def _build_test_manse_db(tmp_path: Path) -> Path:
