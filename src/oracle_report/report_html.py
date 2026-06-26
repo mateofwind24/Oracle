@@ -836,7 +836,7 @@ def _render_report_body(view: _PersonalReportView) -> str:
 <div class="wrap">
   <header class="fade">
     <div class="eyebrow">{eyebrow_text}</div>
-    <div class="ilgan {escape(view.day_master_class)}">{escape(view.day_master_hanja)}<span class="ko">{escape(view.day_master_label)}</span></div>
+    <div class="ilgan {escape(view.day_master_class)}"><span class="hanja">{escape(view.day_master_hanja)}</span><span class="ko">{escape(view.day_master_label)}</span></div>
     <div class="name">{escape(view.name)} 님</div>
     <div class="meta">{escape(view.meta)}</div>
     <p class="essence serif">{escape(view.essence)}</p>
@@ -1135,9 +1135,13 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:"Gowun Dodum"
 .serif{font-family:"Gowun Batang",serif}
 header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)}
 .eyebrow{font-size:12px;letter-spacing:.42em;color:var(--gold);text-transform:uppercase;margin-bottom:26px}
-.ilgan{font-family:"Song Myung",serif;font-size:120px;line-height:1;position:relative;display:inline-block;text-shadow:2px 2px 4px rgba(42,37,32,0.06)}
-.ilgan.c-mok{color:var(--mok)}.ilgan.c-hwa{color:var(--hwa)}.ilgan.c-to{color:var(--to)}.ilgan.c-geum{color:var(--geum)}.ilgan.c-su{color:var(--su)}
-.ilgan .ko{font-family:"Gowun Batang",serif;font-size:20px;color:var(--ink-soft);position:absolute;bottom:14px;right:-8px;transform:translateX(100%)}
+.ilgan{font-family:"Song Myung",serif;font-size:56px;line-height:1.1;width:120px;height:120px;border-radius:50%;border:2px solid currentColor;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;position:relative;margin-bottom:10px}
+.ilgan.c-mok{color:var(--mok);background:rgba(58,125,92,.12);border-color:var(--mok)}
+.ilgan.c-hwa{color:var(--hwa);background:rgba(194,82,57,.12);border-color:var(--hwa)}
+.ilgan.c-to{color:#7A5615;background:rgba(204,154,59,.16);border-color:var(--to)}
+.ilgan.c-geum{color:#5F5A52;background:rgba(154,149,139,.16);border-color:var(--geum)}
+.ilgan.c-su{color:var(--su);background:rgba(46,66,88,.12);border-color:var(--su)}
+.ilgan .ko{font-family:"Gowun Batang",serif;font-size:13px;color:var(--ink-soft);margin-top:4px}
 .pair-mark{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0 18px}.pair-x{font-family:"Gowun Batang",serif;font-size:34px;color:var(--gold)}
 .person-mark{display:flex;flex-direction:column;align-items:center;justify-content:center;width:116px;height:116px;border-radius:50%;color:var(--ink);background:var(--paper-2);border:2px solid currentColor}.person-mark .person-hanja{font-family:"Song Myung",serif;font-size:54px;line-height:1}.person-mark .person-ko{font-family:"Gowun Batang",serif;font-size:12px;margin-top:6px;color:var(--ink-soft)}
 .name{font-family:"Gowun Batang",serif;font-size:30px;font-weight:700;margin-top:18px}
