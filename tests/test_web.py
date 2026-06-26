@@ -85,6 +85,7 @@ def test_personal_result_page_includes_workflow_loading_state() -> None:
     assert 'data-skip-face="1"' in html
     assert 'id="workflow-loading"' in html
     assert 'role="status"' in html
+    assert 'class="capture-privacy-veil"' in html
     assert "사주 리포트 생성 중입니다" in html
     assert "pollWorkflow(resultJobId, resultUi.status, resultUi.result, resultUi.loading)" in html
     assert 'id="download-report-link"' in html
@@ -93,6 +94,31 @@ def test_personal_result_page_includes_workflow_loading_state() -> None:
     assert "리포트 다운로드" in html
     assert "min-height: 46px;" in html
     assert "border-radius: 999px;" in html
+    assert "activatePrivacyVeil" in html
+    assert "capture-complete" in html
+
+
+def test_running_job_status_includes_phase() -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import _WorkflowJob, _set_job, create_app
+
+    app = create_app()
+    _set_job(
+        "phase-job",
+        _WorkflowJob(
+            status="running",
+            phase="generating",
+            message="리포트 생성 중",
+        ),
+    )
+
+    response = app.test_client().get("/api/jobs/phase-job")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["status"] == "running"
+    assert payload["phase"] == "generating"
+    assert payload["message"] == "리포트 생성 중"
 
 
 def test_completed_job_downloads_report_html() -> None:

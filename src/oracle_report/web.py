@@ -35,6 +35,8 @@ class _WorkflowJob:
     status: str
     html: str = ""
     error: str = ""
+    phase: str = ""
+    message: str = ""
     download_html: str = ""
     download_filename: str = "oracle_report.html"
 
@@ -254,9 +256,21 @@ def create_app() -> Flask:
     def job_status(job_id: str):
         job = _get_job(job_id)
         status_code = 200
-        payload = {"status": "missing", "html": "", "error": "job not found"}
+        payload = {
+            "status": "missing",
+            "html": "",
+            "error": "job not found",
+            "phase": "",
+            "message": "",
+        }
         if job is not None:
-            payload = {"status": job.status, "html": job.html, "error": job.error}
+            payload = {
+                "status": job.status,
+                "html": job.html,
+                "error": job.error,
+                "phase": job.phase,
+                "message": job.message,
+            }
         else:
             status_code = 404
         result = jsonify(payload), status_code
@@ -350,6 +364,26 @@ def _personal_workflow_input_from_form() -> PersonalWorkflowInput:
 
 
 def _start_personal_workflow_job(workflow_input: PersonalWorkflowInput) -> str:
+    job_id = uuid.uuid4().hex
+    initial_phase = "generating" if workflow_input.skip_face else "capturing"
+    initial_message = (
+        "사주 리포트 생성 중"
+        if workflow_input.skip_face
+        else "얼굴을 카메라 중앙에 맞춰 주세요"
+    )
+
+    def capture_runner(config, output_dir: Path | None = None):
+        capture_artifact = _preview_capture_runner(config, output_dir)
+        _set_job(
+            job_id,
+            _WorkflowJob(
+                status="running",
+                phase="generating",
+                message="얼굴 인식이 완료되어 리포트를 생성하고 있습니다",
+            ),
+        )
+        return capture_artifact
+
     def run_job() -> _WorkflowJob:
         workflow_result = run_personal_workflow(
             workflow_input=workflow_input,
@@ -358,7 +392,7 @@ def _start_personal_workflow_job(workflow_input: PersonalWorkflowInput) -> str:
             report_llm_config=load_report_llm_config(),
             manse_db_path=_manse_db_path(),
             recommendation_db_path=_face_db_path(),
-            capture_runner=_preview_capture_runner,
+            capture_runner=capture_runner,
         )
         result = _WorkflowJob(
             status="complete",
@@ -368,7 +402,15 @@ def _start_personal_workflow_job(workflow_input: PersonalWorkflowInput) -> str:
         )
         return result
 
-    result = _start_workflow_job(run_job)
+    result = _start_workflow_job(
+        run_job,
+        job_id=job_id,
+        initial_job=_WorkflowJob(
+            status="running",
+            phase=initial_phase,
+            message=initial_message,
+        ),
+    )
     return result
 
 
@@ -387,16 +429,21 @@ def _preview_capture_runner(config, output_dir: Path | None = None):
     return result
 
 
-def _start_workflow_job(run_job) -> str:
-    job_id = uuid.uuid4().hex
-    _set_job(job_id, _WorkflowJob(status="running"))
+def _start_workflow_job(
+    run_job,
+    *,
+    job_id: str | None = None,
+    initial_job: _WorkflowJob | None = None,
+) -> str:
+    active_job_id = job_id or uuid.uuid4().hex
+    _set_job(active_job_id, initial_job or _WorkflowJob(status="running"))
     thread = threading.Thread(
         target=_run_workflow_job,
-        args=(job_id, run_job),
+        args=(active_job_id, run_job),
         daemon=True,
     )
     thread.start()
-    result = job_id
+    result = active_job_id
     return result
 
 
@@ -629,7 +676,11 @@ def _capture_preview_panel(
         if skip_face
         else "얼굴 촬영과 사주 분석을 진행한 뒤 리포트를 만들고 있습니다. 잠시만 기다려 주세요."
     )
-    status_text = "리포트 생성 중" if skip_face else "촬영 중"
+    status_text = (
+        "리포트 생성 중"
+        if skip_face
+        else "정면 얼굴을 카메라 중앙에 맞춰 주세요."
+    )
     result = f"""
     <section id="workflow-loading" class="panel workflow-loading" role="status" aria-live="polite" aria-busy="true"{job_attr}{skip_attr}{loading_hidden}>
       <span class="loading-spinner" aria-hidden="true"></span>
@@ -641,6 +692,13 @@ def _capture_preview_panel(
     <section class="panel capture-preview"{preview_hidden}>
       <h2>실시간 촬영 상태</h2>
       <img id="capture-preview-image" alt="실시간 촬영 상태">
+      <div class="capture-privacy-veil" hidden>
+        <div class="veil-card">
+          <span class="veil-mark" aria-hidden="true">✦</span>
+          <strong>얼굴 인식 완료</strong>
+          <p>이제 리포트를 예쁘게 빚는 중이에요.</p>
+        </div>
+      </div>
       <p id="workflow-status" class="hint">{status_text}</p>
     </section>
     <section id="workflow-result"></section>
@@ -1220,6 +1278,7 @@ def _render_page(
           }}
           .capture-preview {{
             margin-top: 16px;
+            position: relative;
           }}
           .oracle-result-shell {{
             width: 100%;
@@ -1305,6 +1364,57 @@ def _render_page(
             object-fit: contain;
             border-radius: 6px;
             background: #111111;
+          }}
+          .capture-preview.capture-complete img {{
+            filter: blur(12px) saturate(0.75);
+          }}
+          .capture-privacy-veil {{
+            position: absolute;
+            inset: 20px 20px 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background:
+              radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.8), transparent 36%),
+              rgba(251, 248, 241, 0.82);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(218, 208, 190, 0.7);
+            text-align: center;
+          }}
+          .capture-privacy-veil[hidden] {{
+            display: none;
+          }}
+          .veil-card {{
+            width: min(320px, 82%);
+            padding: 22px 20px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid var(--line-soft);
+            box-shadow: 0 16px 36px -26px rgba(46, 37, 32, 0.55);
+          }}
+          .veil-mark {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            margin-bottom: 8px;
+            border-radius: 999px;
+            background: rgba(58, 125, 92, 0.12);
+            color: var(--mok-deep);
+            font-size: 18px;
+          }}
+          .veil-card strong {{
+            display: block;
+            font-family: "Gowun Batang", serif;
+            font-size: 18px;
+            color: var(--ink);
+          }}
+          .veil-card p {{
+            margin: 6px 0 0;
+            color: var(--ink-soft);
+            font-size: 13px;
           }}
           @media (max-width: 480px) {{
             main.input-page {{
@@ -1422,23 +1532,31 @@ def _render_page(
               ui.preview.hidden = false;
               loadingTitle.textContent = "촬영 및 리포트 생성 중입니다";
               loadingMessage.textContent = "얼굴 촬영과 사주 분석을 진행한 뒤 리포트를 만들고 있습니다. 잠시만 기다려 주세요.";
-              ui.status.textContent = "촬영 중";
+              ui.status.textContent = "정면 얼굴을 카메라 중앙에 맞춰 주세요.";
               ui.previewImage.src = "/video-feed?ts=" + Date.now();
             }}
           }}
 
           async function pollWorkflow(jobId, status, result, loading) {{
             const downloadLink = document.getElementById("download-report-link");
+            const preview = document.querySelector(".capture-preview");
             let done = false;
             while (!done) {{
               await new Promise((resolve) => setTimeout(resolve, 5000));
               const response = await fetch("/api/jobs/" + encodeURIComponent(jobId));
               const payload = await response.json();
+              if (payload.phase === "generating") {{
+                activatePrivacyVeil(preview);
+                status.textContent = payload.message || "얼굴 인식 완료, 리포트를 생성하고 있습니다";
+              }}
               if (payload.status === "complete") {{
                 result.innerHTML = payload.html;
                 status.textContent = "완료";
                 loading.hidden = true;
                 loading.setAttribute("aria-busy", "false");
+                if (preview) {{
+                  preview.hidden = true;
+                }}
                 if (downloadLink) {{
                   downloadLink.hidden = false;
                 }}
@@ -1448,10 +1566,26 @@ def _render_page(
                 status.textContent = "오류";
                 loading.hidden = true;
                 loading.setAttribute("aria-busy", "false");
+                if (preview) {{
+                  activatePrivacyVeil(preview);
+                }}
                 done = true;
               }} else {{
-                status.textContent = "촬영 및 리포트 생성 중";
+                if (payload.phase !== "generating") {{
+                  status.textContent = payload.message || "촬영 및 리포트 생성 중";
+                }}
               }}
+            }}
+          }}
+
+          function activatePrivacyVeil(preview) {{
+            if (!preview) {{
+              return;
+            }}
+            const veil = preview.querySelector(".capture-privacy-veil");
+            preview.classList.add("capture-complete");
+            if (veil) {{
+              veil.hidden = false;
             }}
           }}
         </script>
