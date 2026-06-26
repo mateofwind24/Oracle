@@ -5,6 +5,9 @@ from datetime import datetime
 from pathlib import Path
 
 from oracle_report.models import BirthProfile
+from oracle_report.saju.calendar import (
+    time_branch_index_from_datetime as _chart_time_branch_index_from_datetime,
+)
 from oracle_report.saju.engine import ELEMENTS, SajuReading, build_saju_reading
 
 
@@ -38,33 +41,34 @@ MANSE_TIME_BRANCH_HANJA = (
     "亥時",
 )
 MANSE_TIME_BRANCH_RANGES = (
-    "23:00-01:00",
-    "01:00-03:00",
-    "03:00-05:00",
-    "05:00-07:00",
-    "07:00-09:00",
-    "09:00-11:00",
-    "11:00-13:00",
-    "13:00-15:00",
-    "15:00-17:00",
-    "17:00-19:00",
-    "19:00-21:00",
-    "21:00-23:00",
+    "23:30-01:30",
+    "01:30-03:30",
+    "03:30-05:30",
+    "05:30-07:30",
+    "07:30-09:30",
+    "09:30-11:30",
+    "11:30-13:30",
+    "13:30-15:30",
+    "15:30-17:30",
+    "17:30-19:30",
+    "19:30-21:30",
+    "21:30-23:30",
 )
 _REPRESENTATIVE_TIMES = (
-    "00:00",
-    "02:00",
-    "04:00",
-    "06:00",
-    "08:00",
-    "10:00",
-    "12:00",
-    "14:00",
-    "16:00",
-    "18:00",
-    "20:00",
-    "22:00",
+    "00:30",
+    "02:30",
+    "04:30",
+    "06:30",
+    "08:30",
+    "10:30",
+    "12:30",
+    "14:30",
+    "16:30",
+    "18:30",
+    "20:30",
+    "22:30",
 )
+UNKNOWN_BIRTH_TIME_REPRESENTATIVE = "12:30"
 _UNKNOWN_BIRTH_TIME_DISPLAY = "시간 미상 (오시(午時) 보조 기준)"
 
 
@@ -129,8 +133,7 @@ def normalize_gender(gender: str) -> str:
 
 
 def time_branch_index_from_datetime(birth_datetime: datetime) -> int:
-    total_minutes = birth_datetime.hour * 60 + birth_datetime.minute
-    result = ((total_minutes + 60) // 120) % len(MANSE_TIME_BRANCH_LABELS)
+    result = _chart_time_branch_index_from_datetime(birth_datetime)
     return result
 
 

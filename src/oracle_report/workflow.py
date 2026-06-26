@@ -34,6 +34,7 @@ from oracle_report.report_html import (
 from oracle_report.saju.repository import (
     ManseLookupResult,
     ManseRepository,
+    UNKNOWN_BIRTH_TIME_REPRESENTATIVE,
     representative_time_from_time_branch,
 )
 from oracle_report.vision.runtime import run_capture
@@ -1022,7 +1023,7 @@ def _normalize_birth_time(birth_time: str) -> tuple[str, bool]:
     birth_time_known = cleaned_time.lower() not in _UNKNOWN_BIRTH_TIME_VALUES
     time_text = cleaned_time
     if not birth_time_known:
-        time_text = "12:00"
+        time_text = UNKNOWN_BIRTH_TIME_REPRESENTATIVE
     else:
         time_branch_time = representative_time_from_time_branch(cleaned_time)
         if time_branch_time is not None:

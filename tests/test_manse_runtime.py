@@ -45,6 +45,18 @@ def test_runtime_calculation_uses_midnight_day_boundary_default() -> None:
     assert chart.hour.label == "임자"
 
 
+def test_runtime_hour_pillar_uses_korean_shifted_time_branch() -> None:
+    before_zi = build_saju_chart(datetime(2024, 3, 10, 23, 29))
+    start_zi = build_saju_chart(datetime(2024, 3, 10, 23, 30))
+    end_zi = build_saju_chart(datetime(2024, 3, 10, 1, 29))
+    start_chuk = build_saju_chart(datetime(2024, 3, 10, 1, 30))
+
+    assert before_zi.hour.label == "계해"
+    assert start_zi.hour.label == "임자"
+    assert end_zi.hour.label == "임자"
+    assert start_chuk.hour.label == "계축"
+
+
 def test_runtime_calculation_limits_precise_solar_term_years() -> None:
     build_saju_chart(datetime(2300, 1, 1, 0, 0))
 

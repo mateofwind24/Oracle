@@ -21,6 +21,7 @@ BRANCH_ELEMENTS = ("수", "토", "목", "목", "토", "화", "화", "토", "금"
 BRANCH_ANIMALS = ("쥐", "소", "호랑이", "토끼", "용", "뱀", "말", "양", "원숭이", "닭", "개", "돼지")
 DAY_PILLAR_ANCHOR = date(1992, 10, 24)
 DAY_PILLAR_ANCHOR_GANJI_INDEX = 9
+TIME_BRANCH_SHIFT_MINUTES = 30
 
 
 @dataclass(frozen=True)
@@ -86,6 +87,13 @@ def julian_day_number(day: date) -> int:
     return result
 
 
+def time_branch_index_from_datetime(birth_datetime: datetime) -> int:
+    total_minutes = birth_datetime.hour * 60 + birth_datetime.minute
+    shifted_minutes = (total_minutes + TIME_BRANCH_SHIFT_MINUTES) % (24 * 60)
+    result = shifted_minutes // 120
+    return result
+
+
 def _year_pillar(year: int) -> StemBranch:
     cycle_index = (year - 4) % 60
     result = _sexagenary_from_cycle_index(cycle_index)
@@ -109,7 +117,7 @@ def _day_pillar(day: date) -> StemBranch:
 
 
 def _hour_pillar(birth_datetime: datetime, day_stem_index: int) -> StemBranch:
-    branch_index = ((birth_datetime.hour + 1) // 2) % 12
+    branch_index = time_branch_index_from_datetime(birth_datetime)
     zi_hour_stem = (day_stem_index % 5) * 2
     stem_index = (zi_hour_stem + branch_index) % 10
     result = StemBranch(stem_index=stem_index, branch_index=branch_index)

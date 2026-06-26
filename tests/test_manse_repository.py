@@ -12,6 +12,7 @@ from oracle_report.saju.repository import (
     representative_time_from_time_branch,
     time_branch_display_from_index,
     time_branch_index_from_datetime,
+    time_branch_range_display_from_index,
 )
 
 
@@ -49,18 +50,20 @@ def test_manse_lookup_ignores_missing_legacy_db_path(tmp_path: Path) -> None:
 
 
 def test_time_branch_boundaries_use_two_hour_shichen() -> None:
-    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 23, 0)) == 0
-    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 0, 59)) == 0
-    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 1, 0)) == 1
-    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 21, 0)) == 11
-    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 22, 59)) == 11
+    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 23, 29)) == 11
+    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 23, 30)) == 0
+    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 1, 29)) == 0
+    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 1, 30)) == 1
+    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 21, 29)) == 10
+    assert time_branch_index_from_datetime(datetime(2024, 3, 10, 21, 30)) == 11
 
 
 def test_time_branch_display_and_parsing_use_shichen_names() -> None:
     assert time_branch_display_from_index(6) == "오시(午時)"
-    assert representative_time_from_time_branch("오시") == "12:00"
-    assert representative_time_from_time_branch("午時") == "12:00"
-    assert representative_time_from_time_branch("오시(午時)") == "12:00"
+    assert time_branch_range_display_from_index(0) == "자시(子時) 23:30-01:30"
+    assert representative_time_from_time_branch("오시") == "12:30"
+    assert representative_time_from_time_branch("午時") == "12:30"
+    assert representative_time_from_time_branch("오시(午時)") == "12:30"
 
 
 def test_normalizes_supported_gender_aliases() -> None:
