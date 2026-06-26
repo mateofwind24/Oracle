@@ -8,6 +8,7 @@ import numpy as np
 from oracle_report.models import CaptureArtifact, CaptureDecision, FaceBox, FaceQuality
 from oracle_report.vision.clock import Clock, SystemClock
 from oracle_report.vision.detection import FaceDetector
+from oracle_report.vision.framing import evaluate_face_framing
 from oracle_report.vision.quality import FaceQualityAnalyzer
 
 
@@ -40,24 +41,31 @@ class FaceCaptureHarness:
 
         if len(faces) == 1:
             face = faces[0]
-            self._start_or_continue_tracking(now, face)
-            elapsed = self._tracked_elapsed(now)
-            state = "tracking"
-            quality = self._quality_analyzer.analyze(frame, face)
-            if quality.ready:
-                message = (
-                    f"correct - 촬영 조건이 좋습니다: "
-                    f"{elapsed:.1f}/{self._min_face_seconds:.1f}s"
-                )
-                if elapsed >= self._min_face_seconds:
-                    state = "captured"
-                    should_capture = True
-                    message = "correct - 캡처 조건을 만족했습니다."
-            else:
+            framing = evaluate_face_framing(face, frame.shape[1], frame.shape[0])
+            if not framing.ready:
                 state = "warning"
-                message = " ".join(quality.warnings)
+                message = framing.warning
                 elapsed = 0.0
                 self._reset_tracking()
+            else:
+                self._start_or_continue_tracking(now, face)
+                elapsed = self._tracked_elapsed(now)
+                state = "tracking"
+                quality = self._quality_analyzer.analyze(frame, face)
+                if quality.ready:
+                    message = (
+                        f"correct - 촬영 조건이 좋습니다: "
+                        f"{elapsed:.1f}/{self._min_face_seconds:.1f}s"
+                    )
+                    if elapsed >= self._min_face_seconds:
+                        state = "captured"
+                        should_capture = True
+                        message = "correct - 캡처 조건을 만족했습니다."
+                else:
+                    state = "warning"
+                    message = " ".join(quality.warnings)
+                    elapsed = 0.0
+                    self._reset_tracking()
         else:
             if len(faces) > 1:
                 state = "warning"

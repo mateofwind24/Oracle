@@ -42,28 +42,29 @@ def run_capture(
 
     try:
         while artifact is None:
-            ok, frame = capture.read()
+            ok, raw_frame = capture.read()
             if not ok:
                 raise RuntimeError("failed to read camera frame")
-            latest_decision = harness.observe(frame)
+            latest_decision = harness.observe(raw_frame)
             faces = [] if latest_decision.face is None else [latest_decision.face]
+            preview_frame = raw_frame.copy()
             draw_overlay(
                 cv2,
-                frame,
+                preview_frame,
                 latest_decision.message,
                 faces,
                 latest_decision.state == "warning",
                 latest_decision.landmark_points,
             )
             if frame_callback is not None:
-                frame_callback(cv2, frame)
+                frame_callback(cv2, preview_frame)
             if config.show_preview:
-                cv2.imshow("oracle-report", frame)
+                cv2.imshow("oracle-report", preview_frame)
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord("q"):
                     raise KeyboardInterrupt("capture cancelled")
             if latest_decision.should_capture:
-                artifact = save_capture_artifact(frame, latest_decision, destination)
+                artifact = save_capture_artifact(raw_frame, latest_decision, destination)
     finally:
         capture.release()
         if config.show_preview:

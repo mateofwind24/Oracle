@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+
 from oracle_report.config import CaptureConfig
-from oracle_report.vision.camera import _configure_capture
+from oracle_report.vision.camera import _configure_capture, draw_overlay
+from oracle_report.vision.framing import build_capture_guide
 
 
 class FakeCv2:
@@ -28,6 +31,43 @@ class FakeCapture:
         return result
 
 
+class FakeDrawCv2:
+    FONT_HERSHEY_SIMPLEX = 0
+    LINE_AA = 16
+
+    def __init__(self) -> None:
+        self.rectangle_calls: list[tuple[tuple[int, int], tuple[int, int], int]] = []
+        self.line_calls: list[tuple[tuple[int, int], tuple[int, int], int]] = []
+        self.circle_calls: list[tuple[tuple[int, int], int]] = []
+        self.text_calls: list[str] = []
+
+    def rectangle(
+        self,
+        frame,
+        start: tuple[int, int],
+        end: tuple[int, int],
+        color,
+        thickness: int,
+    ) -> None:
+        self.rectangle_calls.append((start, end, thickness))
+
+    def line(
+        self,
+        frame,
+        start: tuple[int, int],
+        end: tuple[int, int],
+        color,
+        thickness: int,
+    ) -> None:
+        self.line_calls.append((start, end, thickness))
+
+    def circle(self, frame, point: tuple[int, int], radius: int, color, thickness: int) -> None:
+        self.circle_calls.append((point, radius))
+
+    def putText(self, frame, message: str, *args) -> None:
+        self.text_calls.append(message)
+
+
 def test_configure_capture_skips_property_writes_for_gstreamer() -> None:
     capture = FakeCapture("GStreamer")
 
@@ -47,6 +87,19 @@ def test_configure_capture_applies_property_writes_for_v4l2() -> None:
         (FakeCv2.CAP_PROP_FPS, 15),
         (FakeCv2.CAP_PROP_BUFFERSIZE, 1),
     ]
+
+
+def test_draw_overlay_includes_center_head_and_shoulder_guides() -> None:
+    cv2 = FakeDrawCv2()
+    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+    guide = build_capture_guide(frame.shape[1], frame.shape[0])
+
+    draw_overlay(cv2, frame, "ready", [], False)
+
+    assert len(cv2.rectangle_calls) >= 3
+    assert cv2.rectangle_calls[0][0] == (guide.center_region.x, guide.center_region.y)
+    assert cv2.rectangle_calls[1][0] == (guide.head_box.x, guide.head_box.y)
+    assert len(cv2.line_calls) == 3
 
 
 def _capture_config() -> CaptureConfig:

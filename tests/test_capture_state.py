@@ -4,6 +4,7 @@ import numpy as np
 
 from oracle_report.models import FaceBox, FaceQuality
 from oracle_report.vision.capture import FaceCaptureHarness
+from oracle_report.vision.framing import build_capture_guide
 
 
 class FakeClock:
@@ -40,10 +41,10 @@ class FakeAnalyzer:
 
 def test_capture_requires_two_seconds_of_stable_face() -> None:
     clock = FakeClock()
-    detector = FakeDetector(FaceBox(10, 10, 120, 120))
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    detector = FakeDetector(_guide_face(frame))
     analyzer = FakeAnalyzer(FaceQuality(ready=True, eye_count=2, eyebrow_score=0.05))
     harness = FaceCaptureHarness(detector, analyzer, clock=clock)
-    frame = np.zeros((240, 320, 3), dtype=np.uint8)
 
     first = harness.observe(frame)
     clock.now = 1.5
@@ -59,7 +60,8 @@ def test_capture_requires_two_seconds_of_stable_face() -> None:
 
 def test_quality_warning_blocks_capture() -> None:
     clock = FakeClock()
-    detector = FakeDetector(FaceBox(10, 10, 120, 120))
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    detector = FakeDetector(_guide_face(frame))
     analyzer = FakeAnalyzer(
         FaceQuality(
             ready=False,
@@ -69,7 +71,6 @@ def test_quality_warning_blocks_capture() -> None:
         ),
     )
     harness = FaceCaptureHarness(detector, analyzer, clock=clock)
-    frame = np.zeros((240, 320, 3), dtype=np.uint8)
 
     harness.observe(frame)
     clock.now = 2.2
@@ -82,15 +83,16 @@ def test_quality_warning_blocks_capture() -> None:
 
 def test_multiple_faces_are_warning() -> None:
     clock = FakeClock()
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    guide_face = _guide_face(frame)
     detector = FakeDetector(
         [
-            FaceBox(10, 10, 120, 120),
-            FaceBox(160, 10, 120, 120),
+            guide_face,
+            FaceBox(410, 80, 150, 188),
         ],
     )
     analyzer = FakeAnalyzer(FaceQuality(ready=True, eye_count=2, eyebrow_score=0.05))
     harness = FaceCaptureHarness(detector, analyzer, clock=clock)
-    frame = np.zeros((240, 320, 3), dtype=np.uint8)
 
     decision = harness.observe(frame)
 
@@ -101,10 +103,10 @@ def test_multiple_faces_are_warning() -> None:
 
 def test_tracking_resets_when_face_disappears() -> None:
     clock = FakeClock()
-    detector = FakeDetector(FaceBox(10, 10, 120, 120))
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    detector = FakeDetector(_guide_face(frame))
     analyzer = FakeAnalyzer(FaceQuality(ready=True, eye_count=2, eyebrow_score=0.05))
     harness = FaceCaptureHarness(detector, analyzer, clock=clock)
-    frame = np.zeros((240, 320, 3), dtype=np.uint8)
 
     harness.observe(frame)
     clock.now = 1.8
@@ -117,3 +119,41 @@ def test_tracking_resets_when_face_disappears() -> None:
     assert missing.state == "searching"
     assert after_reset.elapsed_seconds == 0.0
     assert after_reset.should_capture is False
+
+
+def test_face_must_be_in_center_guide_before_capture() -> None:
+    clock = FakeClock()
+    detector = FakeDetector(FaceBox(10, 160, 150, 188))
+    analyzer = FakeAnalyzer(FaceQuality(ready=True, eye_count=2, eyebrow_score=0.05))
+    harness = FaceCaptureHarness(detector, analyzer, clock=clock)
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+    harness.observe(frame)
+    clock.now = 2.2
+    decision = harness.observe(frame)
+
+    assert decision.should_capture is False
+    assert decision.state == "warning"
+    assert "중앙" in decision.message
+
+
+def test_face_must_match_guide_depth_before_capture() -> None:
+    clock = FakeClock()
+    detector = FakeDetector(FaceBox(270, 117, 100, 125))
+    analyzer = FakeAnalyzer(FaceQuality(ready=True, eye_count=2, eyebrow_score=0.05))
+    harness = FaceCaptureHarness(detector, analyzer, clock=clock)
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+    harness.observe(frame)
+    clock.now = 2.2
+    decision = harness.observe(frame)
+
+    assert decision.should_capture is False
+    assert decision.state == "warning"
+    assert "가까이" in decision.message
+
+
+def _guide_face(frame: np.ndarray) -> FaceBox:
+    guide = build_capture_guide(frame.shape[1], frame.shape[0])
+    result = guide.head_box
+    return result
