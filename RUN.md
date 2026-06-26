@@ -228,7 +228,7 @@ configs/prompts_debug.json
 - `personal_final`: `configs/prompts_debug.json`에만 있는 legacy/debug 프롬프트
 - `compatibility_final`: `configs/prompts_debug.json`에만 있는 legacy/debug 프롬프트
 
-운영 프롬프트는 `configs/prompts.json`의 각 항목 안에서 `id_slot`, `prefix`, `body`로 명시적으로 관리합니다. 일반 `./run.sh` 실행은 이전 방식처럼 전체 프롬프트를 하나의 user message로 보냅니다. 고정 slot prompt cache를 테스트하려면 `./run.sh kvfix ...`로 실행합니다. 이 모드에서는 `prefix`를 system message로, `body`를 user message로 보내며 프롬프트별 고정 `id_slot`과 `cache_prompt=true`를 함께 보냅니다.
+운영 프롬프트는 `configs/prompts.json`의 각 항목 안에서 `id_slot`, `prefix`, `body`로 명시적으로 관리합니다. 일반 `./run.sh` 실행은 이전 방식처럼 전체 프롬프트를 하나의 user message로 보냅니다. 고정 slot prompt cache를 테스트하려면 `./run.sh kvfix ...`로 실행합니다. 이 모드에서는 `prefix`를 system message로, `body`를 user message로 보내며 프롬프트별 고정 `id_slot`과 `cache_prompt=true`를 함께 보내고, 별도 `--ctx-size`를 주지 않으면 llama.cpp context 기본값을 `16384`로 올립니다.
 
 관상 모드:
 

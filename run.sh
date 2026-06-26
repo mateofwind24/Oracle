@@ -23,6 +23,7 @@ RUN_ORACLE_LLAMA_MODEL_PATH=""
 RUN_ORACLE_LLAMA_SERVER_BIN="${RUN_ORACLE_LLAMA_SERVER_BIN:-llama-server}"
 RUN_LLAMA_CONTEXT_SIZE="${RUN_LLAMA_CONTEXT_SIZE:-8192}"
 RUN_LLAMA_PARALLEL="${RUN_LLAMA_PARALLEL:-}"
+KVFIX_LLAMA_CONTEXT_SIZE=16384
 
 RUN_ORACLE_CAMERA_INDEX="${RUN_ORACLE_CAMERA_INDEX:-0}"
 RUN_ORACLE_FRAME_WIDTH="${RUN_ORACLE_FRAME_WIDTH:-640}"
@@ -59,6 +60,7 @@ LLAMA_BATCH_SIZE=""
 LLAMA_EXTRA_ARGS=""
 PYTHON_ENV="auto"
 POSITIONAL_ARGS=()
+RUN_LLAMA_CONTEXT_SIZE_EXPLICIT=0
 LLAMA_SERVER_STARTED=0
 LLAMA_SERVER_PID=""
 
@@ -147,7 +149,7 @@ Usage: $0 [options] [command] [command_args...]
 
 Commands:
   debug <cmd> [args...]    Run in debug mode (saves outputs to runs/debug/)
-  kvfix <cmd> [args...]    Run with fixed prompt cache slots enabled
+  kvfix <cmd> [args...]    Run with fixed prompt cache slots enabled (ctx default: 16384)
   release <cmd> [args...]  Run in release mode (temp output dir, deleted after run)
   capture                  Run capture only
   prompt <args...>         Debug prompt generation
@@ -202,6 +204,7 @@ parse_args() {
         ;;
       -c|--ctx-size|--context-size)
         RUN_LLAMA_CONTEXT_SIZE="$2"
+        RUN_LLAMA_CONTEXT_SIZE_EXPLICIT=1
         shift 2
         ;;
       --parallel)
@@ -239,6 +242,9 @@ parse_args() {
 apply_kvfix_mode() {
   if [[ "${POSITIONAL_ARGS[0]:-}" == "kvfix" ]]; then
     export ORACLE_LLM_PROMPT_CACHE=1
+    if [[ "$RUN_LLAMA_CONTEXT_SIZE_EXPLICIT" != "1" ]]; then
+      RUN_LLAMA_CONTEXT_SIZE="$KVFIX_LLAMA_CONTEXT_SIZE"
+    fi
     if [[ -z "${RUN_LLAMA_PARALLEL:-}" ]]; then
       RUN_LLAMA_PARALLEL=5
     fi
