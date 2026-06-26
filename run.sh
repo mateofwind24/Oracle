@@ -163,6 +163,7 @@ Wrapper Options:
   -m, --model-path PATH    Path to the GGUF model file
   -p, --port PORT          Port for the Flask app (default: 8501)
   --host HOST              Host for the Flask app (default: 0.0.0.0)
+  --debug                  Enable debug mode for Flask app and logging
   -t, --threads THREADS    Number of threads for llama.cpp server
   -ngl, --ngl LAYERS       Number of GPU layers to offload to GPU (llama.cpp)
   -c, --ctx-size SIZE      Context size for llama.cpp (default: 8192)
@@ -235,6 +236,10 @@ parse_args() {
         ;;
       --distributed-warmup)
         RUN_ORACLE_DISTRIBUTED_WARMUP=1
+        shift 1
+        ;;
+      --debug)
+        RUN_ORACLE_APP_DEBUG=1
         shift 1
         ;;
       --master-addr)
