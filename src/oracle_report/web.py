@@ -363,6 +363,41 @@ def create_app() -> Flask:
 
 def serve() -> None:
     config = load_app_config()
+
+    # Run distributed warmup in the background if enabled
+    if config.distributed_role == "master" and config.distributed_warmup:
+        import threading
+        def run_warmup_background():
+            import time
+            time.sleep(5.0)  # Wait for slave servers to start fully
+            print("[Distributed] Starting LLM warmup for distributed nodes...", flush=True)
+            try:
+                from oracle_report.workflow import _generate_distributed
+                dummy_values = {
+                    "name": "더미",
+                    "gender": "남성",
+                    "timezone": "KST",
+                    "saju_text": "태어난 날짜: 1990년 1월 1일\n사주 오행: 木 2, 火 1, 土 2, 金 2, 水 1\n일간: 甲木"
+                }
+                dummy_categories = ["종합 형국", "타고난 성향과 심리 패턴"]
+
+                # Trigger distributed run with dummy values to pre-populate KV Cache
+                from oracle_report.config import load_face_llm_config, load_report_llm_config
+                _generate_distributed(
+                    prompt_name="saju_reading",
+                    values=dummy_values,
+                    categories=dummy_categories,
+                    image_path=None,
+                    app_config=config,
+                    face_llm_config=load_face_llm_config(),
+                    report_llm_config=load_report_llm_config(),
+                )
+                print("[Distributed] LLM warmup complete. Prefix KV caches are now initialized.", flush=True)
+            except Exception as e:
+                print(f"[Distributed][Warn] Warmup failed: {e}", flush=True)
+
+        threading.Thread(target=run_warmup_background, daemon=True).start()
+
     app = create_app()
     app.run(host=config.host, port=config.port, debug=config.debug, threaded=True)
 

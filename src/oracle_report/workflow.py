@@ -1390,11 +1390,10 @@ def _generate_distributed(
             is_meta = task["is_metadata"]
             cat = task["target_category"]
 
-            success = False
-            output = None
-            error_msg = ""
-
-            if is_local:
+            # Render prompt for local generation or debugging
+            rendered = None
+            if is_local or app_config.debug:
+                from oracle_report.prompt_templates import render_distributed_prompt_template
                 try:
                     rendered = render_distributed_prompt_template(
                         name=prompt_name,
@@ -1402,6 +1401,22 @@ def _generate_distributed(
                         target_category=cat,
                         is_metadata=is_meta,
                     )
+                except Exception as e:
+                    rendered = f"[Failed to render prompt for debug/local]: {e}"
+
+            # Debug logging: Request
+            if app_config.debug:
+                print(f"\n--- [DEBUG: Distributed Request to {slave_url}] ---")
+                print(f"Category: {cat or 'metadata'}")
+                print(f"Prompt:\n{rendered}")
+                print("-" * 50 + "\n", flush=True)
+
+            success = False
+            output = None
+            error_msg = ""
+
+            if is_local:
+                try:
                     output = local_client.generate(rendered, image_path=image_path)
                     success = True
                 except Exception as e:
@@ -1429,6 +1444,13 @@ def _generate_distributed(
                         error_msg = f"HTTP status {res.status_code}"
                 except Exception as e:
                     error_msg = str(e)
+
+            # Debug logging: Response
+            if success and app_config.debug:
+                print(f"\n--- [DEBUG: Distributed Response from {slave_url}] ---")
+                print(f"Category: {cat or 'metadata'}")
+                print(f"Output:\n{output}")
+                print("-" * 50 + "\n", flush=True)
 
             if success:
                 consecutive_failures = 0
@@ -1471,6 +1493,13 @@ def _generate_distributed(
                 is_metadata=is_meta,
             )
 
+            # Debug logging: Request
+            if app_config.debug:
+                print(f"\n--- [DEBUG: Distributed Local Request] ---")
+                print(f"Category: {cat or 'metadata'}")
+                print(f"Prompt:\n{rendered}")
+                print("-" * 50 + "\n", flush=True)
+
             success = False
             output = None
             error_msg = ""
@@ -1481,6 +1510,12 @@ def _generate_distributed(
                 error_msg = str(e)
 
             if success:
+                # Debug logging: Response
+                if app_config.debug:
+                    print(f"\n--- [DEBUG: Distributed Local Response] ---")
+                    print(f"Category: {cat or 'metadata'}")
+                    print(f"Output:\n{output}")
+                    print("-" * 50 + "\n", flush=True)
                 with results_lock:
                     results.append({"task": task, "success": True, "output": output})
                 task_queue.task_done()

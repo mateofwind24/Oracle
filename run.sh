@@ -8,6 +8,7 @@ cd "$ROOT_DIR"
 RUN_ORACLE_APP_HOST="${RUN_ORACLE_APP_HOST:-0.0.0.0}"
 RUN_ORACLE_APP_PORT="${RUN_ORACLE_APP_PORT:-8501}"
 RUN_ORACLE_APP_DEBUG="${RUN_ORACLE_APP_DEBUG:-0}"
+RUN_ORACLE_DISTRIBUTED_WARMUP="${RUN_ORACLE_DISTRIBUTED_WARMUP:-0}"
 
 RUN_ORACLE_LLM_BASE_URL="${RUN_ORACLE_LLM_BASE_URL:-http://127.0.0.1:8080/v1}"
 RUN_ORACLE_LLM_MODEL="${RUN_ORACLE_LLM_MODEL:-local-model}"
@@ -170,6 +171,7 @@ Wrapper Options:
   --face-analysis-mode M   Face analysis mode (1 = LLM, 2 = landmarks)
   --distributed-role ROLE  Distributed role: master or slave
   --distributed-split      Split prompts for parallel execution
+  --distributed-warmup     Warmup LLM KV cache on start
   --master-addr ADDR       Master address (e.g., http://192.168.0.5:8501)
   --slave-addrs ADDRS      Comma-separated list of slave addresses
   --python-env ENV         Force Python env type (active-conda, active-venv, conda, uv, venv, auto)
@@ -229,6 +231,10 @@ parse_args() {
         ;;
       --distributed-split)
         RUN_ORACLE_DISTRIBUTED_SPLIT=1
+        shift 1
+        ;;
+      --distributed-warmup)
+        RUN_ORACLE_DISTRIBUTED_WARMUP=1
         shift 1
         ;;
       --master-addr)
@@ -411,6 +417,7 @@ apply_run_config() {
 
   export ORACLE_DISTRIBUTED_ROLE="${RUN_ORACLE_DISTRIBUTED_ROLE:-${ORACLE_DISTRIBUTED_ROLE:-}}"
   export ORACLE_DISTRIBUTED_SPLIT="${RUN_ORACLE_DISTRIBUTED_SPLIT:-${ORACLE_DISTRIBUTED_SPLIT:-0}}"
+  export ORACLE_DISTRIBUTED_WARMUP="${RUN_ORACLE_DISTRIBUTED_WARMUP:-${RUN_ORACLE_DISTRIBUTED_WARMUP:-0}}"
   export ORACLE_MASTER_ADDR="${RUN_ORACLE_MASTER_ADDR:-${ORACLE_MASTER_ADDR:-}}"
   export ORACLE_SLAVE_ADDRS="${RUN_ORACLE_SLAVE_ADDRS:-${ORACLE_SLAVE_ADDRS:-}}"
 

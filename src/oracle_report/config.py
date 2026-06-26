@@ -57,6 +57,7 @@ class AppConfig:
     distributed_split: bool = False
     master_addr: str | None = None
     slave_addrs: list[str] = field(default_factory=list)
+    distributed_warmup: bool = False
 
 
 def load_capture_config() -> CaptureConfig:
@@ -115,6 +116,7 @@ def load_app_config() -> AppConfig:
         distributed_split=_read_bool("ORACLE_DISTRIBUTED_SPLIT", False),
         master_addr=os.getenv("ORACLE_MASTER_ADDR"),
         slave_addrs=slave_addrs,
+        distributed_warmup=_read_bool("ORACLE_DISTRIBUTED_WARMUP", False),
     )
     return result
 
