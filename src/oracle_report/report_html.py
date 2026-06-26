@@ -1124,8 +1124,8 @@ def _report_style() -> str:
     result = """
 :root{
   --paper:#F6F1E7; --paper-2:#FBF8F1; --ink:#2A2520; --ink-soft:#6B6256;
-  --line:#DAD0BE; --mok:#3A7D5C; --hwa:#C25239; --to:#CC9A3B;
-  --geum:#9A958B; --su:#2E4258; --gold:#A8823C;
+  --line:#DAD0BE; --mok:#3A7D5C; --hwa:#C25239; --to:#9E7321;
+  --geum:#6B665E; --su:#2E4258; --gold:#8B692A;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:"Gowun Dodum",sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;background-image:radial-gradient(circle at 20% 10%,rgba(58,125,92,.04),transparent 40%),radial-gradient(circle at 85% 30%,rgba(194,82,57,.04),transparent 40%)}
@@ -1135,7 +1135,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:"Gowun Dodum"
 .serif{font-family:"Gowun Batang",serif}
 header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)}
 .eyebrow{font-size:12px;letter-spacing:.42em;color:var(--gold);text-transform:uppercase;margin-bottom:26px}
-.ilgan{font-family:"Song Myung",serif;font-size:120px;line-height:1;position:relative;display:inline-block}
+.ilgan{font-family:"Song Myung",serif;font-size:120px;line-height:1;position:relative;display:inline-block;text-shadow:2px 2px 4px rgba(42,37,32,0.06)}
 .ilgan.c-mok{color:var(--mok)}.ilgan.c-hwa{color:var(--hwa)}.ilgan.c-to{color:var(--to)}.ilgan.c-geum{color:var(--geum)}.ilgan.c-su{color:var(--su)}
 .ilgan .ko{font-family:"Gowun Batang",serif;font-size:20px;color:var(--ink-soft);position:absolute;bottom:14px;right:-8px;transform:translateX(100%)}
 .pair-mark{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0 18px}.pair-x{font-family:"Gowun Batang",serif;font-size:34px;color:var(--gold)}
