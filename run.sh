@@ -552,8 +552,8 @@ start_llama_server() {
     --host "$host"
     --port "$port"
     -c "${LLAMA_CONTEXT_SIZE:-4096}"
-    -fa off
-    -ctk q4_0
+    --cache-type-k q4_0
+    --cache-type-v q4_0
     --reasoning off
     --reasoning-format none
   )
