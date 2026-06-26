@@ -37,6 +37,7 @@ _LANDMARK_NOSE_CENTER_TOLERANCE = 0.40
 _LANDMARK_INSIDE_FRAME_WEIGHT = 0.45
 _LANDMARK_CENTER_WEIGHT = 0.25
 _LANDMARK_BALANCE_WEIGHT = 0.30
+_FACE_BOX_PADDING_RATIO = 0.04
 _EYE_OPEN_THRESHOLD = 0.18
 _KEY_LANDMARK_INDICES = (
     2,
@@ -463,6 +464,14 @@ def _face_box_from_points(
     y0 = max(0, min(ys))
     x1 = min(width - 1, max(xs))
     y1 = min(height - 1, max(ys))
+    box_width = max(1, x1 - x0)
+    box_height = max(1, y1 - y0)
+    padding_x = max(1, int(round(float(box_width) * _FACE_BOX_PADDING_RATIO)))
+    padding_y = max(1, int(round(float(box_height) * _FACE_BOX_PADDING_RATIO)))
+    x0 = max(0, x0 - padding_x)
+    y0 = max(0, y0 - padding_y)
+    x1 = min(width - 1, x1 + padding_x)
+    y1 = min(height - 1, y1 + padding_y)
     result = FaceBox(
         x=x0,
         y=y0,

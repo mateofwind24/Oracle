@@ -89,17 +89,20 @@ def test_configure_capture_applies_property_writes_for_v4l2() -> None:
     ]
 
 
-def test_draw_overlay_includes_center_head_and_shoulder_guides() -> None:
+def test_draw_overlay_shows_only_head_guide() -> None:
     cv2 = FakeDrawCv2()
     frame = np.zeros((240, 320, 3), dtype=np.uint8)
     guide = build_capture_guide(frame.shape[1], frame.shape[0])
 
     draw_overlay(cv2, frame, "ready", [], False)
 
-    assert len(cv2.rectangle_calls) >= 3
-    assert cv2.rectangle_calls[0][0] == (guide.center_region.x, guide.center_region.y)
-    assert cv2.rectangle_calls[1][0] == (guide.head_box.x, guide.head_box.y)
-    assert len(cv2.line_calls) == 3
+    assert len(cv2.rectangle_calls) == 2
+    assert cv2.rectangle_calls[0][0] == (guide.head_box.x, guide.head_box.y)
+    assert cv2.rectangle_calls[0][1] == (
+        guide.head_box.x + guide.head_box.width,
+        guide.head_box.y + guide.head_box.height,
+    )
+    assert len(cv2.line_calls) == 0
 
 
 def _capture_config() -> CaptureConfig:

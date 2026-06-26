@@ -8,6 +8,7 @@ from oracle_report.vision.landmarks import (
     _FRONT_MOUTH_LEVEL_TOLERANCE,
     _FRONT_NOSE_CENTER_TOLERANCE,
     _MIN_POSE_SCORE,
+    _face_box_from_points,
     _landmark_geometry_score,
     _score_from_delta,
     LandmarkMetrics,
@@ -89,6 +90,15 @@ def test_landmark_geometry_score_ignores_missing_visibility_fields() -> None:
     score = _landmark_geometry_score(landmarks)
 
     assert score > 0.99
+
+
+def test_face_box_from_points_adds_small_padding() -> None:
+    result = _face_box_from_points(((100, 100), (200, 250)), 640, 480)
+
+    assert result.x == 96
+    assert result.y == 94
+    assert result.width == 108
+    assert result.height == 162
 
 
 def test_rule_based_face_analysis_includes_auxiliary_interpretation() -> None:

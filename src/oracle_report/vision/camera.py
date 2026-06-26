@@ -23,11 +23,8 @@ _OVERLAY_HEIGHT_PX = 54
 _OVERLAY_TEXT_POSITION = (24, 14)
 _OVERLAY_TEXT_BASELINE_POSITION = (24, 36)
 _OVERLAY_FONT_SIZE = 24
-_GUIDE_CENTER_COLOR = (105, 105, 105)
 _GUIDE_HEAD_COLOR = (0, 210, 255)
-_GUIDE_SHOULDER_COLOR = (90, 180, 255)
 _GUIDE_THICKNESS = 2
-_GUIDE_CENTER_THICKNESS = 1
 _KOREAN_FONT_PATHS = (
     Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
     Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"),
@@ -151,15 +148,7 @@ def draw_overlay(
 
 
 def _draw_capture_guide(cv2: Any, frame: np.ndarray, guide: CaptureGuide) -> None:
-    center = guide.center_region
     head = guide.head_box
-    cv2.rectangle(
-        frame,
-        (center.x, center.y),
-        (center.x + center.width, center.y + center.height),
-        _GUIDE_CENTER_COLOR,
-        _GUIDE_CENTER_THICKNESS,
-    )
     cv2.rectangle(
         frame,
         (head.x, head.y),
@@ -167,29 +156,6 @@ def _draw_capture_guide(cv2: Any, frame: np.ndarray, guide: CaptureGuide) -> Non
         _GUIDE_HEAD_COLOR,
         _GUIDE_THICKNESS,
     )
-    if len(guide.shoulder_points) == 4:
-        left_neck, right_neck, left_shoulder, right_shoulder = guide.shoulder_points
-        cv2.line(
-            frame,
-            left_neck,
-            left_shoulder,
-            _GUIDE_SHOULDER_COLOR,
-            _GUIDE_THICKNESS,
-        )
-        cv2.line(
-            frame,
-            right_neck,
-            right_shoulder,
-            _GUIDE_SHOULDER_COLOR,
-            _GUIDE_THICKNESS,
-        )
-        cv2.line(
-            frame,
-            left_shoulder,
-            right_shoulder,
-            _GUIDE_SHOULDER_COLOR,
-            _GUIDE_CENTER_THICKNESS,
-        )
 
 
 def _draw_cv2_text(cv2: Any, frame: np.ndarray, message: str) -> None:
