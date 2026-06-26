@@ -13,11 +13,11 @@ from oracle_report.llm import LlamaCppChatClient
 from oracle_report.models import (
     BirthProfile,
     CaptureArtifact,
+    FaceBox,
     SequentialPairCaptureArtifact,
 )
 from oracle_report.recommender import (
     FaceRecommendation,
-    format_recommendations,
     recommend_faces,
 )
 from oracle_report.physiognomy import FaceReadingInput
@@ -25,8 +25,7 @@ from oracle_report.report import (
     build_compatibility_final_prompt,
     build_compatibility_face_analysis_prompt,
     build_personal_face_analysis_prompt,
-    build_personal_final_prompt,
-    build_personal_saju_final_prompt,
+    build_saju_reading_prompt,
 )
 from oracle_report.report_html import (
     render_compatibility_report_html,
@@ -41,7 +40,7 @@ FACE_ANALYSIS_MODE_LLM_IMAGE = 1
 FACE_ANALYSIS_MODE_LANDMARK_RULE = 2
 FACE_ANALYSIS_MODES = (FACE_ANALYSIS_MODE_LLM_IMAGE, FACE_ANALYSIS_MODE_LANDMARK_RULE)
 _UNKNOWN_BIRTH_TIME_VALUES = frozenset(("", "모름", "미상", "unknown", "none"))
-_PERSONAL_FINAL_MIN_SAJU_BLOCKS = 6
+_FACE_CROP_MARGIN_RATIO = 0.2
 _T = TypeVar("_T")
 
 
@@ -242,6 +241,14 @@ def run_personal_workflow(
     else:
         face_analysis_text = ""
 
+    saju_analysis = timing_recorder.run(
+        "saju_analysis",
+        _build_saju_analysis,
+        active_report_client,
+        profile,
+        manse_lookup,
+    )
+    saju_analysis_text = saju_analysis.text
     recommendations: tuple[FaceRecommendation, ...] = ()
     if not workflow_input.skip_face:
         recommendations = timing_recorder.run(
@@ -252,12 +259,11 @@ def run_personal_workflow(
             manse_lookup.reading,
         )
     markdown = timing_recorder.run(
-        "final_report",
-        _build_personal_markdown,
-        active_report_client,
-        profile,
+        "assemble_report",
+        _build_personal_report_json,
         manse_lookup,
         face_analysis_text,
+        saju_analysis_text,
         recommendations,
         workflow_input.skip_face,
     )
@@ -502,15 +508,16 @@ def _build_single_face_analysis(
     else:
         if client is None:
             raise ValueError("face analysis client is required for mode 1.")
+        image_path = _face_llm_image_path(artifact)
         face_input = FaceReadingInput(
-            image_path=artifact.image_path,
+            image_path=image_path,
             quality=artifact.quality,
         )
         prompt = build_personal_face_analysis_prompt(profile, face_input)
         result = _safe_generate(
             client,
             prompt,
-            artifact.image_path,
+            image_path,
             "관상정보를 생성하지 못했습니다.",
             debug_label="personal_face_analysis",
         )
@@ -577,8 +584,9 @@ def _build_compatibility_face_analysis(
 ) -> _GeneratedText:
     if client is None:
         raise ValueError("face analysis client is required for mode 1.")
+    image_path = _face_llm_image_path(artifact)
     face_input = FaceReadingInput(
-        image_path=artifact.image_path,
+        image_path=image_path,
         quality=artifact.quality,
     )
     prompt = build_compatibility_face_analysis_prompt(
@@ -590,58 +598,269 @@ def _build_compatibility_face_analysis(
     result = _safe_generate(
         client,
         prompt,
-        artifact.image_path,
+        image_path,
         "관상정보를 생성하지 못했습니다.",
         debug_label=f"compatibility_face_analysis:{person_label}",
     )
     return result
 
 
-def _build_personal_markdown(
+def _face_llm_image_path(artifact: CaptureArtifact) -> Path:
+    result = artifact.image_path
+    try:
+        cv2 = _import_cv2_for_face_crop()
+    except RuntimeError as exc:
+        print(
+            "[FACE CROP] OpenCV is unavailable; "
+            f"using original image: {artifact.image_path}. reason={exc}",
+        )
+    else:
+        frame = cv2.imread(str(artifact.image_path))
+        if frame is None:
+            print(
+                "[FACE CROP] failed to read captured image; "
+                f"using original image: {artifact.image_path}",
+            )
+        else:
+            image_height, image_width = frame.shape[:2]
+            x0, y0, x1, y1 = _expanded_face_bounds(
+                artifact.face,
+                image_width,
+                image_height,
+            )
+            cropped = frame[y0:y1, x0:x1]
+            crop_path = artifact.image_path.with_name(
+                f"{artifact.image_path.stem}_face_crop{artifact.image_path.suffix}",
+            )
+            ok = bool(cropped.size) and cv2.imwrite(str(crop_path), cropped)
+            if ok:
+                result = crop_path
+            else:
+                print(
+                    "[FACE CROP] failed to write cropped face image; "
+                    f"using original image: {artifact.image_path}",
+                )
+    return result
+
+
+def _expanded_face_bounds(
+    face: FaceBox,
+    image_width: int,
+    image_height: int,
+) -> tuple[int, int, int, int]:
+    margin_x = int(face.width * _FACE_CROP_MARGIN_RATIO)
+    margin_y = int(face.height * _FACE_CROP_MARGIN_RATIO)
+    x0 = max(0, face.x - margin_x)
+    y0 = max(0, face.y - margin_y)
+    x1 = min(image_width, face.x + face.width + margin_x)
+    y1 = min(image_height, face.y + face.height + margin_y)
+    result = (x0, y0, x1, y1)
+    return result
+
+
+def _import_cv2_for_face_crop():
+    try:
+        import cv2
+    except ImportError as exc:
+        raise RuntimeError("OpenCV is required to crop face images.") from exc
+    result = cv2
+    return result
+
+
+def _build_saju_analysis(
     client: TextGenerator,
     profile: BirthProfile,
     manse_lookup: ManseLookupResult,
-    face_analysis: str,
-    recommendations: tuple[FaceRecommendation, ...],
-    skip_face: bool = False,
-) -> str:
-    recommendation_text = ""
-    debug_label = "personal_saju_final"
-    prompt = build_personal_saju_final_prompt(profile, manse_lookup.formatted_text)
-    if not skip_face:
-        recommendation_text = format_recommendations(recommendations)
-        debug_label = "personal_final"
-        prompt = build_personal_final_prompt(
-            profile,
-            manse_lookup.formatted_text,
-            face_analysis,
-            recommendation_text,
-        )
-    generated = _safe_generate(
+) -> _GeneratedText:
+    prompt = build_saju_reading_prompt(profile, manse_lookup.formatted_text)
+    result = _safe_generate(
         client,
         prompt,
         None,
-        "최종 리포트를 생성하지 못했습니다.",
-        debug_label=debug_label,
+        "사주정보를 생성하지 못했습니다.",
+        debug_label="saju_analysis",
     )
-    markdown = generated.text
-    error = generated.error
-    if error == "":
-        error = _validate_personal_final_report(markdown)
-    if error:
+    return result
+
+
+def _build_personal_report_json(
+    manse_lookup: ManseLookupResult,
+    face_analysis: str,
+    saju_analysis: str,
+    recommendations: tuple[FaceRecommendation, ...],
+    skip_face: bool = False,
+) -> str:
+    face_payload, face_error = ({}, "")
+    saju_payload, saju_error = _load_json_payload_or_error(saju_analysis)
+    if not skip_face:
+        face_payload, face_error = _load_json_payload_or_error(face_analysis)
+    if saju_error:
         print(
-            f"[UI FALLBACK:personal_final] invalid LLM output; "
-            f"UI will use fallback/default content. reason={error}"
+            "[UI FALLBACK:saju_analysis] invalid LLM output; "
+            f"renderer will fill missing saju fields. reason={saju_error}",
         )
-        markdown = _fallback_personal_markdown(
-            profile,
-            manse_lookup.formatted_text,
-            face_analysis,
-            recommendation_text,
-            error,
-            skip_face,
+    if face_error:
+        print(
+            "[UI FALLBACK:face_analysis] invalid LLM output; "
+            f"renderer will fill missing face fields. reason={face_error}",
         )
-    result = markdown
+    payload = _merge_personal_payloads(
+        manse_lookup,
+        face_payload,
+        saju_payload,
+        recommendations,
+        skip_face,
+    )
+    result = json.dumps(payload, ensure_ascii=False)
+    return result
+
+
+def _merge_personal_payloads(
+    manse_lookup: ManseLookupResult,
+    face_payload: dict[str, Any],
+    saju_payload: dict[str, Any],
+    recommendations: tuple[FaceRecommendation, ...],
+    skip_face: bool,
+) -> dict[str, Any]:
+    reading = manse_lookup.reading
+    strongest = _dominant_element(reading.element_counts, strongest=True)
+    weakest = _dominant_element(reading.element_counts, strongest=False)
+    payload: dict[str, Any] = {}
+    for key in (
+        "essence",
+        "element_note",
+        "saju_subtitle",
+        "saju_blocks",
+        "tags",
+        "disclaimer",
+    ):
+        value = saju_payload.get(key)
+        if value:
+            payload[key] = value
+    if not skip_face:
+        for key in ("face_subtitle", "face_blocks"):
+            value = face_payload.get(key)
+            if value:
+                payload[key] = value
+        payload["convergence"] = _combined_convergence(face_payload, saju_payload)
+        payload["recommendation_title"] = f"{weakest} 기운을 보완해 줄 얼굴"
+        payload["recommendation_lead"] = _recommendation_lead(recommendations)
+    payload["synthesis_title"] = _synthesis_title(skip_face)
+    payload["synthesis_body"] = _synthesis_body(
+        face_payload,
+        saju_payload,
+        strongest,
+        weakest,
+        skip_face,
+    )
+    payload["synthesis_summary"] = (
+        "결론은 단정이 아니라 참고입니다. 강점은 살리고 부족한 리듬은 생활에서 "
+        "보완하세요."
+    )
+    result = payload
+    return result
+
+
+def _combined_convergence(
+    face_payload: dict[str, Any],
+    saju_payload: dict[str, Any],
+) -> list[dict[str, str]]:
+    result = []
+    for index in range(3):
+        result.append(
+            {
+                "face": _block_summary(
+                    face_payload,
+                    "face_blocks",
+                    index,
+                    "얼굴 관찰에서 보이는 표현 리듬",
+                ),
+                "saju": _block_summary(
+                    saju_payload,
+                    "saju_blocks",
+                    index,
+                    "사주 데이터에서 보이는 생활 리듬",
+                ),
+            },
+        )
+    return result
+
+
+def _block_summary(
+    payload: dict[str, Any],
+    key: str,
+    index: int,
+    default: str,
+) -> str:
+    blocks = payload.get(key)
+    result = default
+    if isinstance(blocks, list) and index < len(blocks):
+        block = blocks[index]
+        if isinstance(block, dict):
+            result = _text_from_payload(
+                block,
+                "summary",
+                _text_from_payload(block, "title", default),
+            )
+    return result
+
+
+def _text_from_payload(payload: dict[str, Any], key: str, default: str) -> str:
+    value = payload.get(key)
+    result = default
+    if isinstance(value, str) and value.strip():
+        result = value.strip()
+    return result
+
+
+def _recommendation_lead(recommendations: tuple[FaceRecommendation, ...]) -> str:
+    result = (
+        "사주에서 보완이 필요한 리듬을 기준으로, 얼굴 추천 후보를 참고용으로 "
+        "정리했어요."
+    )
+    if recommendations:
+        result = recommendations[0].reason
+    return result
+
+
+def _synthesis_title(skip_face: bool) -> str:
+    result = "사주와 얼굴 관찰이 만나는 지점"
+    if skip_face:
+        result = "사주 흐름을 정리하면"
+    return result
+
+
+def _synthesis_body(
+    face_payload: dict[str, Any],
+    saju_payload: dict[str, Any],
+    strongest: str,
+    weakest: str,
+    skip_face: bool,
+) -> str:
+    saju_line = _text_from_payload(
+        saju_payload,
+        "essence",
+        f"{strongest} 기운을 살리고 {weakest} 기운을 보완하는 흐름이 보여요.",
+    )
+    face_line = _text_from_payload(
+        face_payload,
+        "face_summary",
+        "얼굴 관찰은 표현 방식과 대화 분위기를 보조적으로 보여줘요.",
+    )
+    result = saju_line
+    if not skip_face:
+        result = f"{saju_line} {face_line}"
+    return result
+
+
+def _dominant_element(counts: dict[str, int], strongest: bool) -> str:
+    elements = tuple(counts.keys())
+    selector = max
+    score = lambda element: (counts[element], -elements.index(element))
+    if not strongest:
+        selector = min
+        score = lambda element: (counts[element], elements.index(element))
+    result = selector(elements, key=score)
     return result
 
 
@@ -734,20 +953,6 @@ def _safe_generate(
     return result
 
 
-def _validate_personal_final_report(text: str) -> str:
-    payload, error = _load_json_payload_or_error(text)
-    result = error
-    if result == "":
-        result = _validate_required_text(payload, "essence")
-    if result == "":
-        result = _validate_required_blocks(
-            payload,
-            "saju_blocks",
-            _PERSONAL_FINAL_MIN_SAJU_BLOCKS,
-        )
-    return result
-
-
 def _load_json_payload_or_error(text: str) -> tuple[dict[str, Any], str]:
     cleaned = text.strip()
     if cleaned.startswith("```"):
@@ -763,10 +968,10 @@ def _load_json_payload_or_error(text: str) -> tuple[dict[str, Any], str]:
         if isinstance(loaded, dict):
             payload = loaded
         else:
-            error = "final report JSON must be an object"
+            error = "LLM JSON must be an object"
     except json.JSONDecodeError as exc:
         error = (
-            "final report JSON parse failed: "
+            "LLM JSON parse failed: "
             f"{exc.msg} at line {exc.lineno}, column {exc.colno}"
         )
     result = (payload, error)
@@ -780,58 +985,6 @@ def _strip_markdown_fence_text(text: str) -> str:
     if lines and lines[-1].startswith("```"):
         lines = lines[:-1]
     result = "\n".join(lines)
-    return result
-
-
-def _validate_required_text(payload: dict[str, Any], key: str) -> str:
-    value = payload.get(key)
-    result = ""
-    if not isinstance(value, str) or value.strip() == "":
-        result = f"final report JSON missing required text field: {key}"
-    return result
-
-
-def _validate_required_blocks(
-    payload: dict[str, Any],
-    key: str,
-    min_count: int,
-) -> str:
-    raw_blocks = payload.get(key)
-    result = ""
-    if not isinstance(raw_blocks, list):
-        result = f"final report JSON missing required list field: {key}"
-    elif len(raw_blocks) < min_count:
-        result = (
-            f"final report JSON field {key} has "
-            f"{len(raw_blocks)} blocks; expected at least {min_count}"
-        )
-    else:
-        result = _validate_block_items(raw_blocks, key, min_count)
-    return result
-
-
-def _validate_block_items(
-    raw_blocks: list[Any],
-    key: str,
-    min_count: int,
-) -> str:
-    result = ""
-    required_fields = ("category", "title", "summary", "body")
-    for index, raw_block in enumerate(raw_blocks[:min_count]):
-        if result != "":
-            continue
-        if not isinstance(raw_block, dict):
-            result = f"final report JSON field {key}[{index}] must be an object"
-        else:
-            for field in required_fields:
-                if result != "":
-                    continue
-                value = raw_block.get(field)
-                if not isinstance(value, str) or value.strip() == "":
-                    result = (
-                        f"final report JSON field "
-                        f"{key}[{index}].{field} is empty"
-                    )
     return result
 
 
@@ -887,41 +1040,6 @@ def _new_session_dir(base_dir: Path, prefix: str) -> Path:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     result = base_dir / f"{prefix}_{stamp}"
     result.mkdir(parents=True, exist_ok=True)
-    return result
-
-
-def _fallback_personal_markdown(
-    profile: BirthProfile,
-    saju_text: str,
-    face_analysis: str,
-    recommendation_text: str,
-    error: str,
-    skip_face: bool = False,
-) -> str:
-    face_sections = ""
-    if not skip_face:
-        face_sections = f"""
-## 얼굴 관찰 풀이
-{face_analysis}
-
-## 추천받고 싶은 얼굴 성별 기준 추천
-{recommendation_text}
-"""
-    result = f"""
-# {profile.name} 님 Oracle {'사주' if skip_face else '종합'} 리포트
-## 한 줄 요약
-로컬 LLM 응답에 문제가 있어 룰 기반 정보로 기본 리포트를 생성했습니다.
-
-## 사주팔자 핵심
-{saju_text}
-{face_sections}
-
-## 참고 문구
-이 리포트는 엔터테인먼트 목적의 참고 자료입니다.
-
-## 시스템 참고
-최종 LLM 오류: {error}
-""".strip()
     return result
 
 

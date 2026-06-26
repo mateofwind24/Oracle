@@ -4,6 +4,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+import cv2
+import numpy as np
+
 from oracle_report.config import CaptureConfig, LlmConfig
 from oracle_report.models import (
     CaptureArtifact,
@@ -37,20 +40,12 @@ def _report_blocks(prefix: str, count: int) -> list[dict[str, str]]:
 class FakeLlmClient:
     def generate(self, prompt: str, image_path: Path | None = None) -> str:
         result = "LLM 결과"
-        if "출력 형식" in prompt and image_path is not None:
-            result = "## 관상정보\n- 얼굴 인상 태그: 차분함"
-        elif "사주 전용 개인 리포트" in prompt:
+        if "\"face_blocks\"" in prompt and image_path is not None:
             result = json.dumps(
                 {
-                    "essence": "사주 전용 핵심 문장",
-                    "element_note": "사주 전용 오행 메모",
-                    "saju_subtitle": "사주 전용 소제목",
-                    "saju_blocks": _report_blocks("사주 전용", 6),
-                    "synthesis_title": "사주 정리 제목",
-                    "synthesis_body": "사주 정리 본문",
-                    "synthesis_summary": "사주 정리 요약",
-                    "tags": ["사주 전용 태그"],
-                    "disclaimer": "사주 전용 고지",
+                    "face_subtitle": "테스트 관상 소제목",
+                    "face_blocks": _report_blocks("관상", 5),
+                    "face_summary": "관상 요약",
                 },
                 ensure_ascii=False,
             )
@@ -88,6 +83,18 @@ class FakeLlmClient:
                 },
                 ensure_ascii=False,
             )
+        elif "\"saju_blocks\"" in prompt:
+            result = json.dumps(
+                {
+                    "essence": "사주 핵심 문장",
+                    "element_note": "사주 오행 메모",
+                    "saju_subtitle": "사주 소제목",
+                    "saju_blocks": _report_blocks("사주", 6),
+                    "tags": ["사주 태그"],
+                    "disclaimer": "사주 고지",
+                },
+                ensure_ascii=False,
+            )
         elif "face_blocks" in prompt:
             result = json.dumps(
                 {
@@ -110,6 +117,47 @@ class FakeLlmClient:
                 },
                 ensure_ascii=False,
             )
+        return result
+
+
+class RecordingFaceClient:
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+        self.image_paths: list[Path | None] = []
+
+    def generate(self, prompt: str, image_path: Path | None = None) -> str:
+        self.prompts.append(prompt)
+        self.image_paths.append(image_path)
+        result = json.dumps(
+            {
+                "face_subtitle": "크롭 관상 소제목",
+                "face_blocks": _report_blocks("크롭 관상", 5),
+                "face_summary": "크롭 관상 요약",
+            },
+            ensure_ascii=False,
+        )
+        return result
+
+
+class RecordingSajuClient:
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+        self.image_paths: list[Path | None] = []
+
+    def generate(self, prompt: str, image_path: Path | None = None) -> str:
+        self.prompts.append(prompt)
+        self.image_paths.append(image_path)
+        result = json.dumps(
+            {
+                "essence": "분리 사주 핵심",
+                "element_note": "분리 사주 오행",
+                "saju_subtitle": "분리 사주 소제목",
+                "saju_blocks": _report_blocks("분리 사주", 6),
+                "tags": ["분리 사주 태그"],
+                "disclaimer": "분리 사주 고지",
+            },
+            ensure_ascii=False,
+        )
         return result
 
 
@@ -174,8 +222,49 @@ def test_personal_workflow_runs_without_real_camera_or_llm(
     assert result.report_html.startswith("<!DOCTYPE html>")
     assert "oracle-report" in result.report_fragment_html
     assert "시간 미상" in result.report_html
-    assert "테스트 핵심 문장" in result.report_html
+    assert "사주 핵심 문장" in result.report_html
+    assert "관상 제목 1" in result.report_html
     assert len(result.recommendations) > 0
+
+
+def test_personal_workflow_uses_separate_cropped_face_and_saju_llm(
+    tmp_path: Path,
+) -> None:
+    capture_config = _capture_config(tmp_path)
+    manse_db_path = _build_test_manse_db(tmp_path)
+    face_client = RecordingFaceClient()
+    report_client = RecordingSajuClient()
+    workflow_input = PersonalWorkflowInput(
+        name="홍길동",
+        birth_date="1995-03-15",
+        birth_time="14:30",
+        gender="남성",
+        target_gender="여성",
+    )
+
+    result = run_personal_workflow(
+        workflow_input=workflow_input,
+        capture_config=capture_config,
+        face_llm_config=_llm_config(),
+        report_llm_config=_llm_config(),
+        manse_db_path=manse_db_path,
+        recommendation_db_path=tmp_path / "faces.sqlite",
+        face_client=face_client,
+        report_client=report_client,
+        capture_runner=_fake_single_capture,
+    )
+
+    assert len(face_client.prompts) == 1
+    assert len(report_client.prompts) == 1
+    assert face_client.image_paths[0] is not None
+    assert face_client.image_paths[0].name == "capture_face_crop.jpg"
+    assert face_client.image_paths[0].exists()
+    assert report_client.image_paths == [None]
+    assert "[사주/만세력 정보]" in report_client.prompts[0]
+    assert "얼굴 관찰 메모" not in report_client.prompts[0]
+    assert "분리 사주 핵심" in result.report_html
+    assert "크롭 관상 제목 1" in result.report_html
+    assert "분리 사주 제목 1" in result.report_html
 
 
 def test_personal_workflow_uses_rule_based_face_mode(tmp_path: Path) -> None:
@@ -294,7 +383,11 @@ def _fake_single_capture(
     destination = output_dir or config.output_dir
     destination.mkdir(parents=True, exist_ok=True)
     image_path = destination / "capture.jpg"
-    image_path.write_bytes(b"fake")
+    image = np.zeros((240, 320, 3), dtype=np.uint8)
+    image[:, :] = (32, 48, 64)
+    ok = cv2.imwrite(str(image_path), image)
+    if not ok:
+        raise RuntimeError(f"failed to write fake capture image: {image_path}")
     result = CaptureArtifact(
         image_path=image_path,
         face=FaceBox(10, 10, 120, 120),
@@ -339,14 +432,17 @@ def test_personal_workflow_skips_face(tmp_path: Path) -> None:
     assert result.face_analysis == ""
     assert result.recommendations == ()
     assert "recommend_faces" not in result.timing_log_path.read_text(encoding="utf-8")
-    assert "사주 전용 핵심 문장" in result.report_html
-    assert "사주 전용 제목 1" in result.report_html
+    assert "saju_analysis" in result.timing_log_path.read_text(encoding="utf-8")
+    assert "사주 핵심 문장" in result.report_html
+    assert "사주 제목 1" in result.report_html
     assert "FACE MATCH" not in result.report_html
     assert "궁합 좋은 얼굴 추천" not in result.report_html
     assert "관상" not in result.report_html
 
 
-def test_personal_workflow_rejects_incomplete_final_json(tmp_path: Path) -> None:
+def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(
+    tmp_path: Path,
+) -> None:
     capture_config = _capture_config(tmp_path)
     manse_db_path = _build_test_manse_db(tmp_path)
     workflow_input = PersonalWorkflowInput(
@@ -370,8 +466,8 @@ def test_personal_workflow_rejects_incomplete_final_json(tmp_path: Path) -> None
         capture_runner=None,
     )
 
-    assert "final report JSON field saju_blocks has 1 blocks" in result.markdown
-    assert "사주 데이터가 보여주는 큰 흐름" in result.report_html
+    assert "부분 제목" in result.report_html
     assert "오행 분포는" in result.report_html
-    assert "총평 및 인생의 조언" in result.report_html
+    assert "사주 데이터는 강점과 보완점을 함께 보여주는 참고 지도입니다." in result.report_html
+    assert "final report JSON field saju_blocks has 1 blocks" not in result.markdown
 

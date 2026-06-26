@@ -11,7 +11,7 @@ from oracle_report.report import (
     build_compatibility_face_analysis_prompt,
     build_personal_face_analysis_prompt,
     build_personal_final_prompt,
-    build_personal_saju_final_prompt,
+    build_saju_reading_prompt,
 )
 
 
@@ -23,6 +23,7 @@ def test_personal_face_analysis_prompt_contains_required_context() -> None:
     assert "개인 리포트" in prompt
     assert "1995-03-15 14:30:00" in prompt
     assert "신원, 나이, 성별, 민족, 건강" in prompt
+    assert "\"face_blocks\"" in prompt
 
 
 def test_compatibility_face_analysis_prompt_contains_pair_context() -> None:
@@ -58,10 +59,10 @@ def test_personal_final_prompt_contains_json_schema() -> None:
     assert "주의 문구" not in prompt
 
 
-def test_personal_saju_final_prompt_omits_face_and_recommendation_schema() -> None:
+def test_saju_reading_prompt_omits_face_and_recommendation_schema() -> None:
     profile = BirthProfile(name="홍길동", birth_datetime=datetime(1995, 3, 15, 14, 30))
 
-    prompt = build_personal_saju_final_prompt(
+    prompt = build_saju_reading_prompt(
         profile,
         "사주 입력",
     )
