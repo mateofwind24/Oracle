@@ -6,7 +6,7 @@ from pathlib import Path
 import threading
 import uuid
 
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, jsonify, redirect, request
 from markupsafe import escape
 
 from oracle_report.config import (
@@ -136,24 +136,13 @@ def create_app() -> Flask:
         body = _personal_form()
         if request.method == "POST":
             try:
-                workflow_input = PersonalWorkflowInput(
-                    name=_form_value("name"),
-                    birth_date=_form_value("birth_date"),
-                    birth_time=_form_value("birth_time"),
-                    gender=_form_value("gender"),
-                    target_gender=_form_value("target_gender"),
-                    face_analysis_mode=_form_int("face_analysis_mode", 1),
-                    skip_face=_form_bool("skip_face", False),
+                workflow_input = _personal_workflow_input_from_form()
+                job_id = _start_personal_workflow_job(workflow_input)
+                result = redirect(
+                    _personal_result_url(job_id, workflow_input.skip_face),
+                    code=303,
                 )
-                workflow_result = run_personal_workflow(
-                    workflow_input=workflow_input,
-                    capture_config=load_capture_config(),
-                    face_llm_config=load_face_llm_config(),
-                    report_llm_config=load_report_llm_config(),
-                    manse_db_path=_manse_db_path(),
-                    recommendation_db_path=_face_db_path(),
-                )
-                body = _personal_result(workflow_result)
+                return result
             except Exception as exc:
                 body = _error_panel(exc) + _personal_form()
         result = _render_page(
@@ -166,31 +155,26 @@ def create_app() -> Flask:
 
     @app.post("/api/personal")
     def personal_api():
-        workflow_input = PersonalWorkflowInput(
-            name=_form_value("name"),
-            birth_date=_form_value("birth_date"),
-            birth_time=_form_value("birth_time"),
-            gender=_form_value("gender"),
-            target_gender=_form_value("target_gender"),
-            face_analysis_mode=_form_int("face_analysis_mode", 1),
-            skip_face=_form_bool("skip_face", False),
+        workflow_input = _personal_workflow_input_from_form()
+        job_id = _start_personal_workflow_job(workflow_input)
+        result = jsonify(
+            {
+                "job_id": job_id,
+                "result_url": _personal_result_url(job_id, workflow_input.skip_face),
+            },
         )
+        return result
 
-        def run_job() -> str:
-            workflow_result = run_personal_workflow(
-                workflow_input=workflow_input,
-                capture_config=load_capture_config(),
-                face_llm_config=load_face_llm_config(),
-                report_llm_config=load_report_llm_config(),
-                manse_db_path=_manse_db_path(),
-                recommendation_db_path=_face_db_path(),
-                capture_runner=_preview_capture_runner,
-            )
-            result = _personal_result(workflow_result)
-            return result
-
-        job_id = _start_workflow_job(run_job)
-        result = jsonify({"job_id": job_id})
+    @app.get("/personal/result/<job_id>")
+    def personal_result_page(job_id: str):
+        skip_face = _query_bool("skip_face", False)
+        body = _personal_result_page(job_id, skip_face)
+        result = _render_page(
+            "개인 리포트 결과",
+            body,
+            page_class="result-page",
+            show_heading=False,
+        )
         return result
 
     @app.route("/compatibility", methods=["GET", "POST"])
@@ -318,6 +302,51 @@ def _form_bool(name: str, default: bool) -> bool:
     result = default
     if raw_value != "":
         result = raw_value.lower() in ("1", "true", "yes", "y", "on")
+    return result
+
+
+def _query_bool(name: str, default: bool) -> bool:
+    raw_value = request.args.get(name, "").strip()
+    result = default
+    if raw_value != "":
+        result = raw_value.lower() in ("1", "true", "yes", "y", "on")
+    return result
+
+
+def _personal_workflow_input_from_form() -> PersonalWorkflowInput:
+    result = PersonalWorkflowInput(
+        name=_form_value("name"),
+        birth_date=_form_value("birth_date"),
+        birth_time=_form_value("birth_time"),
+        gender=_form_value("gender"),
+        target_gender=_form_value("target_gender"),
+        face_analysis_mode=_form_int("face_analysis_mode", 1),
+        skip_face=_form_bool("skip_face", False),
+    )
+    return result
+
+
+def _start_personal_workflow_job(workflow_input: PersonalWorkflowInput) -> str:
+    def run_job() -> str:
+        workflow_result = run_personal_workflow(
+            workflow_input=workflow_input,
+            capture_config=load_capture_config(),
+            face_llm_config=load_face_llm_config(),
+            report_llm_config=load_report_llm_config(),
+            manse_db_path=_manse_db_path(),
+            recommendation_db_path=_face_db_path(),
+            capture_runner=_preview_capture_runner,
+        )
+        result = _personal_result(workflow_result)
+        return result
+
+    result = _start_workflow_job(run_job)
+    return result
+
+
+def _personal_result_url(job_id: str, skip_face: bool) -> str:
+    skip_value = "1" if skip_face else "0"
+    result = f"/personal/result/{job_id}?skip_face={skip_value}"
     return result
 
 
@@ -449,7 +478,6 @@ def _personal_form() -> str:
 
         <p class="footnote">입력한 정보와 촬영 이미지는 기기 안에서만 처리돼요.<br>Oracle은 재미를 위한 콘텐츠예요.</p>
       </div>
-      {_capture_preview_panel()}
     </div>
     """
     return result
@@ -538,19 +566,56 @@ def _face_analysis_mode_options() -> str:
     return result
 
 
-def _capture_preview_panel() -> str:
-    result = """
-    <section id="workflow-loading" class="panel workflow-loading" role="status" aria-live="polite" aria-busy="false" hidden>
+def _personal_result_page(job_id: str, skip_face: bool) -> str:
+    result = f"""
+    <div class="oracle-result-shell">
+      <div class="brand">
+        <div class="logo">ORACLE</div>
+        <div class="tag">개인 리포트 결과</div>
+        <div class="ornament"></div>
+      </div>
+      <div class="result-actions">
+        <a class="text-link" href="/personal">입력 다시 하기</a>
+        <a class="text-link" href="/">처음으로</a>
+      </div>
+      {_capture_preview_panel(job_id=job_id, skip_face=skip_face)}
+    </div>
+    """
+    return result
+
+
+def _capture_preview_panel(
+    *,
+    job_id: str = "",
+    skip_face: bool = False,
+) -> str:
+    job_attr = f' data-workflow-result-job="{escape(job_id)}"' if job_id != "" else ""
+    skip_attr = ' data-skip-face="1"' if skip_face else ' data-skip-face="0"'
+    loading_hidden = "" if job_id != "" else " hidden"
+    preview_hidden = " hidden" if skip_face or job_id == "" else ""
+    loading_title = (
+        "사주 리포트 생성 중입니다"
+        if skip_face
+        else "촬영 및 리포트 생성 중입니다"
+    )
+    loading_message = (
+        "입력한 생년월일과 태어난 시간으로 사주 리포트를 만들고 있습니다. 잠시만 기다려 주세요."
+        if skip_face
+        else "얼굴 촬영과 사주 분석을 진행한 뒤 리포트를 만들고 있습니다. 잠시만 기다려 주세요."
+    )
+    status_text = "리포트 생성 중" if skip_face else "촬영 중"
+    result = f"""
+    <section id="workflow-loading" class="panel workflow-loading" role="status" aria-live="polite" aria-busy="true"{job_attr}{skip_attr}{loading_hidden}>
       <span class="loading-spinner" aria-hidden="true"></span>
       <div>
-        <strong id="workflow-loading-title">리포트 생성 중입니다</strong>
-        <p id="workflow-loading-message" class="hint">사주 리포트 생성 중입니다. 잠시만 기다려 주세요.</p>
+        <strong id="workflow-loading-title">{loading_title}</strong>
+        <p id="workflow-loading-message" class="hint">{loading_message}</p>
       </div>
     </section>
-    <section class="panel capture-preview" hidden>
+    <section class="panel capture-preview"{preview_hidden}>
       <h2>실시간 촬영 상태</h2>
       <img id="capture-preview-image" alt="실시간 촬영 상태">
-      <p id="workflow-status" class="hint">촬영 준비 중</p>
+      <p id="workflow-status" class="hint">{status_text}</p>
     </section>
     <section id="workflow-result"></section>
     """
@@ -1130,6 +1195,29 @@ def _render_page(
           .capture-preview {{
             margin-top: 16px;
           }}
+          .oracle-result-shell {{
+            width: 100%;
+          }}
+          main.result-page {{
+            width: min(960px, calc(100vw - 40px));
+            padding: 24px 0 60px;
+          }}
+          .result-actions {{
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin: -4px 0 18px;
+          }}
+          .text-link {{
+            color: var(--ink-soft);
+            font-size: 13px;
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+          }}
+          .text-link:hover {{
+            color: var(--mok-deep);
+            border-bottom-color: var(--mok-deep);
+          }}
           .workflow-loading {{
             display: flex;
             align-items: center;
@@ -1213,27 +1301,9 @@ def _render_page(
               event.preventDefault();
               const skipFaceInput = form.querySelector('[name="skip_face"]');
               const skipFace = skipFaceInput && skipFaceInput.value === "1";
-              const loading = document.getElementById("workflow-loading");
-              const loadingTitle = document.getElementById("workflow-loading-title");
-              const loadingMessage = document.getElementById("workflow-loading-message");
-              const preview = document.querySelector(".capture-preview");
-              const previewImage = document.getElementById("capture-preview-image");
-              const status = document.getElementById("workflow-status");
-              const result = document.getElementById("workflow-result");
-              result.innerHTML = "";
-              loading.hidden = false;
-              loading.setAttribute("aria-busy", "true");
-              if (skipFace) {{
-                preview.hidden = true;
-                loadingTitle.textContent = "사주 리포트 생성 중입니다";
-                loadingMessage.textContent = "입력한 생년월일과 태어난 시간으로 사주 리포트를 만들고 있습니다. 잠시만 기다려 주세요.";
-                status.textContent = "리포트 생성 중";
-              }} else {{
-                preview.hidden = false;
-                loadingTitle.textContent = "촬영 및 리포트 생성 중입니다";
-                loadingMessage.textContent = "얼굴 촬영과 사주 분석을 진행한 뒤 리포트를 만들고 있습니다. 잠시만 기다려 주세요.";
-                status.textContent = "촬영 중";
-                previewImage.src = "/video-feed?ts=" + Date.now();
+              const ui = workflowUi();
+              if (ui) {{
+                prepareWorkflowUi(ui, skipFace);
               }}
               const buttons = form.querySelectorAll("button");
               buttons.forEach(btn => btn.disabled = true);
@@ -1243,19 +1313,73 @@ def _render_page(
                   body: new FormData(form),
                 }});
                 const startPayload = await startResponse.json();
-                await pollWorkflow(startPayload.job_id, status, result);
+                if (startPayload.result_url) {{
+                  window.location.href = startPayload.result_url;
+                  return;
+                }}
+                if (!ui) {{
+                  throw new Error("결과를 표시할 영역을 찾을 수 없습니다.");
+                }}
+                await pollWorkflow(startPayload.job_id, ui.status, ui.result, ui.loading);
               }} catch (error) {{
-                result.innerHTML = '<section class="error"><strong>처리 중 오류가 발생했습니다.</strong><p>' + String(error) + '</p></section>';
-                status.textContent = "오류";
+                if (ui) {{
+                  ui.result.innerHTML = '<section class="error"><strong>처리 중 오류가 발생했습니다.</strong><p>' + String(error) + '</p></section>';
+                  ui.status.textContent = "오류";
+                }} else {{
+                  window.alert(String(error));
+                }}
               }} finally {{
-                loading.hidden = true;
-                loading.setAttribute("aria-busy", "false");
+                if (ui && !ui.loading.dataset.workflowResultJob) {{
+                  ui.loading.hidden = true;
+                  ui.loading.setAttribute("aria-busy", "false");
+                }}
                 buttons.forEach(btn => btn.disabled = false);
               }}
             }});
           }});
 
-          async function pollWorkflow(jobId, status, result) {{
+          const resultUi = workflowUi();
+          const resultJobId = resultUi && resultUi.loading.dataset.workflowResultJob;
+          if (resultJobId) {{
+            const skipFace = resultUi.loading.dataset.skipFace === "1";
+            prepareWorkflowUi(resultUi, skipFace);
+            pollWorkflow(resultJobId, resultUi.status, resultUi.result, resultUi.loading);
+          }}
+
+          function workflowUi() {{
+            const loading = document.getElementById("workflow-loading");
+            const preview = document.querySelector(".capture-preview");
+            const previewImage = document.getElementById("capture-preview-image");
+            const status = document.getElementById("workflow-status");
+            const result = document.getElementById("workflow-result");
+            let ui = null;
+            if (loading && preview && previewImage && status && result) {{
+              ui = {{ loading, preview, previewImage, status, result }};
+            }}
+            return ui;
+          }}
+
+          function prepareWorkflowUi(ui, skipFace) {{
+            const loadingTitle = document.getElementById("workflow-loading-title");
+            const loadingMessage = document.getElementById("workflow-loading-message");
+            ui.result.innerHTML = "";
+            ui.loading.hidden = false;
+            ui.loading.setAttribute("aria-busy", "true");
+            if (skipFace) {{
+              ui.preview.hidden = true;
+              loadingTitle.textContent = "사주 리포트 생성 중입니다";
+              loadingMessage.textContent = "입력한 생년월일과 태어난 시간으로 사주 리포트를 만들고 있습니다. 잠시만 기다려 주세요.";
+              ui.status.textContent = "리포트 생성 중";
+            }} else {{
+              ui.preview.hidden = false;
+              loadingTitle.textContent = "촬영 및 리포트 생성 중입니다";
+              loadingMessage.textContent = "얼굴 촬영과 사주 분석을 진행한 뒤 리포트를 만들고 있습니다. 잠시만 기다려 주세요.";
+              ui.status.textContent = "촬영 중";
+              ui.previewImage.src = "/video-feed?ts=" + Date.now();
+            }}
+          }}
+
+          async function pollWorkflow(jobId, status, result, loading) {{
             let done = false;
             while (!done) {{
               await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -1264,10 +1388,14 @@ def _render_page(
               if (payload.status === "complete") {{
                 result.innerHTML = payload.html;
                 status.textContent = "완료";
+                loading.hidden = true;
+                loading.setAttribute("aria-busy", "false");
                 done = true;
               }} else if (payload.status === "error") {{
                 result.innerHTML = payload.html;
                 status.textContent = "오류";
+                loading.hidden = true;
+                loading.setAttribute("aria-busy", "false");
                 done = true;
               }} else {{
                 status.textContent = "촬영 및 리포트 생성 중";

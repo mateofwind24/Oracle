@@ -54,7 +54,7 @@ def test_home_page_serves_saju_illustration() -> None:
     assert image_response.content_type == "image/jpeg"
 
 
-def test_personal_page_includes_visible_workflow_loading_state() -> None:
+def test_personal_input_page_links_to_separate_result_page() -> None:
     pytest.importorskip("flask")
     from oracle_report.web import create_app
 
@@ -64,10 +64,29 @@ def test_personal_page_includes_visible_workflow_loading_state() -> None:
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
+    assert 'data-workflow-api="/api/personal"' in html
+    assert 'id="workflow-loading"' not in html
+    assert 'id="workflow-result"' not in html
+    assert "startPayload.result_url" in html
+    assert "window.location.href" in html
+
+
+def test_personal_result_page_includes_workflow_loading_state() -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import create_app
+
+    app = create_app()
+
+    response = app.test_client().get("/personal/result/test-job?skip_face=1")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'data-workflow-result-job="test-job"' in html
+    assert 'data-skip-face="1"' in html
     assert 'id="workflow-loading"' in html
     assert 'role="status"' in html
     assert "사주 리포트 생성 중입니다" in html
-    assert "loading.hidden = false" in html
+    assert "pollWorkflow(resultJobId, resultUi.status, resultUi.result, resultUi.loading)" in html
 
 
 def test_personal_page_uses_oracle_input_card_layout() -> None:
