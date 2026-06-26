@@ -39,6 +39,12 @@ class FakeAnalyzer:
         return result
 
 
+def test_capture_guide_places_larger_head_box_near_center() -> None:
+    guide = build_capture_guide(640, 480)
+
+    assert guide.head_box == FaceBox(229, 96, 182, 228)
+
+
 def test_capture_requires_two_seconds_of_stable_face() -> None:
     clock = FakeClock()
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
