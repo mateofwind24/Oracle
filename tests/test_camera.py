@@ -5,7 +5,8 @@ from pathlib import Path
 import numpy as np
 
 from oracle_report.config import CaptureConfig
-from oracle_report.vision.camera import _configure_capture, draw_overlay
+from oracle_report.vision import camera
+from oracle_report.vision.camera import _camera_candidate_indices, _configure_capture, draw_overlay
 from oracle_report.vision.framing import build_capture_guide
 
 
@@ -20,6 +21,8 @@ class FakeCapture:
     def __init__(self, backend_name: str) -> None:
         self._backend_name = backend_name
         self.set_calls: list[tuple[int, int]] = []
+        self._opened = True
+        self.released = False
 
     def getBackendName(self) -> str:
         result = self._backend_name
@@ -29,6 +32,30 @@ class FakeCapture:
         self.set_calls.append((property_id, value))
         result = True
         return result
+
+    def isOpened(self) -> bool:
+        return self._opened
+
+    def release(self) -> None:
+        self.released = True
+
+
+class FakeCv2Open:
+    CAP_V4L2 = 200
+    CAP_PROP_FRAME_WIDTH = 3
+    CAP_PROP_FRAME_HEIGHT = 4
+    CAP_PROP_FPS = 5
+    CAP_PROP_BUFFERSIZE = 38
+
+    def __init__(self, open_indices: set[int]) -> None:
+        self.open_indices = open_indices
+        self.calls: list[int] = []
+
+    def VideoCapture(self, camera_index: int, backend=None):
+        self.calls.append(camera_index)
+        capture = FakeCapture("V4L2")
+        capture._opened = camera_index in self.open_indices
+        return capture
 
 
 class FakeDrawCv2:
@@ -103,6 +130,68 @@ def test_draw_overlay_shows_only_head_guide() -> None:
         guide.head_box.y + guide.head_box.height,
     )
     assert len(cv2.line_calls) == 0
+
+
+def test_camera_candidate_indices_prefer_configured_index() -> None:
+    config = _capture_config()
+
+    result = _camera_candidate_indices(config)
+
+    assert result[:4] == (0, 1, 2, 3)
+
+
+def test_camera_candidate_indices_can_disable_auto_detect() -> None:
+    config = CaptureConfig(
+        camera_index=2,
+        frame_width=640,
+        frame_height=480,
+        camera_fps=15,
+        min_face_seconds=2.0,
+        face_min_size_px=96,
+        face_detection_scale=0.5,
+        face_detection_interval=2,
+        output_dir=Path("runs"),
+        show_preview=False,
+        eye_min_count=2,
+        eyebrow_min_edge_density=0.018,
+        camera_auto_detect=False,
+    )
+
+    result = _camera_candidate_indices(config)
+
+    assert result == (2,)
+
+
+def test_open_camera_falls_back_to_next_device(monkeypatch) -> None:
+    fake_cv2 = FakeCv2Open({1})
+
+    monkeypatch.setattr(camera, "_import_cv2", lambda: fake_cv2)
+
+    cv2, capture = camera.open_camera(_capture_config())
+
+    assert cv2 is fake_cv2
+    assert fake_cv2.calls[:2] == [0, 0]
+    assert 1 in fake_cv2.calls
+    assert capture.isOpened() is True
+
+
+def test_open_camera_reports_permission_hint_for_inaccessible_video_devices(monkeypatch) -> None:
+    fake_cv2 = FakeCv2Open(set())
+
+    monkeypatch.setattr(camera, "_import_cv2", lambda: fake_cv2)
+    monkeypatch.setattr(camera, "_discover_video_device_paths", lambda: ["/dev/video0"])
+    monkeypatch.setattr(camera.os, "access", lambda path, mode: False)
+
+    try:
+        camera.open_camera(_capture_config())
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("expected open_camera to fail")
+
+    assert "attempted indices: 0, 1, 2, 3, 4, 5" in message
+    assert "/dev/video0" in message
+    assert "video group membership" in message
 
 
 def _capture_config() -> CaptureConfig:

@@ -64,7 +64,7 @@ def test_personal_input_page_links_to_separate_result_page() -> None:
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert 'data-workflow-api="/api/personal"' in html
+    assert 'action="/personal"' in html
     assert 'id="workflow-loading"' not in html
     assert 'id="workflow-result"' not in html
     assert "startPayload.result_url" in html
@@ -170,10 +170,10 @@ def test_personal_page_uses_oracle_input_card_layout() -> None:
     assert response.status_code == 200
     assert 'class="oracle-input-shell"' in html
     assert 'class="brand"' in html
-    assert 'class="input-card"' in html
-    assert "당신의 얼굴과 사주가 그리는 한 장의 이야기" in html
+    assert 'class="card"' in html
+    assert "얼굴과 사주로 당신의 인생 운세를 조율해 보세요." in html
     assert "입력한 정보와 촬영 이미지는 기기 안에서만 처리돼요." in html
-    assert 'data-workflow-api="/api/personal"' in html
+    assert 'action="/personal"' in html
 
 
 def test_personal_page_prevents_input_overflow_and_uses_wide_single_column_layout() -> None:
@@ -189,5 +189,5 @@ def test_personal_page_prevents_input_overflow_and_uses_wide_single_column_layou
     assert "* {" in html
     assert "box-sizing: border-box;" in html
     assert "width: min(860px, calc(100vw - 48px));" in html
-    assert 'class="field-stack"' in html
-    assert "grid-template-columns: 1fr;" in html
+    assert 'class="grid"' in html
+    assert "grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));" in html

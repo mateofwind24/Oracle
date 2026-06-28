@@ -74,6 +74,37 @@ def test_run_capture_saves_raw_frame_not_overlay(monkeypatch, tmp_path: Path) ->
     assert capture.released is True
 
 
+def test_run_capture_can_return_mock_landmark_artifact(tmp_path: Path) -> None:
+    config = _capture_config(tmp_path)
+    config = CaptureConfig(
+        camera_index=config.camera_index,
+        frame_width=config.frame_width,
+        frame_height=config.frame_height,
+        camera_fps=config.camera_fps,
+        min_face_seconds=config.min_face_seconds,
+        face_min_size_px=config.face_min_size_px,
+        face_detection_scale=config.face_detection_scale,
+        face_detection_interval=config.face_detection_interval,
+        output_dir=config.output_dir,
+        show_preview=config.show_preview,
+        eye_min_count=config.eye_min_count,
+        eyebrow_min_edge_density=config.eyebrow_min_edge_density,
+        camera_auto_detect=config.camera_auto_detect,
+        mock_capture_enabled=True,
+        mock_landmark_metrics_json='{"eye_width_ratio": 0.19, "eye_spacing_ratio": 0.28}',
+    )
+
+    result = runtime.run_capture(config)
+
+    assert result.image_path.exists() is True
+    assert result.quality.ready is True
+    assert "0.190" in result.quality.landmark_metrics_text
+    assert "해석 힌트" in result.quality.landmark_rules_text
+    assert "삼정" in result.quality.landmark_rules_text
+    assert "랜드마크 룰 기반" in result.face_analysis
+    assert result.face.width >= 96
+
+
 class FakeCv2:
     pass
 

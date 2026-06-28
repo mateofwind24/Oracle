@@ -79,6 +79,29 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+is_linux() {
+  [[ "$(uname -s)" == "Linux" ]]
+}
+
+run_with_elevation() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    "$@"
+    return
+  fi
+  if ! command_exists sudo; then
+    return 1
+  fi
+  if sudo -n true >/dev/null 2>&1; then
+    sudo "$@"
+    return
+  fi
+  if [[ -t 0 ]]; then
+    sudo "$@"
+    return
+  fi
+  return 1
+}
+
 process_running() {
   local pid="$1"
   local state
@@ -170,11 +193,11 @@ Wrapper Options:
   -c, --ctx-size SIZE      Context size for llama.cpp (default: 8192)
   --parallel N             Number of llama.cpp slots
   -b, --batch-size SIZE    Batch size for llama.cpp
-  --face-analysis-mode M   Face analysis mode (1 = LLM, 2 = landmarks)
   --distributed-role ROLE  Distributed role: master, slave, or hybrid
   --distributed-split      Split prompts for parallel execution
   --distributed-warmup     Warmup LLM KV cache on start
   --reasoning              Enable reasoning mode (think tags) for LLM
+  --mock-capture           Enable mock camera capture mode using mock_face.jpg
   --master-addr ADDR       Master address (e.g., http://192.168.0.5:8501)
   --slave-addrs ADDRS      Comma-separated list of slave addresses
   --python-env ENV         Force Python env type (active-conda, active-venv, conda, uv, venv, auto)
@@ -224,10 +247,6 @@ parse_args() {
         LLAMA_BATCH_SIZE="$2"
         shift 2
         ;;
-      --face-analysis-mode)
-        RUN_ORACLE_FACE_ANALYSIS_MODE="$2"
-        shift 2
-        ;;
       --distributed-role)
         RUN_ORACLE_DISTRIBUTED_ROLE="$2"
         shift 2
@@ -242,6 +261,10 @@ parse_args() {
         ;;
       --reasoning)
         RUN_ORACLE_REASONING=1
+        shift 1
+        ;;
+      --mock-capture)
+        RUN_ORACLE_MOCK_CAPTURE_ENABLED=1
         shift 1
         ;;
       --debug)
@@ -390,6 +413,11 @@ apply_run_config() {
   export ORACLE_LLM_MODEL="$RUN_ORACLE_LLM_MODEL"
   export ORACLE_LLM_TIMEOUT_SECONDS="$RUN_ORACLE_LLM_TIMEOUT_SECONDS"
 
+  local default_max_tokens=1800
+  if [[ "${RUN_ORACLE_REASONING:-${ORACLE_REASONING:-0}}" == "1" ]]; then
+    default_max_tokens=4096
+  fi
+
   export ORACLE_FACE_LLM_BASE_URL="$RUN_ORACLE_LLM_BASE_URL"
   export ORACLE_FACE_LLM_MODEL="$RUN_ORACLE_FACE_LLM_MODEL"
   export ORACLE_FACE_LLM_SEND_IMAGE="$RUN_ORACLE_FACE_LLM_SEND_IMAGE"
@@ -399,7 +427,7 @@ apply_run_config() {
   export ORACLE_REPORT_LLM_MODEL="$RUN_ORACLE_REPORT_LLM_MODEL"
   export ORACLE_REPORT_LLM_TIMEOUT_SECONDS="$RUN_ORACLE_REPORT_LLM_TIMEOUT_SECONDS"
   export ORACLE_REPORT_LLM_SEND_IMAGE="$RUN_ORACLE_REPORT_LLM_SEND_IMAGE"
-  export ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS="${ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS:-1800}"
+  export ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS="${ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS:-$default_max_tokens}"
   export ORACLE_LLM_PROMPT_CACHE="${ORACLE_LLM_PROMPT_CACHE:-0}"
 
   export ORACLE_START_LLAMA_SERVER="$RUN_ORACLE_START_LLAMA_SERVER"
@@ -421,7 +449,7 @@ apply_run_config() {
   export ORACLE_FACE_DETECTION_SCALE="$RUN_ORACLE_FACE_DETECTION_SCALE"
   export ORACLE_FACE_DETECTION_INTERVAL="$RUN_ORACLE_FACE_DETECTION_INTERVAL"
   export ORACLE_SHOW_PREVIEW="$RUN_ORACLE_SHOW_PREVIEW"
-  export ORACLE_FACE_ANALYSIS_MODE="$RUN_ORACLE_FACE_ANALYSIS_MODE"
+  export ORACLE_MOCK_CAPTURE_ENABLED="${RUN_ORACLE_MOCK_CAPTURE_ENABLED:-${ORACLE_MOCK_CAPTURE_ENABLED:-0}}"
 
   export ORACLE_OUTPUT_DIR="$RUN_ORACLE_OUTPUT_DIR"
   export ORACLE_FACE_DB_PATH="$RUN_ORACLE_FACE_DB_PATH"
@@ -434,6 +462,76 @@ apply_run_config() {
   export ORACLE_SLAVE_ADDRS="${RUN_ORACLE_SLAVE_ADDRS:-${ORACLE_SLAVE_ADDRS:-}}"
 
   export ORACLE_LLAMA_CPP_DIR="$ORACLE_LLAMA_CPP_DIR"
+}
+
+camera_device_paths() {
+  local device_path
+  for device_path in /dev/video*; do
+    if [[ -e "$device_path" ]]; then
+      printf '%s\n' "$device_path"
+    fi
+  done
+}
+
+camera_devices_need_access_fix() {
+  local device_path
+  for device_path in "$@"; do
+    if [[ ! -r "$device_path" || ! -w "$device_path" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+grant_camera_device_access() {
+  local devices=("$@")
+  local current_user
+  current_user="$(id -un)"
+  if command_exists setfacl; then
+    run_with_elevation setfacl -m "u:${current_user}:rw" "${devices[@]}"
+    return
+  fi
+  run_with_elevation chmod a+rw "${devices[@]}"
+}
+
+ensure_camera_device_access() {
+  if [[ "${RUN_ORACLE_AUTO_CAMERA_PERMISSIONS:-1}" != "1" ]]; then
+    return
+  fi
+  if ! is_linux; then
+    return
+  fi
+
+  local devices=()
+  local blocked_devices=()
+  local device_path
+  while IFS= read -r device_path; do
+    if [[ -n "$device_path" ]]; then
+      devices+=("$device_path")
+      if [[ ! -r "$device_path" || ! -w "$device_path" ]]; then
+        blocked_devices+=("$device_path")
+      fi
+    fi
+  done < <(camera_device_paths)
+
+  if [[ "${#devices[@]}" -eq 0 ]]; then
+    return
+  fi
+  if ! camera_devices_need_access_fix "${devices[@]}"; then
+    return
+  fi
+
+  log "camera devices detected without user access; attempting permission repair: ${blocked_devices[*]}"
+  if grant_camera_device_access "${blocked_devices[@]}"; then
+    if camera_devices_need_access_fix "${blocked_devices[@]}"; then
+      log "Warning: camera permission repair ran, but access is still unavailable. Re-login or add $(id -un) to the video group."
+    else
+      log "camera device permissions repaired for current user"
+    fi
+    return
+  fi
+
+  log "Warning: could not automatically grant camera permissions. Try: sudo usermod -aG video $(id -un)"
 }
 
 llm_host_port() {
@@ -878,6 +976,25 @@ needs_llm_server() {
   return "$result"
 }
 
+needs_camera_device() {
+  if [[ "$#" -eq 0 ]]; then
+    return 0
+  fi
+  case "$1" in
+    capture | serve)
+      return 0
+      ;;
+    debug | release)
+      case "${2:-}" in
+        capture | serve)
+          return 0
+          ;;
+      esac
+      ;;
+  esac
+  return 1
+}
+
 main() {
   # Parse options
   parse_args "$@"
@@ -906,13 +1023,25 @@ main() {
 
   apply_run_config
 
+  if needs_camera_device "${POSITIONAL_ARGS[@]}"; then
+    ensure_camera_device_access
+  fi
+
   # Re-evaluate command from positional arguments
   case "$cmd" in
     debug)
-      run_debug_mode "${POSITIONAL_ARGS[@]:1}"
+      local debug_args=("${POSITIONAL_ARGS[@]:1}")
+      if [[ "${#debug_args[@]}" -eq 0 ]]; then
+        debug_args=("serve")
+      fi
+      run_debug_mode "${debug_args[@]}"
       ;;
     release)
-      run_release_mode "${POSITIONAL_ARGS[@]:1}"
+      local release_args=("${POSITIONAL_ARGS[@]:1}")
+      if [[ "${#release_args[@]}" -eq 0 ]]; then
+        release_args=("serve")
+      fi
+      run_release_mode "${release_args[@]}"
       ;;
     *)
       if needs_llm_server "${POSITIONAL_ARGS[@]}"; then

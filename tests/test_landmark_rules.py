@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 from oracle_report.vision.landmarks import (
@@ -8,6 +10,8 @@ from oracle_report.vision.landmarks import (
     _FRONT_MOUTH_LEVEL_TOLERANCE,
     _FRONT_NOSE_CENTER_TOLERANCE,
     _MIN_POSE_SCORE,
+    _evaluate_physio_rules,
+    _import_mediapipe,
     _face_box_from_points,
     _landmark_geometry_score,
     _score_from_delta,
@@ -23,6 +27,7 @@ from oracle_report.vision.physiognomy_rule_repository import (
     PhysiognomyRuleRepository,
     build_physio_rule_database,
 )
+from oracle_report.vision.quality import MediaPipeFaceQualityAnalyzer
 
 
 def test_rule_data_is_sourced() -> None:
@@ -38,6 +43,40 @@ def test_rule_data_is_sourced() -> None:
         for rule in PHYSIOGNOMY_RULES
         for source_id in rule.source_ids
     )
+
+
+def test_landmark_import_reports_missing_face_mesh(monkeypatch) -> None:
+    fake_mp = SimpleNamespace(__version__="broken", solutions=SimpleNamespace())
+
+    monkeypatch.setitem(sys.modules, "mediapipe", fake_mp)
+
+    try:
+        _import_mediapipe()
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("expected mediapipe validation failure")
+
+    assert "missing solutions.face_mesh" in message
+    assert "version: broken" in message
+
+
+def test_quality_import_reports_missing_face_mesh(monkeypatch) -> None:
+    fake_mp = SimpleNamespace(__version__="broken", solutions=SimpleNamespace())
+
+    monkeypatch.setitem(sys.modules, "mediapipe", fake_mp)
+
+    analyzer = MediaPipeFaceQualityAnalyzer.__new__(MediaPipeFaceQualityAnalyzer)
+
+    try:
+        analyzer._import_mediapipe()
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("expected mediapipe validation failure")
+
+    assert "missing solutions.face_mesh" in message
+    assert "OpenCV backend" in message
 
 
 def test_rule_database_queries_ranges_by_ratio(tmp_path: Path) -> None:
@@ -108,9 +147,16 @@ def test_rule_based_face_analysis_includes_auxiliary_interpretation() -> None:
         eye_count=2,
         eyebrow_score=0.08,
         face_aspect_ratio=1.32,
+        eye_width_ratio=0.18,
+        eye_height_ratio=0.05,
+        eye_aspect_ratio=0.28,
         eye_spacing_ratio=0.28,
+        eye_tail_tilt=0.01,
+        nose_length_ratio=0.24,
         mouth_width_ratio=0.36,
+        mouth_height_ratio=0.04,
         lower_face_ratio=0.33,
+        nose_length_width_ratio=1.41,
         mouth_corner_delta=0.0,
         upper_zone_ratio=0.33,
         middle_zone_ratio=0.34,
@@ -120,6 +166,7 @@ def test_rule_based_face_analysis_includes_auxiliary_interpretation() -> None:
         brow_eye_gap_ratio=0.08,
         nose_width_ratio=0.19,
         philtrum_chin_ratio=0.26,
+        chin_length_ratio=0.21,
         jaw_width_ratio=0.66,
         mouth_balance_delta=0.01,
     )
@@ -129,12 +176,62 @@ def test_rule_based_face_analysis_includes_auxiliary_interpretation() -> None:
     assert "랜드마크 룰 기반" in result
     assert "삼정" in result
     assert "비율 지표" in result
+    assert "눈 가로" in result
+    assert "코 길이" in result
     assert "세부 관찰" in result
     assert "리포트에 넣을 설명 문장" in result
     assert "적용 제외 기준" in result
     assert "엔터테인먼트" in result
     assert "보조 해석" not in result
     assert "보조 정보" not in result
+
+
+def test_evaluate_physio_rules_uses_existing_source_backed_metric_rules(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "physiognomy_rules.sqlite"
+    build_physio_rule_database(db_path)
+    repository = PhysiognomyRuleRepository(db_path)
+    metrics = LandmarkMetrics(
+        frontality_score=0.91,
+        occlusion_score=0.94,
+        eye_count=2,
+        eyebrow_score=0.08,
+        face_aspect_ratio=1.32,
+        eye_width_ratio=0.18,
+        eye_height_ratio=0.05,
+        eye_aspect_ratio=0.28,
+        eye_spacing_ratio=0.28,
+        eye_tail_tilt=0.01,
+        nose_length_ratio=0.24,
+        mouth_width_ratio=0.36,
+        mouth_height_ratio=0.04,
+        lower_face_ratio=0.33,
+        nose_length_width_ratio=1.41,
+        mouth_corner_delta=0.0,
+        upper_zone_ratio=0.33,
+        middle_zone_ratio=0.34,
+        lower_zone_ratio=0.33,
+        third_balance_error=0.01,
+        brow_eye_span_ratio=1.08,
+        brow_eye_gap_ratio=0.08,
+        nose_width_ratio=0.19,
+        philtrum_chin_ratio=0.26,
+        chin_length_ratio=0.21,
+        jaw_width_ratio=0.66,
+        mouth_balance_delta=0.01,
+    )
+
+    matches = _evaluate_physio_rules(metrics, repository)
+    titles = {match.title for match in matches}
+
+    assert "눈 가로 크기" in titles
+    assert "눈 세로 개방감" in titles
+    assert "눈꼬리 기울기" in titles
+    assert "코 길이" in titles
+    assert "코 길이 대비 폭" in titles
+    assert "입 높이" in titles
+    assert "턱 길이" in titles
 
 
 def _build_centered_face_landmarks(

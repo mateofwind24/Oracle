@@ -34,7 +34,9 @@ class CaptureConfig:
     show_preview: bool
     eye_min_count: int
     eyebrow_min_edge_density: float
-    face_analysis_mode: int = 1
+    camera_auto_detect: bool = True
+    mock_capture_enabled: bool = False
+    mock_landmark_metrics_json: str = ""
 
 
 @dataclass(frozen=True)
@@ -82,7 +84,9 @@ def load_capture_config() -> CaptureConfig:
             "ORACLE_EYEBROW_MIN_EDGE_DENSITY",
             0.018,
         ),
-        face_analysis_mode=_read_face_analysis_mode(),
+        camera_auto_detect=_read_bool("ORACLE_CAMERA_AUTO_DETECT", True),
+        mock_capture_enabled=_read_bool("ORACLE_MOCK_CAPTURE_ENABLED", False),
+        mock_landmark_metrics_json=os.getenv("ORACLE_MOCK_LANDMARK_METRICS_JSON", ""),
     )
     return result
 
@@ -140,9 +144,13 @@ def _load_llm_config(prefix: str, send_image_default: bool) -> LlmConfig:
             f"{prefix}_TIMEOUT_SECONDS",
             _read_float("ORACLE_LLM_TIMEOUT_SECONDS", 60.0),
         ),
+        reasoning=_read_bool(
+            f"{prefix}_REASONING",
+            _read_bool("ORACLE_REASONING", False),
+        ),
         max_output_tokens=_read_int(
             f"{prefix}_MAX_OUTPUT_TOKENS",
-            _read_int("ORACLE_MAX_OUTPUT_TOKENS", 1800),
+            _read_int("ORACLE_MAX_OUTPUT_TOKENS", 4096 if _read_bool(f"{prefix}_REASONING", _read_bool("ORACLE_REASONING", False)) else 1800),
         ),
         temperature=_read_float(
             f"{prefix}_TEMPERATURE",
@@ -155,10 +163,6 @@ def _load_llm_config(prefix: str, send_image_default: bool) -> LlmConfig:
         prompt_cache=_read_bool(
             f"{prefix}_PROMPT_CACHE",
             _read_bool("ORACLE_LLM_PROMPT_CACHE", False),
-        ),
-        reasoning=_read_bool(
-            f"{prefix}_REASONING",
-            _read_bool("ORACLE_REASONING", False),
         ),
     )
     return result
@@ -217,11 +221,4 @@ def _read_detection_scale() -> float:
     result = _read_float("ORACLE_FACE_DETECTION_SCALE", 0.5)
     if result <= 0.0 or result > 1.0:
         raise ValueError("ORACLE_FACE_DETECTION_SCALE must be > 0.0 and <= 1.0.")
-    return result
-
-
-def _read_face_analysis_mode() -> int:
-    result = _read_int("ORACLE_FACE_ANALYSIS_MODE", 1)
-    if result not in {1, 2}:
-        raise ValueError("ORACLE_FACE_ANALYSIS_MODE must be 1 or 2.")
     return result

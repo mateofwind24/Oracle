@@ -5,53 +5,7 @@ from pathlib import Path
 from oracle_report.cli import main
 
 
-def test_prompt_command_prints_face_analysis_prompt(capsys) -> None:
-    result = main(
-        [
-            "prompt",
-            "personal-face-analysis",
-            "--name",
-            "tester",
-            "--birth-date",
-            "1995-03-15",
-            "--birth-time",
-            "14:30",
-            "--gender",
-            "male",
-        ],
-    )
 
-    output = capsys.readouterr().out
-
-    assert result == 0
-    assert "1995-03-15 미시(未時)" in output
-
-
-def test_prompt_command_prints_compatibility_face_analysis_prompt(capsys) -> None:
-    result = main(
-        [
-            "prompt",
-            "compatibility-face-analysis",
-            "--name",
-            "tester",
-            "--birth-date",
-            "1995-03-15",
-            "--birth-time",
-            "14:30",
-            "--gender",
-            "male",
-            "--mode",
-            "친구",
-            "--person-label",
-            "첫 번째 사람",
-        ],
-    )
-
-    output = capsys.readouterr().out
-
-    assert result == 0
-    assert "궁합 모드: 친구" in output
-    assert "현재 분석 대상: 첫 번째 사람" in output
 
 
 def test_prompt_command_prints_saju_reading(capsys, tmp_path: Path) -> None:

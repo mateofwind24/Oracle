@@ -23,6 +23,9 @@ class FaceQuality:
     frontality_score: float = 0.0
     occlusion_score: float = 0.0
     landmark_points: tuple[tuple[int, int], ...] = field(default_factory=tuple)
+    landmark_metrics_text: str = ""
+    landmark_context_text: str = ""
+    landmark_rules_text: str = ""
     face_analysis: str = ""
 
 

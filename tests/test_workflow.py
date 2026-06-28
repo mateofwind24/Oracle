@@ -247,11 +247,9 @@ def test_personal_workflow_runs_without_real_camera_or_llm(
     result = run_personal_workflow(
         workflow_input=workflow_input,
         capture_config=capture_config,
-        face_llm_config=_llm_config(),
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
         recommendation_db_path=tmp_path / "faces.sqlite",
-        face_client=FakeLlmClient(),
         report_client=FakeLlmClient(),
         capture_runner=_fake_single_capture,
     )
@@ -264,53 +262,12 @@ def test_personal_workflow_runs_without_real_camera_or_llm(
     assert result.output_path.name == "personal_report.html"
     assert result.report_html.startswith("<!DOCTYPE html>")
     assert "oracle-report" in result.report_fragment_html
-    assert "시간 미상" in result.report_html
-    assert "사주 핵심 문장" in result.report_html
-    assert "관상 제목 1" in result.report_html
+    assert "랜드마크 룰 기반" in result.face_analysis
+    assert "얼굴 관찰에서 보이는 표현 리듬" in result.report_html
     assert len(result.recommendations) > 0
 
 
-def test_personal_workflow_uses_separate_cropped_face_and_saju_llm(
-    tmp_path: Path,
-) -> None:
-    capture_config = _capture_config(tmp_path)
-    manse_db_path = _build_test_manse_db(tmp_path)
-    face_client = RecordingFaceClient()
-    report_client = RecordingSajuClient()
-    workflow_input = PersonalWorkflowInput(
-        name="홍길동",
-        birth_date="1995-03-15",
-        birth_time="14:30",
-        gender="남성",
-        target_gender="여성",
-    )
-
-    result = run_personal_workflow(
-        workflow_input=workflow_input,
-        capture_config=capture_config,
-        face_llm_config=_llm_config(),
-        report_llm_config=_llm_config(),
-        manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
-        face_client=face_client,
-        report_client=report_client,
-        capture_runner=_fake_single_capture,
-    )
-
-    assert len(face_client.prompts) == 1
-    assert len(report_client.prompts) == 1
-    assert face_client.image_paths[0] is not None
-    assert face_client.image_paths[0].name == "capture_face_crop.jpg"
-    assert face_client.image_paths[0].exists()
-    assert report_client.image_paths == [None]
-    assert "[사주/만세력 정보]" in report_client.prompts[0]
-    assert "얼굴 관찰 메모" not in report_client.prompts[0]
-    assert "분리 사주 핵심" in result.report_html
-    assert "크롭 관상 제목 1" in result.report_html
-    assert "분리 사주 제목 1" in result.report_html
-
-
-def test_personal_workflow_uses_rule_based_face_mode(tmp_path: Path) -> None:
+def test_personal_workflow_uses_rule_based_face(tmp_path: Path) -> None:
     capture_config = _capture_config(tmp_path)
     manse_db_path = _build_test_manse_db(tmp_path)
     workflow_input = PersonalWorkflowInput(
@@ -319,17 +276,14 @@ def test_personal_workflow_uses_rule_based_face_mode(tmp_path: Path) -> None:
         birth_time="모름",
         gender="남성",
         target_gender="여성",
-        face_analysis_mode=2,
     )
 
     result = run_personal_workflow(
         workflow_input=workflow_input,
         capture_config=capture_config,
-        face_llm_config=_llm_config(),
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
         recommendation_db_path=tmp_path / "faces.sqlite",
-        face_client=FailingFaceClient(),
         report_client=FakeLlmClient(),
         capture_runner=_fake_single_capture,
     )
@@ -358,10 +312,8 @@ def test_compatibility_workflow_runs_without_real_camera_or_llm(tmp_path: Path) 
     result = run_compatibility_workflow(
         workflow_input=workflow_input,
         capture_config=capture_config,
-        face_llm_config=_llm_config(),
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        face_client=FakeLlmClient(),
         report_client=FakeLlmClient(),
         capture_runner=_fake_single_capture,
         inter_capture_delay_seconds=0.0,
@@ -382,50 +334,6 @@ def test_compatibility_workflow_runs_without_real_camera_or_llm(tmp_path: Path) 
     assert result.right_capture_path.parent.name == "person_2"
 
 
-def test_compatibility_workflow_uses_couple_face_and_saju_prompts(
-    tmp_path: Path,
-) -> None:
-    capture_config = _capture_config(tmp_path)
-    manse_db_path = _build_test_manse_db(tmp_path)
-    face_client = RecordingPairFaceClient()
-    report_client = RecordingPairSajuClient()
-    workflow_input = CompatibilityWorkflowInput(
-        left_name="left",
-        left_birth_date="1995-03-15",
-        left_birth_time="14:30",
-        left_gender="male",
-        right_name="right",
-        right_birth_date="1997-05-20",
-        right_birth_time="09:00",
-        right_gender="female",
-        mode="연인",
-    )
-
-    result = run_compatibility_workflow(
-        workflow_input=workflow_input,
-        capture_config=capture_config,
-        face_llm_config=_llm_config(),
-        report_llm_config=_llm_config(),
-        manse_db_path=manse_db_path,
-        face_client=face_client,
-        report_client=report_client,
-        capture_runner=_fake_single_capture,
-        inter_capture_delay_seconds=0.0,
-    )
-
-    assert len(face_client.prompts) == 1
-    assert len(report_client.prompts) == 1
-    assert face_client.image_paths[0] is not None
-    assert "pair_face" in face_client.image_paths[0].name
-    assert face_client.image_paths[0].exists()
-    assert report_client.image_paths == [None]
-    assert "\"pair_blocks\"" in face_client.prompts[0]
-    assert "\"saju_blocks\"" not in face_client.prompts[0]
-    assert "\"saju_blocks\"" in report_client.prompts[0]
-    assert "\"pair_blocks\"" not in report_client.prompts[0]
-    assert "PAIR FACE 제목 1" in result.report_html
-    assert "PAIR SAJU 제목 1" in result.report_html
-    assert "PAIR ACTION TITLE" in result.report_html
 
 
 def _build_test_manse_db(tmp_path: Path) -> Path:
@@ -505,13 +413,11 @@ def test_personal_workflow_skips_face(tmp_path: Path) -> None:
     result = run_personal_workflow(
         workflow_input=workflow_input,
         capture_config=capture_config,
-        face_llm_config=_llm_config(),
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
         recommendation_db_path=tmp_path / "faces.sqlite",
-        face_client=FailingFaceClient(),  # Should not be called!
         report_client=FakeLlmClient(),
-        capture_runner=None,  # Should not be called!
+        capture_runner=None,
     )
 
     assert result.output_path.exists()
@@ -544,11 +450,9 @@ def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(
     result = run_personal_workflow(
         workflow_input=workflow_input,
         capture_config=capture_config,
-        face_llm_config=_llm_config(),
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
         recommendation_db_path=tmp_path / "faces.sqlite",
-        face_client=FailingFaceClient(),
         report_client=PartialFinalReportClient(),
         capture_runner=None,
     )
@@ -557,4 +461,79 @@ def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(
     assert "오행 분포는" in result.report_html
     assert "사주 데이터는 강점과 보완점을 함께 보여주는 참고 지도입니다." in result.report_html
     assert "final report JSON field saju_blocks has 1 blocks" not in result.markdown
+
+
+def test_personal_workflow_status_callback_progressive(
+    tmp_path: Path,
+) -> None:
+    capture_config = _capture_config(tmp_path)
+    manse_db_path = _build_test_manse_db(tmp_path)
+    workflow_input = PersonalWorkflowInput(
+        name="홍길동",
+        birth_date="1995-03-15",
+        birth_time="14:30",
+        gender="남성",
+        target_gender="여성",
+    )
+
+    callback_calls = []
+    def status_callback(phase: str, message: str, html: str = "") -> None:
+        callback_calls.append((phase, message, html))
+
+    result = run_personal_workflow(
+        workflow_input=workflow_input,
+        capture_config=capture_config,
+        report_llm_config=_llm_config(),
+        manse_db_path=manse_db_path,
+        recommendation_db_path=tmp_path / "faces.sqlite",
+        report_client=FakeLlmClient(),
+        capture_runner=_fake_single_capture,
+        status_callback=status_callback,
+    )
+
+    assert len(callback_calls) > 0
+    phase, message, html = callback_calls[0]
+    assert phase == "generating"
+    assert "사주" in message
+    assert html != ""
+    assert "사주 핵심 문장" in html
+
+
+def test_compatibility_workflow_status_callback_progressive(
+    tmp_path: Path,
+) -> None:
+    capture_config = _capture_config(tmp_path)
+    manse_db_path = _build_test_manse_db(tmp_path)
+    workflow_input = CompatibilityWorkflowInput(
+        left_name="홍길동",
+        left_birth_date="1995-03-15",
+        left_birth_time="14:30",
+        left_gender="남성",
+        right_name="성춘향",
+        right_birth_date="1996-04-20",
+        right_birth_time="10:00",
+        right_gender="여성",
+        mode="연인",
+    )
+
+    callback_calls = []
+    def status_callback(phase: str, message: str, html: str = "") -> None:
+        callback_calls.append((phase, message, html))
+
+    result = run_compatibility_workflow(
+        workflow_input=workflow_input,
+        capture_config=capture_config,
+        report_llm_config=_llm_config(),
+        manse_db_path=manse_db_path,
+        report_client=FakeLlmClient(),
+        capture_runner=_fake_single_capture,
+        inter_capture_delay_seconds=0.0,
+        status_callback=status_callback,
+    )
+
+    assert len(callback_calls) > 0
+    phase, message, html = callback_calls[0]
+    assert phase == "generating"
+    assert "궁합" in message
+    assert html != ""
 

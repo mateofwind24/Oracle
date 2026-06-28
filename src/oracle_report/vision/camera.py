@@ -36,11 +36,65 @@ _KOREAN_FONT_PATHS = (
 
 def open_camera(config: CaptureConfig) -> tuple[Any, Any]:
     cv2 = _import_cv2()
-    capture = _open_video_capture(cv2, config.camera_index)
-    if not capture.isOpened():
-        raise RuntimeError(f"failed to open camera index {config.camera_index}")
+    selected_index = None
+    capture = None
+    attempted_indices = []
+    for camera_index in _camera_candidate_indices(config):
+        attempted_indices.append(camera_index)
+        candidate = _open_video_capture(cv2, camera_index)
+        if candidate.isOpened():
+            capture = candidate
+            selected_index = camera_index
+            break
+        _release_capture(candidate)
+    if capture is None or selected_index is None:
+        access_hint = _build_camera_access_hint()
+        raise RuntimeError(
+            "failed to open camera device; "
+            f"attempted indices: {', '.join(str(index) for index in attempted_indices)}"
+            f"{access_hint}"
+        )
     _configure_capture(cv2, capture, config)
     result = (cv2, capture)
+    return result
+
+
+def _camera_candidate_indices(config: CaptureConfig, max_auto_index: int = 5) -> tuple[int, ...]:
+    preferred = config.camera_index
+    if not config.camera_auto_detect:
+        return (preferred,)
+    candidates = []
+    if preferred >= 0:
+        candidates.append(preferred)
+    for camera_index in range(0, max_auto_index + 1):
+        if camera_index not in candidates:
+            candidates.append(camera_index)
+    if preferred < 0:
+        candidates.insert(0, preferred)
+    return tuple(candidates)
+
+
+def _release_capture(capture: Any) -> None:
+    if hasattr(capture, "release"):
+        capture.release()
+
+
+def _build_camera_access_hint() -> str:
+    if os.name != "posix":
+        return ""
+    inaccessible_devices = [
+        path for path in _discover_video_device_paths() if not os.access(path, os.R_OK | os.W_OK)
+    ]
+    if not inaccessible_devices:
+        return ""
+    return (
+        "; detected video devices but the current user cannot access them: "
+        f"{', '.join(inaccessible_devices)}; check video group membership or device permissions"
+    )
+
+
+def _discover_video_device_paths() -> list[str]:
+    result = sorted(str(path) for path in Path("/dev").glob("video*"))
     return result
 
 

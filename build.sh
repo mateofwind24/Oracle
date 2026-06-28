@@ -179,6 +179,26 @@ install_apt_packages() {
   fi
 }
 
+install_python_bootstrap_packages() {
+  local env_type="${PYTHON_ENV:-auto}"
+  if ! is_linux || ! command_exists apt-get || ! command_exists dpkg-query; then
+    return
+  fi
+
+  if [[ "$env_type" == "active-conda" || "$env_type" == "active-venv" ]]; then
+    return
+  fi
+
+  if [[ "$env_type" == "auto" && ( -n "${CONDA_PREFIX:-}" || -n "${VIRTUAL_ENV:-}" ) ]]; then
+    return
+  fi
+
+  install_apt_packages \
+    python3 \
+    python3-venv \
+    python3-pip
+}
+
 python_cmd() {
   if command_exists python3; then
     printf 'python3'
@@ -271,6 +291,10 @@ setup_python_env() {
   log "Using standard python venv at $VENV_DIR"
   local py
   py="$(python_cmd)"
+  if [[ -d "$VENV_DIR" && ! -f "$VENV_DIR/bin/activate" && ! -f "$VENV_DIR/Scripts/activate" ]]; then
+    log "Removing invalid Python environment at $VENV_DIR"
+    rm -rf "$VENV_DIR"
+  fi
   if [[ ! -d "$VENV_DIR" ]]; then
     if is_linux; then
       "$py" -m venv --system-site-packages "$VENV_DIR"
@@ -291,6 +315,7 @@ modules = (
     "cv2",
     "dotenv",
     "flask",
+    "mediapipe",
     "numpy",
     "oracle_report",
     "PIL",
@@ -670,6 +695,8 @@ main() {
     export ORACLE_LLAMA_MODEL_PATH="$MODEL_PATH"
   fi
 
+  install_python_bootstrap_packages
+
   # Call setup_python_env first to determine the package environment mode
   setup_python_env
 
@@ -679,6 +706,7 @@ main() {
     python3-pip \
     python3-opencv \
     opencv-data \
+    acl \
     libatlas-base-dev \
     git \
     cmake \

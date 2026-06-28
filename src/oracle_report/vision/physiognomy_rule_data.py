@@ -326,6 +326,84 @@ PHYSIOGNOMY_RULES = (
         ),
     ),
     PhysiognomyRule(
+        id="eye_width",
+        metric="eye_width_ratio",
+        title="눈 가로 크기",
+        basis="눈 가로폭을 얼굴 폭으로 나눈 비율",
+        source_ids=("encykorea_face", "woman_donga_age_zones", "mebyface_mian_xiang"),
+        ranges=(
+            PhysiognomyRuleRange(
+                min_value=None,
+                max_value=0.17,
+                tag="눈 가로폭 작은 편",
+                observation="눈의 가로폭이 얼굴 폭에 비해 작게 관찰됩니다.",
+                interpretation=(
+                    "전통 관상에서는 시선이 응축된 인상으로 읽는 편이므로 "
+                    "리포트에는 신중함과 내면 집중감을 보조 표현으로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.17,
+                max_value=0.24,
+                tag="눈 가로폭 균형형",
+                observation="눈의 가로폭이 얼굴 폭 대비 무난하게 균형을 이룹니다.",
+                interpretation=(
+                    "전통 관상에서는 눈의 폭이 과하지 않으면 또렷하면서도 편안한 인상으로 보므로 "
+                    "리포트에는 안정적인 시선 흐름을 보조로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.24,
+                max_value=None,
+                tag="눈 가로폭 넓은 편",
+                observation="눈의 가로폭이 얼굴 폭에 비해 넓게 관찰됩니다.",
+                interpretation=(
+                    "전통 관상에서는 시야가 열려 보이는 인상으로 풀 수 있어 "
+                    "리포트에는 개방감과 표현 리듬을 보조 표현으로 넣습니다."
+                ),
+            ),
+        ),
+    ),
+    PhysiognomyRule(
+        id="eye_aspect",
+        metric="eye_aspect_ratio",
+        title="눈 세로 개방감",
+        basis="눈 세로 높이를 눈 가로폭으로 나눈 비율",
+        source_ids=("skku_12_palaces", "woman_donga_age_zones", "mebyface_mian_xiang"),
+        ranges=(
+            PhysiognomyRuleRange(
+                min_value=None,
+                max_value=0.18,
+                tag="눈 세로폭 얕은 편",
+                observation="눈의 세로 개방감이 크지 않고 가로 흐름이 더 강조됩니다.",
+                interpretation=(
+                    "전통 관상에서는 길고 차분한 시선으로 읽는 경우가 많아 "
+                    "리포트에는 냉정함보다 절제된 집중감을 보조 해석으로 사용합니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.18,
+                max_value=0.30,
+                tag="눈 세로폭 균형형",
+                observation="눈의 세로 개방감이 과하지도 답답하지도 않게 관찰됩니다.",
+                interpretation=(
+                    "전통 관상에서는 시선과 표정의 안정성이 무난한 인상으로 보므로 "
+                    "리포트에는 자연스러운 소통감을 보조로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.30,
+                max_value=None,
+                tag="눈 세로폭 열린 편",
+                observation="눈의 세로 개방감이 크게 보여 또렷한 표정성이 느껴집니다.",
+                interpretation=(
+                    "전통 관상에서는 반응성이 잘 드러나는 눈으로 읽히기 쉬워 "
+                    "리포트에는 표현력과 생동감을 보조 소재로 사용합니다."
+                ),
+            ),
+        ),
+    ),
+    PhysiognomyRule(
         id="brow_eye_span",
         metric="brow_eye_span_ratio",
         title="눈썹 길이",
@@ -404,6 +482,45 @@ PHYSIOGNOMY_RULES = (
         ),
     ),
     PhysiognomyRule(
+        id="eye_tail_tilt",
+        metric="eye_tail_tilt",
+        title="눈꼬리 기울기",
+        basis="바깥 눈꼬리와 안쪽 눈꼬리의 높이 차이",
+        source_ids=("encykorea_face", "woman_donga_age_zones"),
+        ranges=(
+            PhysiognomyRuleRange(
+                min_value=None,
+                max_value=-0.015,
+                tag="눈꼬리 하향형",
+                observation="바깥 눈꼬리가 안쪽보다 낮게 관찰됩니다.",
+                interpretation=(
+                    "전통 관상에서는 부드럽고 차분한 눈매로 읽는 경우가 있어 "
+                    "리포트에는 잔잔한 인상과 신중한 표현 리듬을 보조로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=-0.015,
+                max_value=0.02,
+                tag="눈꼬리 균형형",
+                observation="눈꼬리 기울기가 크지 않아 안정적인 눈매로 관찰됩니다.",
+                interpretation=(
+                    "전통 관상에서는 눈매의 균형을 정돈된 인상으로 해석하므로 "
+                    "리포트에는 편안하고 안정적인 시선감을 보조로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.02,
+                max_value=None,
+                tag="눈꼬리 상향형",
+                observation="바깥 눈꼬리가 안쪽보다 높게 보여 눈매 상승감이 느껴집니다.",
+                interpretation=(
+                    "전통 관상에서는 눈매의 상승감을 또렷한 추진 인상으로 읽기도 하므로 "
+                    "리포트에는 활기와 선명함을 보조 표현으로 넣습니다."
+                ),
+            ),
+        ),
+    ),
+    PhysiognomyRule(
         id="nose_width",
         metric="nose_width_ratio",
         title="코 폭",
@@ -438,6 +555,84 @@ PHYSIOGNOMY_RULES = (
                 interpretation=(
                     "전통 관상에서는 코의 존재감이 강한 인상으로 보므로 "
                     "리포트에는 선명한 중심 인상을 보조 소재로 사용합니다."
+                ),
+            ),
+        ),
+    ),
+    PhysiognomyRule(
+        id="nose_length",
+        metric="nose_length_ratio",
+        title="코 길이",
+        basis="미간 아래 코 시작점부터 코끝 아래까지의 세로 비율",
+        source_ids=("skku_12_palaces", "woman_donga_age_zones", "mebyface_mian_xiang"),
+        ranges=(
+            PhysiognomyRuleRange(
+                min_value=None,
+                max_value=0.20,
+                tag="코 길이 짧은 편",
+                observation="코의 세로 길이가 얼굴 높이에 비해 짧게 관찰됩니다.",
+                interpretation=(
+                    "전통 관상에서는 중심부가 압축된 인상으로 읽는 경우가 있어 "
+                    "리포트에는 간결한 중심감과 부담 없는 분위기를 보조로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.20,
+                max_value=0.31,
+                tag="코 길이 균형형",
+                observation="코의 세로 길이가 얼굴 높이 대비 무난한 균형으로 관찰됩니다.",
+                interpretation=(
+                    "전통 관상에서는 얼굴 중심부의 안정성을 좋게 보므로 "
+                    "리포트에는 차분한 중심감과 정돈감을 보조로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.31,
+                max_value=None,
+                tag="코 길이 긴 편",
+                observation="코의 세로 길이가 상대적으로 길게 보여 중심 축이 강조됩니다.",
+                interpretation=(
+                    "전통 관상에서는 코의 세로 존재감을 또렷한 중심 인상으로 읽을 수 있어 "
+                    "리포트에는 진중함과 선명한 축을 보조 표현으로 사용합니다."
+                ),
+            ),
+        ),
+    ),
+    PhysiognomyRule(
+        id="nose_length_width",
+        metric="nose_length_width_ratio",
+        title="코 길이 대비 폭",
+        basis="코의 세로 길이를 코 폭으로 나눈 비율",
+        source_ids=("mebyface_mian_xiang", "medipharm_ratio"),
+        ranges=(
+            PhysiognomyRuleRange(
+                min_value=None,
+                max_value=1.15,
+                tag="코 짧고 넓은 편",
+                observation="코의 세로감보다 폭감이 먼저 보이는 편입니다.",
+                interpretation=(
+                    "전통 관상에서는 중심 인상이 단단하게 느껴질 수 있어 "
+                    "리포트에는 묵직한 존재감과 현실감을 보조 소재로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=1.15,
+                max_value=1.75,
+                tag="코 비율 균형형",
+                observation="코의 세로감과 폭감이 과하게 치우치지 않은 편입니다.",
+                interpretation=(
+                    "전통 관상에서는 중심부 조화가 안정적이라고 읽을 수 있어 "
+                    "리포트에는 균형 잡힌 중심 인상을 보조로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=1.75,
+                max_value=None,
+                tag="코 길고 가는 편",
+                observation="코의 세로 흐름이 폭보다 더 강조되어 보입니다.",
+                interpretation=(
+                    "전통 관상에서는 선이 길고 정돈된 중심으로 보기도 하므로 "
+                    "리포트에는 섬세함과 정리된 인상을 보조 표현으로 사용합니다."
                 ),
             ),
         ),
@@ -482,6 +677,45 @@ PHYSIOGNOMY_RULES = (
         ),
     ),
     PhysiognomyRule(
+        id="mouth_height",
+        metric="mouth_height_ratio",
+        title="입 높이",
+        basis="윗입술과 아랫입술 사이 세로 높이를 얼굴 높이로 나눈 비율",
+        source_ids=("encykorea_face", "woman_donga_age_zones"),
+        ranges=(
+            PhysiognomyRuleRange(
+                min_value=None,
+                max_value=0.028,
+                tag="입 높이 얕은 편",
+                observation="입의 세로 높이가 크지 않아 입매가 얇고 차분하게 보입니다.",
+                interpretation=(
+                    "전통 관상에서는 입매의 높이를 표현 밀도로 읽는 경우가 있어 "
+                    "리포트에는 절제된 표현감과 담백한 소통을 보조로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.028,
+                max_value=0.050,
+                tag="입 높이 균형형",
+                observation="입의 세로 높이가 과하지 않게 안정적으로 관찰됩니다.",
+                interpretation=(
+                    "전통 관상에서는 입매 균형을 자연스러운 표현감으로 보므로 "
+                    "리포트에는 편안한 전달감과 무난한 소통 리듬을 보조로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.050,
+                max_value=None,
+                tag="입 높이 도드라진 편",
+                observation="입의 세로 높이가 도드라져 표정 전달력이 크게 보입니다.",
+                interpretation=(
+                    "전통 관상에서는 입매 존재감을 표현력으로 연결하기도 하므로 "
+                    "리포트에는 말의 온도감과 감정 표현성을 보조로 넣습니다."
+                ),
+            ),
+        ),
+    ),
+    PhysiognomyRule(
         id="philtrum_chin",
         metric="philtrum_chin_ratio",
         title="인중-턱 흐름",
@@ -516,6 +750,45 @@ PHYSIOGNOMY_RULES = (
                 interpretation=(
                     "전통 관상에서는 인중의 길이를 하관의 존재감으로 보므로 "
                     "리포트에는 차분하고 길게 이어지는 인상을 보조로 사용합니다."
+                ),
+            ),
+        ),
+    ),
+    PhysiognomyRule(
+        id="chin_length",
+        metric="chin_length_ratio",
+        title="턱 길이",
+        basis="아랫입술 아래부터 턱끝까지의 세로 비율",
+        source_ids=("newswire_12_palaces", "woman_donga_age_zones", "medipharm_ratio"),
+        ranges=(
+            PhysiognomyRuleRange(
+                min_value=None,
+                max_value=0.16,
+                tag="턱 길이 짧은 편",
+                observation="턱끝까지의 마무리 길이가 짧아 하관 마감이 가볍게 보입니다.",
+                interpretation=(
+                    "전통 관상에서는 턱의 길이를 마무리감으로 보므로 "
+                    "리포트에는 가벼운 마무리와 부드러운 인상을 보조로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.16,
+                max_value=0.26,
+                tag="턱 길이 균형형",
+                observation="턱 길이가 전체 얼굴 높이 대비 무난하게 균형을 이룹니다.",
+                interpretation=(
+                    "전통 관상에서는 턱의 균형을 안정된 마무리로 읽으므로 "
+                    "리포트에는 단정함과 신뢰감을 보조 키워드로 넣습니다."
+                ),
+            ),
+            PhysiognomyRuleRange(
+                min_value=0.26,
+                max_value=None,
+                tag="턱 길이 긴 편",
+                observation="턱끝까지 이어지는 길이가 상대적으로 길게 관찰됩니다.",
+                interpretation=(
+                    "전통 관상에서는 하관의 지속감을 끈기 있는 인상으로 읽는 경우가 있어 "
+                    "리포트에는 차분한 지속력과 마무리감을 보조 표현으로 넣습니다."
                 ),
             ),
         ),

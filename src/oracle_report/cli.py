@@ -13,17 +13,13 @@ from oracle_report.config import (
 )
 from oracle_report.llm import LlamaCppChatClient
 from oracle_report.models import BirthProfile
-from oracle_report.physiognomy import FaceReadingInput
 from oracle_report.prompt_templates import (
     list_prompt_template_info,
     render_debug_prompt_template,
 )
 from oracle_report.recommender import format_recommendations, recommend_faces
 from oracle_report.report import (
-    build_couple_face_analysis_prompt,
     build_couple_saju_reading_prompt,
-    build_compatibility_face_analysis_prompt,
-    build_personal_face_analysis_prompt,
     build_saju_reading_prompt,
 )
 from oracle_report.saju.engine import SajuReading
@@ -122,7 +118,6 @@ def _add_capture_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--camera-index", type=int)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--no-preview", action="store_true")
-    parser.add_argument("--face-analysis-mode", type=int, choices=(1, 2))
 
 
 def _add_prompt_args(parser: argparse.ArgumentParser) -> None:
@@ -357,17 +352,11 @@ def _override_capture_config(args: argparse.Namespace):
     camera_index = config.camera_index if args.camera_index is None else args.camera_index
     output_dir = config.output_dir if args.output_dir is None else args.output_dir
     show_preview = config.show_preview and not args.no_preview
-    face_analysis_mode = (
-        config.face_analysis_mode
-        if args.face_analysis_mode is None
-        else args.face_analysis_mode
-    )
     result = replace(
         config,
         camera_index=camera_index,
         output_dir=output_dir,
         show_preview=show_preview,
-        face_analysis_mode=face_analysis_mode,
     )
     return result
 
@@ -375,19 +364,8 @@ def _override_capture_config(args: argparse.Namespace):
 def _build_prompt_text(args: argparse.Namespace) -> str:
     profile = _build_prompt_birth_profile(args)
     result = ""
-    if args.target == "personal-face-analysis":
-        face_input = FaceReadingInput(image_path=args.image, quality=None)
-        result = build_personal_face_analysis_prompt(profile, face_input)
-    elif args.target == "compatibility-face-analysis":
-        face_input = FaceReadingInput(image_path=args.image, quality=None)
-        result = build_compatibility_face_analysis_prompt(
-            profile,
-            face_input,
-            args.person_label,
-            args.mode,
-        )
-    elif args.target == "face-analysis-copule":
-        result = _build_couple_face_analysis_prompt_text(args, profile)
+    if args.target in ("personal-face-analysis", "compatibility-face-analysis", "face-analysis-copule"):
+        raise ValueError("Image-based LLM face analysis is no longer supported. Use landmarks rule analysis instead.")
     elif args.target == "saju-reading":
         result = _lookup_manse(args, profile).formatted_text
     elif args.target == "saju-reading-couple":
@@ -471,21 +449,6 @@ def _build_personal_final_debug_prompt_text(
     return result
 
 
-def _build_couple_face_analysis_prompt_text(
-    args: argparse.Namespace,
-    left_profile: BirthProfile,
-) -> str:
-    right_profile = _build_right_prompt_birth_profile(args)
-    left_input = FaceReadingInput(image_path=args.image, quality=None)
-    right_input = FaceReadingInput(image_path=args.image, quality=None)
-    result = build_couple_face_analysis_prompt(
-        left_profile,
-        right_profile,
-        args.mode,
-        left_input,
-        right_input,
-    )
-    return result
 
 
 def _build_couple_saju_reading_prompt_text(args: argparse.Namespace) -> str:

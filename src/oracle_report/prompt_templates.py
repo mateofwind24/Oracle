@@ -70,6 +70,13 @@ def render_prompt_template(name: str, values: Mapping[str, object]) -> RenderedP
     templates = _load_prompt_templates(_prompt_templates_path())
     template_parts = _template_parts(templates, name)
     string_values = {key: str(value) for key, value in values.items()}
+    for key, default_value in (
+        ("landmark_metrics_text", "- 랜드마크 측정값 없음"),
+        ("landmark_context_text", "- 구조화된 관찰 컨텍스트 없음"),
+        ("landmark_rules_text", "- 랜드마크 규칙 해석 힌트 없음"),
+    ):
+        if key not in string_values:
+            string_values[key] = default_value
     prefix = Template(template_parts.prefix).substitute(string_values).strip()
     body = Template(template_parts.body_template).substitute(string_values).strip()
     result = RenderedPrompt(

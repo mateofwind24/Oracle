@@ -134,6 +134,13 @@ class MediaPipeFaceQualityAnalyzer:
                 "mediapipe is required for landmark quality analysis. "
                 "Install pip install -e '.[quality]' or use the OpenCV backend.",
             ) from exc
+        if not hasattr(mp, "solutions") or not hasattr(mp.solutions, "face_mesh"):
+            version = getattr(mp, "__version__", "unknown")
+            raise RuntimeError(
+                "installed mediapipe package is missing solutions.face_mesh "
+                f"(version: {version}). Reinstall a compatible mediapipe build "
+                "or use the OpenCV backend."
+            )
         result = mp
         return result
 

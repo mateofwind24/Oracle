@@ -200,12 +200,10 @@ def create_app() -> Flask:
                     right_birth_time=_form_value("right_birth_time"),
                     right_gender=_form_value("right_gender"),
                     mode=_form_value("mode"),
-                    face_analysis_mode=_form_int("face_analysis_mode", 1),
                 )
                 workflow_result = run_compatibility_workflow(
                     workflow_input=workflow_input,
                     capture_config=load_capture_config(),
-                    face_llm_config=load_face_llm_config(),
                     report_llm_config=load_report_llm_config(),
                     manse_db_path=_manse_db_path(),
                 )
@@ -230,27 +228,59 @@ def create_app() -> Flask:
             right_birth_time=_form_value("right_birth_time"),
             right_gender=_form_value("right_gender"),
             mode=_form_value("mode"),
-            face_analysis_mode=_form_int("face_analysis_mode", 1),
         )
+        job_id = uuid.uuid4().hex
 
-        def run_job() -> str:
+        def capture_runner(config, output_dir: Path | None = None, delay=3.0):
+            capture_artifact = _preview_capture_runner(config, output_dir)
+            _set_job(
+                job_id,
+                _WorkflowJob(
+                    status="running",
+                    phase="generating",
+                    message="얼굴 인식이 완료되어 리포트를 생성하고 있습니다",
+                ),
+            )
+            return capture_artifact
+
+        def run_job() -> _WorkflowJob:
+            def status_callback(phase: str, message: str, html: str = "") -> None:
+                _set_job(
+                    job_id,
+                    _WorkflowJob(
+                        status="running",
+                        phase=phase,
+                        message=message,
+                        html=html,
+                    ),
+                )
+
             workflow_result = run_compatibility_workflow(
                 workflow_input=workflow_input,
                 capture_config=load_capture_config(),
-                face_llm_config=load_face_llm_config(),
                 report_llm_config=load_report_llm_config(),
                 manse_db_path=_manse_db_path(),
-                capture_runner=_preview_capture_runner,
+                capture_runner=capture_runner,
+                status_callback=status_callback,
             )
-            result = _compatibility_result(
-                workflow_result.markdown,
-                workflow_result,
+            result = _WorkflowJob(
+                status="complete",
+                html=_compatibility_result(workflow_result.markdown, workflow_result),
+                download_html=workflow_result.report_html,
+                download_filename=workflow_result.output_path.name,
             )
             return result
 
-        job_id = _start_workflow_job(run_job)
-        result = jsonify({"job_id": job_id})
-        return result
+        result = _start_workflow_job(
+            run_job,
+            job_id=job_id,
+            initial_job=_WorkflowJob(
+                status="running",
+                phase="capturing",
+                message="첫 번째 사람 촬영을 준비하고 있습니다. 카메라를 바라봐 주세요.",
+            ),
+        )
+        return jsonify({"job_id": result})
 
     @app.get("/api/jobs/<job_id>")
     def job_status(job_id: str):
@@ -465,7 +495,6 @@ def _personal_workflow_input_from_form() -> PersonalWorkflowInput:
         birth_time=_form_value("birth_time"),
         gender=_form_value("gender"),
         target_gender=_form_value("target_gender"),
-        face_analysis_mode=_form_int("face_analysis_mode", 1),
         skip_face=_form_bool("skip_face", False),
     )
     return result
@@ -493,14 +522,25 @@ def _start_personal_workflow_job(workflow_input: PersonalWorkflowInput) -> str:
         return capture_artifact
 
     def run_job() -> _WorkflowJob:
+        def status_callback(phase: str, message: str, html: str = "") -> None:
+            _set_job(
+                job_id,
+                _WorkflowJob(
+                    status="running",
+                    phase=phase,
+                    message=message,
+                    html=html,
+                ),
+            )
+
         workflow_result = run_personal_workflow(
             workflow_input=workflow_input,
             capture_config=load_capture_config(),
-            face_llm_config=load_face_llm_config(),
             report_llm_config=load_report_llm_config(),
             manse_db_path=_manse_db_path(),
             recommendation_db_path=_face_db_path(),
             capture_runner=capture_runner,
+            status_callback=status_callback,
         )
         result = _WorkflowJob(
             status="complete",
@@ -611,39 +651,37 @@ def _face_db_path() -> Path:
 
 
 def _personal_form() -> str:
-    mode_options = _face_analysis_mode_options()
     gender_options = _gender_options(required=True)
     target_gender_options = _gender_options(required=False)
     birth_time_options = _birth_time_options()
     result = f"""
     <div class="oracle-input-shell">
       <div class="brand">
-        <div class="logo">ORACLE</div>
-        <div class="tag">관상 &amp; 사주 리포트</div>
-        <div class="ornament"></div>
+        <a class="logo" href="/">Oracle</a>
+        <h1>개인 리포트 생성</h1>
+        <p>얼굴과 사주로 당신의 인생 운세를 조율해 보세요.</p>
       </div>
 
-      <div class="input-card">
-        <div class="card-head">
-          <h1>개인 리포트</h1>
-          <p>당신의 얼굴과 사주가 그리는 한 장의 이야기</p>
-        </div>
-
-        <form method="post" class="workflow-form input-form" data-workflow-api="/api/personal">
+      <div class="card">
+        <form action="/personal" method="post" autocomplete="off">
           <input type="hidden" name="skip_face" value="0">
-          <div class="field lead">
+          <div class="field">
             <label>이름</label>
-            <input name="name" placeholder="이름을 입력하세요" required>
+            <input type="text" name="name" required placeholder="홍길동" maxlength="10">
           </div>
-          <div class="field-stack">
+
+          <div class="grid">
             <div class="field">
               <label>생년월일</label>
-              <input name="birth_date" type="date" required>
+              <input type="date" name="birth_date" required min="1900-01-01" max="2099-12-31">
             </div>
             <div class="field">
-              <label>태어난 시간<span class="hint">모르면 '모름'을 선택하세요</span></label>
+              <label>태어난 시간</label>
               <select name="birth_time">{birth_time_options}</select>
             </div>
+          </div>
+
+          <div class="grid">
             <div class="field">
               <label>성별</label>
               <select name="gender" required>{gender_options}</select>
@@ -651,10 +689,6 @@ def _personal_form() -> str:
             <div class="field">
               <label>추천받고 싶은 얼굴 성별</label>
               <select name="target_gender">{target_gender_options}</select>
-            </div>
-            <div class="field">
-              <label>관상 분석 모드</label>
-              <select name="face_analysis_mode">{mode_options}</select>
             </div>
           </div>
           <div class="actions">
@@ -677,7 +711,6 @@ def _compatibility_form() -> str:
     )
     gender_options = _gender_options(required=True)
     birth_time_options = _birth_time_options()
-    face_mode_options = _face_analysis_mode_options()
     result = f"""
     <form method="post" class="panel workflow-form" data-workflow-api="/api/compatibility">
       <h2>두 사람 궁합</h2>
@@ -698,7 +731,6 @@ def _compatibility_form() -> str:
         </fieldset>
       </div>
       <label>궁합 모드<select name="mode">{mode_options}</select></label>
-      <label>관상 분석 모드<select name="face_analysis_mode">{face_mode_options}</select></label>
       <p class="hint">두 사람 정보를 먼저 입력한 뒤 첫 번째 사람을 촬영하고, 3초 후 두 번째 사람을 촬영합니다.</p>
       <button type="submit">두 사람 궁합 촬영 시작</button>
     </form>
@@ -732,17 +764,6 @@ def _birth_time_options() -> str:
         f'<option value="{escape(value)}">{escape(label)}</option>'
         for value, label in options
     )
-    return result
-
-
-def _face_analysis_mode_options() -> str:
-    selected_mode = os.getenv("ORACLE_FACE_ANALYSIS_MODE", "1")
-    mode_one_selected = " selected" if selected_mode == "1" else ""
-    mode_two_selected = " selected" if selected_mode == "2" else ""
-    result = f"""
-      <option value="1"{mode_one_selected}>1 - 이미지 LLM 분석</option>
-      <option value="2"{mode_two_selected}>2 - 랜드마크 룰 기반 분석</option>
-    """
     return result
 
 
@@ -1656,6 +1677,13 @@ def _render_page(
               if (payload.phase === "generating") {{
                 activatePrivacyVeil(preview);
                 status.textContent = payload.message || "얼굴 인식 완료, 리포트를 생성하고 있습니다";
+                if (payload.html) {{
+                  const tempDiv = document.createElement("div");
+                  tempDiv.innerHTML = payload.html;
+                  if (result.textContent.trim() !== tempDiv.textContent.trim()) {{
+                    result.innerHTML = payload.html;
+                  }}
+                }}
               }}
               if (payload.status === "complete") {{
                 result.innerHTML = payload.html;

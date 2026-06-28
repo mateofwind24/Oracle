@@ -129,8 +129,38 @@ class LlamaCppChatClient:
             )
             t1 = time.perf_counter()
             if response.status_code < 200 or response.status_code >= 300:
+                error_preview = response.text.strip()
+                if len(error_preview) > 300:
+                    error_preview = error_preview[:300] + "..."
+                prompt_chars = 0
+                prefix_chars = 0
+                user_chars = 0
+                messages = payload.get("messages")
+                if isinstance(messages, list):
+                    for message in messages:
+                        if not isinstance(message, dict):
+                            continue
+                        role = message.get("role")
+                        content = message.get("content")
+                        if isinstance(content, str):
+                            prompt_chars += len(content)
+                            if role == "system":
+                                prefix_chars += len(content)
+                        elif isinstance(content, list):
+                            for item in content:
+                                if not isinstance(item, dict):
+                                    continue
+                                text = item.get("text")
+                                if isinstance(text, str):
+                                    prompt_chars += len(text)
+                                    user_chars += len(text)
                 raise RuntimeError(
-                    f"local llama.cpp request failed: HTTP {response.status_code}",
+                    "local llama.cpp request failed: "
+                    f"HTTP {response.status_code}; "
+                    f"prefix_chars={prefix_chars}; "
+                    f"user_chars={user_chars}; "
+                    f"prompt_chars={prompt_chars}; "
+                    f"response={error_preview or '<empty>'}",
                 )
             elapsed = t1 - t0
             root = response.json()
