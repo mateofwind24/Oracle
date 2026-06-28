@@ -862,7 +862,7 @@ start_llama_server() {
 
 run_oracle() {
   if [[ "$#" -gt 0 ]]; then
-    oracle-report "$@"
+    python -m oracle_report.cli "$@"
     return
   fi
 
@@ -871,7 +871,7 @@ run_oracle() {
     debug_args=(--debug)
   fi
   log "starting Oracle Flask UI at http://${ORACLE_APP_HOST}:${ORACLE_APP_PORT}"
-  oracle-report serve \
+  python -m oracle_report.cli serve \
     --host "$ORACLE_APP_HOST" \
     --port "$ORACLE_APP_PORT" \
     "${debug_args[@]}"
