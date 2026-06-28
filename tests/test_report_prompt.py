@@ -84,6 +84,13 @@ def test_saju_reading_prompt_omits_face_and_recommendation_schema() -> None:
     assert prompt.name == "saju_reading"
     assert prompt.slot_id == 1
     assert prompt.prefix.strip() != ""
+    assert "각 saju_blocks의 body는 최대 6~7줄" in prompt.prefix
+    assert "상담가이자 스토리텔러" in prompt.prefix
+    assert "실제 경험, 감정, 관계 장면과 연결" in prompt.prefix
+    assert "성향 -> 사람들이 나를 어떻게 보는지 -> 강점 -> 주의할 점 -> 현재 시기의 흐름 -> 앞으로의 조언" in prompt.prefix
+    assert "반드시/틀림없이" in prompt.prefix
+    assert "좋은 내용은 약 80%, 주의하거나 보완할 내용은 약 20%" in prompt.prefix
+    assert "좋은 내용 -> 안 좋은 내용 -> 좋은 내용" in prompt.prefix
     assert "사주 입력" not in prompt.prefix
     assert "사주 입력" in prompt.body
 
@@ -105,6 +112,13 @@ def test_couple_saju_reading_prompt_uses_pair_saju_only() -> None:
     assert "LEFT SAJU INPUT" in prompt
     assert "RIGHT SAJU INPUT" in prompt
     assert "face_analysis_copule" not in prompt
+    assert "각 saju_blocks의 body는 최대 6~7줄" in prompt.prefix
+    assert "상담가이자 스토리텔러" in prompt.prefix
+    assert "실제 경험, 감정, 관계 장면과 연결" in prompt.prefix
+    assert "각자의 성향 -> 서로가 상대를 어떻게 느끼는지 -> 관계의 강점 -> 주의할 점 -> 현재 관계 흐름 -> 앞으로의 조언" in prompt.prefix
+    assert "반드시/틀림없이" in prompt.prefix
+    assert "좋은 내용은 약 80%, 주의하거나 보완할 내용은 약 20%" in prompt.prefix
+    assert "좋은 내용 -> 안 좋은 내용 -> 좋은 내용" in prompt.prefix
 
 
 def test_couple_face_analysis_prompt_uses_pair_face_only() -> None:
