@@ -17,8 +17,6 @@ from oracle_report.vision.quality import OpenCvFaceQualityAnalyzer
 
 _GSTREAMER_BACKEND_NAME = "GSTREAMER"
 _VIDEO_CAPTURE_BUFFER_SIZE = 1
-_FACE_ANALYSIS_MODE_LLM_IMAGE = 1
-_FACE_ANALYSIS_MODE_LANDMARK_RULE = 2
 _OVERLAY_HEIGHT_PX = 54
 _OVERLAY_TEXT_POSITION = (24, 14)
 _OVERLAY_TEXT_BASELINE_POSITION = (24, 36)
@@ -147,23 +145,18 @@ def build_default_quality_analyzer(
 
 
 def build_capture_processors(config: CaptureConfig):
-    if config.face_analysis_mode == _FACE_ANALYSIS_MODE_LANDMARK_RULE:
-        from oracle_report.vision.landmarks import (
-            MediaPipeLandmarkFaceDetector,
-            MediaPipeLandmarkQualityAnalyzer,
-        )
+    from oracle_report.vision.landmarks import (
+        MediaPipeLandmarkFaceDetector,
+        MediaPipeLandmarkQualityAnalyzer,
+    )
 
-        detector = MediaPipeLandmarkFaceDetector(
-            min_size_px=config.face_min_size_px,
-            detection_scale=config.face_detection_scale,
-            detection_interval=config.face_detection_interval,
-        )
-        analyzer = MediaPipeLandmarkQualityAnalyzer(detector)
-        result = (detector, analyzer)
-    else:
-        detector = build_default_face_detector(config)
-        analyzer = build_default_quality_analyzer(config)
-        result = (detector, analyzer)
+    detector = MediaPipeLandmarkFaceDetector(
+        min_size_px=config.face_min_size_px,
+        detection_scale=config.face_detection_scale,
+        detection_interval=config.face_detection_interval,
+    )
+    analyzer = MediaPipeLandmarkQualityAnalyzer(detector)
+    result = (detector, analyzer)
     return result
 
 
