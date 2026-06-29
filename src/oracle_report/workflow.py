@@ -1417,8 +1417,8 @@ def _generate_distributed(
                     "image_base64": image_base64
                 }
                 try:
-                    # Increase timeout to 180s to handle resource-constrained edge devices gracefully
-                    res = requests.post(api_url, json=payload, timeout=180.0)
+                    # Increase timeout to 300s (5 minutes) to handle resource-constrained edge devices gracefully
+                    res = requests.post(api_url, json=payload, timeout=300.0)
                     if res.status_code == 200:
                         data = res.json()
                         if data.get("status") == "success":
