@@ -85,7 +85,7 @@ def test_saju_reading_prompt_omits_face_and_recommendation_schema() -> None:
     assert prompt.slot_id == 1
     assert prompt.prefix.strip() != ""
     assert "자동 줄바꿈했을 때 약 6줄 분량" in prompt.prefix
-    assert "수동 줄바꿈을 넣지 않습니다" in prompt.prefix
+    assert "줄바꿈 이스케이프" in prompt.prefix
     assert "줄바꿈은 \\n으로 표현" not in prompt.prefix
     assert "입력받은 이름 필드만 사용" in prompt.prefix
     assert "상담가이자 스토리텔러" in prompt.prefix
@@ -131,7 +131,7 @@ def test_couple_saju_reading_prompt_uses_pair_saju_only() -> None:
     assert "face_analysis_copule" not in prompt
     assert "saju_blocks는 6개를 작성합니다" in prompt.prefix
     assert "자동 줄바꿈했을 때 약 6줄 분량" in prompt.prefix
-    assert "수동 줄바꿈을 넣지 않습니다" in prompt.prefix
+    assert "줄바꿈 이스케이프" in prompt.prefix
     assert "줄바꿈은 \\n으로 표현" not in prompt.prefix
     assert "입력받은 left_name/right_name 필드만 사용" in prompt.prefix
     assert "상담가이자 스토리텔러" in prompt.prefix
@@ -158,6 +158,37 @@ def test_couple_face_analysis_prompt_uses_pair_face_only() -> None:
     assert "\"saju_blocks\"" not in prompt
     assert "left" in prompt
     assert "right" in prompt
+
+
+def test_face_analysis_prompts_use_six_line_body_guidance() -> None:
+    profile = BirthProfile(name="tester", birth_datetime=datetime(1995, 3, 15, 14, 30))
+    left = BirthProfile(name="left", birth_datetime=datetime(1995, 3, 15, 14, 30))
+    right = BirthProfile(name="right", birth_datetime=datetime(1997, 5, 20, 9, 0))
+
+    prompts = (
+        build_personal_face_analysis_prompt(profile, FaceReadingInput(None, None)),
+        build_compatibility_face_analysis_prompt(
+            profile,
+            FaceReadingInput(None, None),
+            "첫 번째 사람",
+            "연인",
+        ),
+        build_couple_face_analysis_prompt(
+            left,
+            right,
+            "연인",
+            FaceReadingInput(None, None),
+            FaceReadingInput(None, None),
+        ),
+    )
+
+    for prompt in prompts:
+        assert "약 6줄 분량" in prompt
+        assert "수동 줄바꿈" in prompt
+        assert "1-2문장" not in prompt
+        assert "1~2문장" not in prompt
+        assert "160자" not in prompt
+        assert "최대 4문장" not in prompt
 
 
 def test_prompt_template_can_be_overridden_from_json(

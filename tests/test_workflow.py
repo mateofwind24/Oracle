@@ -230,6 +230,27 @@ class PartialFinalReportClient:
         return result
 
 
+class NewlineBodyReportClient:
+    def generate(self, prompt: str, image_path: Path | None = None) -> str:
+        del prompt
+        del image_path
+        result = json.dumps(
+            {
+                "essence": "newline payload",
+                "saju_blocks": [
+                    {
+                        "category": "newline category",
+                        "title": "newline title",
+                        "summary": "newline summary",
+                        "body": "first line\\nsecond line\nthird line",
+                    },
+                ],
+            },
+            ensure_ascii=False,
+        )
+        return result
+
+
 def test_personal_workflow_runs_without_real_camera_or_llm(
     tmp_path: Path,
     capsys,
@@ -525,6 +546,46 @@ def test_personal_workflow_skips_face(tmp_path: Path) -> None:
     assert "FACE MATCH" not in result.report_html
     assert "궁합 좋은 얼굴 추천" not in result.report_html
     assert "관상" not in result.report_html
+
+
+def test_personal_workflow_normalizes_newline_markers_in_output_body(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    capture_config = _capture_config(tmp_path)
+    manse_db_path = _build_test_manse_db(tmp_path)
+    workflow_input = PersonalWorkflowInput(
+        name="tester",
+        birth_date="1995-03-15",
+        birth_time="",
+        gender="male",
+        target_gender="female",
+        skip_face=True,
+    )
+
+    result = run_personal_workflow(
+        workflow_input=workflow_input,
+        capture_config=capture_config,
+        face_llm_config=_llm_config(),
+        report_llm_config=_llm_config(),
+        manse_db_path=manse_db_path,
+        recommendation_db_path=tmp_path / "faces.sqlite",
+        face_client=FailingFaceClient(),
+        report_client=NewlineBodyReportClient(),
+        capture_runner=None,
+    )
+    saved_markdown = (result.output_path.parent / "personal_report.md").read_text(
+        encoding="utf-8",
+    )
+    captured = capsys.readouterr().out
+
+    assert "first line second line third line" in result.markdown
+    assert "first line second line third line" in saved_markdown
+    assert "first line second line third line" in result.report_html
+    assert "\\n" not in result.markdown
+    assert "\\n" not in saved_markdown
+    assert "\\n" not in result.report_html
+    assert "\\n" not in captured
 
 
 def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(

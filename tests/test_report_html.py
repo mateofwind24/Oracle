@@ -152,6 +152,41 @@ def test_report_html_uses_auto_wrapping_for_block_bodies() -> None:
     assert "첫 번째 줄<br>두 번째 줄" not in html
 
 
+def test_report_html_collapses_literal_newline_markers_for_auto_wrapping() -> None:
+    profile = BirthProfile(
+        name="tester",
+        birth_datetime=datetime(1995, 3, 15, 12, 0),
+        gender="male",
+    )
+    generated_text = json.dumps(
+        {
+            "essence": "saju essence",
+            "saju_blocks": [
+                {
+                    "category": "auto wrap",
+                    "title": "literal markers",
+                    "summary": "summary",
+                    "body": "first line\\nsecond line\r\nthird line",
+                },
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    html = render_personal_report_html(
+        profile,
+        ManseRepository().lookup(profile),
+        "",
+        (),
+        generated_text,
+        skip_face=True,
+    )
+
+    assert "first line second line third line" in html
+    assert "first line\\nsecond line" not in html
+    assert "second line<br>third line" not in html
+
+
 def test_compatibility_report_html_keeps_six_saju_blocks() -> None:
     repository = ManseRepository()
     left = BirthProfile(

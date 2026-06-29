@@ -627,7 +627,7 @@ def _payload_text(payload: Mapping[str, Any], key: str, default: str) -> str:
     value = payload.get(key)
     result = default
     if isinstance(value, str) and value.strip() != "":
-        result = value.strip()
+        result = _normalize_inline_text(value)
     return result
 
 
@@ -1127,8 +1127,19 @@ def _render_recommendation_card(index: int, card: _RecommendationCard) -> str:
 
 
 def _paragraphs(text: str) -> str:
-    normalized_text = " ".join(part.strip() for part in text.splitlines() if part.strip())
+    normalized_text = _normalize_inline_text(text)
     result = escape(normalized_text)
+    return result
+
+
+def _normalize_inline_text(text: str) -> str:
+    normalized_text = text.replace("\\r\\n", " ")
+    normalized_text = normalized_text.replace("\\n", " ")
+    normalized_text = normalized_text.replace("\\r", " ")
+    normalized_text = normalized_text.replace("\r\n", " ")
+    normalized_text = normalized_text.replace("\n", " ")
+    normalized_text = normalized_text.replace("\r", " ")
+    result = " ".join(normalized_text.split())
     return result
 
 

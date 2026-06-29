@@ -799,6 +799,7 @@ def _build_personal_report_json(
         recommendations,
         skip_face,
     )
+    payload = _normalize_payload_text(payload)
     result = json.dumps(payload, ensure_ascii=False)
     return result
 
@@ -820,6 +821,7 @@ def _build_compatibility_report_json(
             f"renderer will fill missing saju fields. reason={saju_error}",
         )
     payload = _merge_compatibility_payloads(face_payload, saju_payload)
+    payload = _normalize_payload_text(payload)
     result = json.dumps(payload, ensure_ascii=False)
     return result
 
@@ -984,6 +986,28 @@ def _text_from_payload(payload: dict[str, Any], key: str, default: str) -> str:
     return result
 
 
+def _normalize_payload_text(value: Any) -> Any:
+    result = value
+    if isinstance(value, str):
+        result = _normalize_inline_text(value)
+    elif isinstance(value, list):
+        result = [_normalize_payload_text(item) for item in value]
+    elif isinstance(value, dict):
+        result = {key: _normalize_payload_text(item) for key, item in value.items()}
+    return result
+
+
+def _normalize_inline_text(text: str) -> str:
+    normalized_text = text.replace("\\r\\n", " ")
+    normalized_text = normalized_text.replace("\\n", " ")
+    normalized_text = normalized_text.replace("\\r", " ")
+    normalized_text = normalized_text.replace("\r\n", " ")
+    normalized_text = normalized_text.replace("\n", " ")
+    normalized_text = normalized_text.replace("\r", " ")
+    result = " ".join(normalized_text.split())
+    return result
+
+
 def _recommendation_lead(recommendations: tuple[FaceRecommendation, ...]) -> str:
     result = (
         "사주에서 보완이 필요한 리듬을 기준으로, 얼굴 추천 후보를 참고용으로 "
@@ -1076,12 +1100,21 @@ def _safe_generate(
     error = ""
     try:
         text = client.generate(prompt, image_path=image_path)
+        text = _normalize_generated_output_text(text)
         print(f"\n[LLM RAW:{debug_label}:BEGIN]\n{text}\n[LLM RAW:{debug_label}:END]\n")
     except Exception as exc:
         error = str(exc)
         text = f"{fallback}\n\n오류: {error}"
         print(f"\n[LLM RAW:{debug_label}:ERROR] {error}\n")
     result = _GeneratedText(text=text, error=error)
+    return result
+
+
+def _normalize_generated_output_text(text: str) -> str:
+    payload, error = _load_json_payload_or_error(text)
+    result = text
+    if not error and payload:
+        result = json.dumps(_normalize_payload_text(payload), ensure_ascii=False)
     return result
 
 
