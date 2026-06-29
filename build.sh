@@ -19,11 +19,15 @@ PACKAGED_MODEL_URL="$GEMMA4_E2B_Q2_MODEL_URL"
 PACKAGED_MODEL_SHA256="$GEMMA4_E2B_Q2_MODEL_SHA256"
 
 # Options populated by parser
+BUILD_PROFILE="default"
 BUILD_JOBS=""
 FORCE_CUDA="0"
+FORCE_CUDA_EXPLICIT="0"
 PYTHON_ENV="auto"
+PYTHON_ENV_EXPLICIT="0"
 MODEL_PATH=""
 python_env_mode="venv"
+SKIP_SYSTEMD_SERVICES="0"
 
 log() {
   printf '[build] %s\n' "$*"
@@ -54,7 +58,11 @@ sudo_cmd() {
 
 usage() {
   cat <<EOF
-Usage: $0 [options]
+Usage: $0 [profile] [options]
+
+Profiles:
+  hwonly                  Build for this laptop: CPU-only llama.cpp, local .venv,
+                          and no systemd service generation
 
 Options:
   -h, --help               Show this help message
@@ -81,18 +89,22 @@ parse_args() {
         ;;
       --cuda)
         FORCE_CUDA="1"
+        FORCE_CUDA_EXPLICIT="1"
         shift
         ;;
       --cpu)
         FORCE_CUDA="0"
+        FORCE_CUDA_EXPLICIT="1"
         shift
         ;;
       --auto-gpu)
         FORCE_CUDA="auto"
+        FORCE_CUDA_EXPLICIT="1"
         shift
         ;;
       --python-env)
         PYTHON_ENV="$2"
+        PYTHON_ENV_EXPLICIT="1"
         shift 2
         ;;
       --model-path)
@@ -103,12 +115,33 @@ parse_args() {
         LLAMA_CPP_DIR="$2"
         shift 2
         ;;
+      hwonly)
+        BUILD_PROFILE="hwonly"
+        shift
+        ;;
       *)
         log "Warning: Unknown option $1"
         shift
         ;;
     esac
   done
+}
+
+apply_build_profile() {
+  if [[ "$BUILD_PROFILE" == "hwonly" ]]; then
+    log "Using hwonly laptop build profile"
+    if [[ "$FORCE_CUDA_EXPLICIT" != "1" ]]; then
+      FORCE_CUDA="0"
+    fi
+    if [[ "$PYTHON_ENV_EXPLICIT" != "1" ]]; then
+      if command_exists uv; then
+        PYTHON_ENV="uv"
+      else
+        PYTHON_ENV="venv"
+      fi
+    fi
+    SKIP_SYSTEMD_SERVICES="1"
+  fi
 }
 
 detect_cuda() {
@@ -641,6 +674,11 @@ ensure_model_file() {
 }
 
 generate_systemd_services() {
+  if [[ "${SKIP_SYSTEMD_SERVICES:-0}" == "1" ]]; then
+    log "skipping systemd service generation"
+    return
+  fi
+
   local template_dir="$ROOT_DIR/systemd"
   local current_user
   current_user="$(id -un)"
@@ -673,6 +711,7 @@ run_verification() {
 
 main() {
   parse_args "$@"
+  apply_build_profile
 
   if [[ -z "$LLAMA_CPP_DIR" ]]; then
     LLAMA_CPP_DIR="$DEFAULT_LLAMA_CPP_DIR"
