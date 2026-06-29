@@ -279,6 +279,11 @@ parse_args() {
         RUN_ORACLE_SLAVE_ADDRS="$2"
         shift 2
         ;;
+      --temperature)
+        export ORACLE_LLM_TEMPERATURE="$2"
+        export ORACLE_REPORT_LLM_TEMPERATURE="$2"
+        shift 2
+        ;;
       --python-env)
         PYTHON_ENV="$2"
         shift 2
