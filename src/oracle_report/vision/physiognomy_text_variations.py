@@ -523,6 +523,252 @@ def _part_caution(part_key: str, tone: str) -> str:
     return result
 
 
+_PERSONAL_EXPANSION_RULES: dict[str, dict[str, tuple[str, ...]]] = {
+    "basic": {
+        "titles": (
+            "{primary_label}에서 시작되는 첫인상",
+            "차분히 정리되는 얼굴의 기본 흐름",
+            "{main_impression}이 만드는 안정된 분위기",
+            "과하지 않게 중심이 잡힌 인상",
+            "{secondary_label}과 함께 보이는 기본기",
+        ),
+        "summaries": (
+            "{primary_summary} 첫인상은 단정한 흐름으로 정리돼요.",
+            "{secondary_summary} 전체 분위기는 안정 쪽으로 읽혀요.",
+            "{part_pair_label}이 함께 얼굴의 기준점을 만들어줘요.",
+            "{main_impression}이 먼저 보이고, 세부 인상도 한쪽으로 크게 치우치지 않아요.",
+            "얼굴의 기본 구조에서는 급한 인상보다 차분한 정돈감이 더 잘 보여요.",
+        ),
+        "bodies": (
+            "{primary_evidence} {secondary_evidence} 이 근거들을 함께 보면 처음 마주했을 때 튀는 인상보다 차분히 중심을 잡는 분위기로 이어질 수 있어요. 중요한 일을 시작할 때는 먼저 기준을 세우고 순서대로 움직이면 장점이 더 자연스럽게 살아나요.",
+            "{primary_evidence} 여기에 {secondary_label}의 {secondary_impression} 흐름이 더해져 얼굴의 기본 상이 안정적으로 정리돼요. 생활 장면에서는 갑자기 방향을 바꾸기보다 정한 기준을 지키는 태도가 신뢰감을 만들 수 있어요.",
+            "{primary_evidence} {secondary_evidence} 풀어서 보면 얼굴의 큰 흐름이 한쪽으로 과하게 밀리기보다 균형을 맞추려는 쪽에 가까워요. 새로운 환경에서는 말을 많이 앞세우기보다 차분히 관찰한 뒤 움직이는 방식이 잘 맞아요.",
+            "{primary_evidence} 또한 {secondary_label}에서는 {secondary_impression} 느낌이 보여요. 이런 조합은 첫인상에서 부담을 주기보다 안정된 기준을 가진 사람처럼 보일 수 있어요. 중요한 선택 앞에서는 속도보다 일관성을 먼저 잡는 것이 좋아요.",
+            "{primary_evidence} {secondary_evidence} 이 인상은 결정론적인 의미라기보다 얼굴에서 보이는 균형감과 중심감을 참고하는 정도로 보면 좋아요. 일상에서는 복잡한 상황을 한 번에 해결하려 하기보다 작은 단위로 나눠 정리할 때 장점이 잘 드러나요.",
+        ),
+    },
+    "strength": {
+        "titles": (
+            "{primary_label}에서 읽히는 장점",
+            "{secondary_label}이 받쳐주는 기세",
+            "차분히 드러나는 존재감",
+            "{main_impression}을 살리는 힘",
+            "관찰력과 중심감이 만나는 강점",
+        ),
+        "summaries": (
+            "{primary_summary} 강점은 무리한 표현보다 자연스러운 설득력에 가까워요.",
+            "{secondary_summary} 필요한 순간에 중심을 잡는 힘이 보일 수 있어요.",
+            "{part_pair_label}이 함께 장점의 방향을 만들어줘요.",
+            "{main_impression}은 사람이나 상황을 차분히 읽는 힘으로 이어질 수 있어요.",
+            "얼굴에서 보이는 강점은 급한 추진보다 꾸준히 신뢰를 쌓는 쪽에 가까워요.",
+        ),
+        "bodies": (
+            "{primary_evidence} {secondary_evidence} 이 조합은 중요한 순간에 분위기를 살피면서도 필요한 기준을 잡는 장점으로 이어질 수 있어요. 판단이 필요한 자리에서는 관찰한 내용을 짧고 분명하게 정리해 말하면 좋은 인상을 줄 수 있어요.",
+            "{primary_evidence} 여기에 {secondary_label}의 {secondary_impression} 흐름이 더해져, 앞에 나설 때도 과한 압박보다 안정적인 존재감으로 전달될 수 있어요. 일을 풀어갈 때는 자신 있는 기준을 세우고 작게 실행하는 방식이 잘 맞아요.",
+            "{primary_evidence} {secondary_evidence} 현실적으로 보면 이 강점은 사람의 반응과 상황의 흐름을 놓치지 않는 데서 살아날 수 있어요. 생각이 많아질 때는 핵심을 하나로 좁히고 바로 행동할 수 있는 작은 단계를 만들면 좋아요.",
+            "{primary_evidence} 또한 {secondary_label}에서는 {secondary_impression} 분위기가 함께 보여요. 이런 인상은 큰소리로 밀어붙이기보다 차근차근 신뢰를 쌓을 때 더 자연스럽게 힘을 얻어요. 약속한 것을 꾸준히 보여주는 방식이 장점을 크게 만들어줘요.",
+            "{primary_evidence} {secondary_evidence} 이 흐름은 단순히 좋고 나쁨이 아니라 어떤 방식으로 힘을 쓰면 편한지를 보여주는 참고점이에요. 강점을 살리려면 상황을 먼저 읽고, 그다음 자신의 의견을 너무 길지 않게 표현하는 습관이 도움이 돼요.",
+        ),
+    },
+    "relationship": {
+        "titles": (
+            "{primary_label}에서 보이는 관계 감각",
+            "편안하게 온도를 맞추는 대화",
+            "{secondary_label}이 만드는 소통 분위기",
+            "상대를 살피며 반응하는 인상",
+            "부드럽게 이어지는 대인 흐름",
+        ),
+        "summaries": (
+            "{primary_summary} 관계에서는 상대의 반응을 살피는 흐름이 보여요.",
+            "{secondary_summary} 표현 방식은 편안한 소통감으로 이어질 수 있어요.",
+            "{part_pair_label}이 대화의 온도를 만들어줘요.",
+            "{main_impression}은 관계에서 성급함보다 조율 쪽으로 나타날 수 있어요.",
+            "대인 관계에서는 표정과 시선의 리듬을 부드럽게 맞추는 것이 좋아요.",
+        ),
+        "bodies": (
+            "{primary_evidence} {secondary_evidence} 이런 근거를 함께 보면 대화에서 상대의 반응을 보고 속도를 맞추려는 인상으로 이어질 수 있어요. 중요한 이야기를 할 때는 표정과 말의 속도를 조금 낮추면 장점이 더 편안하게 전달돼요.",
+            "{primary_evidence} 여기에 {secondary_label}의 {secondary_impression} 흐름이 더해져 관계 안에서 너무 앞서기보다 분위기를 읽는 쪽에 강점이 생길 수 있어요. 다만 배려가 길어지면 핵심이 흐려질 수 있으니 필요한 말은 짧게 정리해두면 좋아요.",
+            "{primary_evidence} {secondary_evidence} 현실적인 관계 장면으로 옮기면 처음부터 강하게 다가가기보다 상대가 편안해지는 지점을 확인하며 가까워지는 방식에 잘 맞아요. 친밀한 관계일수록 감정을 오래 누르지 말고 부드럽게 풀어내면 좋아요.",
+            "{primary_evidence} 또한 {secondary_label}에서는 {secondary_impression} 분위기가 보여요. 이 조합은 말보다 표정이나 분위기를 먼저 읽는 장점으로 이어질 수 있지만, 혼자 단정하면 오해가 생길 수 있어요. 중요한 부분은 질문으로 확인하는 습관이 도움이 돼요.",
+            "{primary_evidence} {secondary_evidence} 이 흐름은 관계에서 급격한 변화보다 안정적인 친밀감을 쌓는 데 유리한 참고점이에요. 새로운 사람을 만날 때도 처음부터 많은 것을 보여주기보다 차분히 리듬을 맞추면 좋아요.",
+        ),
+    },
+    "direction": {
+        "titles": (
+            "{primary_label} 기준으로 보는 방향",
+            "꾸준히 쌓아가는 운의 흐름",
+            "{secondary_label}에서 보는 활용법",
+            "중심을 지키며 넓히는 방향",
+            "생활 속에서 살아나는 안정감",
+        ),
+        "summaries": (
+            "{primary_summary} 앞으로는 안정된 기준을 꾸준히 살리는 흐름이 좋아요.",
+            "{secondary_summary} 마무리감과 지속력이 방향의 열쇠가 될 수 있어요.",
+            "{part_pair_label}은 긴 호흡으로 볼수록 장점이 커져요.",
+            "{main_impression}은 선택지를 넓히기보다 기준을 좁힐 때 더 잘 살아나요.",
+            "운의 방향은 갑작스러운 변화보다 반복 가능한 루틴에서 안정적으로 커질 수 있어요.",
+        ),
+        "bodies": (
+            "{primary_evidence} {secondary_evidence} 이 근거를 함께 보면 새로운 기회를 잡을 때도 갑작스러운 변화보다 준비된 선택에서 장점이 더 잘 살아날 수 있어요. 자신의 속도를 정하고 반복 가능한 루틴을 만들면 앞으로의 흐름을 안정적으로 키울 수 있어요.",
+            "{primary_evidence} 여기에 {secondary_label}의 {secondary_impression} 흐름이 더해져 시작보다 유지와 정리에 강점이 생길 수 있어요. 앞으로는 큰 변화 하나보다 매일 지키는 기준 하나를 만드는 쪽이 현실적으로 잘 맞아요.",
+            "{primary_evidence} {secondary_evidence} 이 인상은 한 번에 성과를 만들기보다 시간을 두고 신뢰를 쌓을 때 더 자연스럽게 빛나요. 일이나 관계 모두에서 마무리 기준을 분명히 하면 좋은 흐름을 오래 가져갈 수 있어요.",
+            "{primary_evidence} 또한 {secondary_label}에서는 {secondary_impression} 분위기가 관찰돼요. 주변 상황이 바뀌어도 스스로의 중심을 다시 잡는 힘으로 이어질 수 있으니, 선택지를 너무 많이 벌리기보다 자신에게 맞는 기준을 좁혀가는 전략이 좋아요.",
+            "{primary_evidence} {secondary_evidence} 이것은 미래를 단정하는 뜻이 아니라 얼굴에서 보이는 활용 방향을 생활 조언으로 바꾼 참고점이에요. 지금부터는 잘하는 방식을 반복 가능한 습관으로 만드는 것이 가장 현실적인 방향이에요.",
+        ),
+    },
+    "advice": {
+        "titles": (
+            "표현의 온도를 편안하게 맞추기",
+            "{secondary_label}에서 찾는 생활 조언",
+            "작은 루틴으로 균형 잡기",
+            "부드럽게 말하고 분명히 끝내기",
+            "{primary_label}에서 보는 조심할 점",
+        ),
+        "summaries": (
+            "{primary_summary} 생활에서는 표현의 균형을 의식하면 좋아요.",
+            "{secondary_summary} 끝맺음을 차분히 하는 습관이 잘 맞아요.",
+            "{part_pair_label}은 속도보다 마무리를 챙길 때 안정돼요.",
+            "{main_impression}이 강점으로 보이려면 말의 온도와 기준을 함께 잡는 것이 좋아요.",
+            "조심할 점은 장점을 누르는 것이 아니라 편안하게 쓰는 방식을 찾는 데 있어요.",
+        ),
+        "bodies": (
+            "{primary_evidence} {secondary_evidence} 이 근거를 보면 감정을 너무 급하게 드러내거나 반대로 오래 눌러두면 장점이 흐려질 수 있어요. 중요한 대화에서는 먼저 한 문장으로 마음을 정리하고, 끝까지 차분히 마무리하는 습관이 도움이 돼요.",
+            "{primary_evidence} 여기에 {secondary_label}의 {secondary_impression} 흐름이 더해져 시작보다 마무리에서 신뢰가 쌓일 때 더 좋아져요. 약속이나 일정을 작게라도 끝까지 지키는 방식을 생활화하면 얼굴에서 보이는 안정감이 실제 관계에서도 살아날 수 있어요.",
+            "{primary_evidence} {secondary_evidence} 이 조합은 말이나 반응이 빠를 때 의도보다 강하게 전달될 수 있다는 점만 조심하면 좋아요. 중요한 관계에서는 바로 답하기보다 한 박자 쉬고, 상대가 이해한 내용을 확인하는 습관을 들이면 좋아요.",
+            "{primary_evidence} 또한 {secondary_label}에서는 {secondary_impression} 분위기가 보여요. 몸과 마음이 바빠질 때 표정의 여유가 줄어들 수 있으니, 하루 중 정리하는 시간을 짧게라도 고정하면 대화와 일의 마무리가 편안해져요.",
+            "{primary_evidence} {secondary_evidence} 이 인상은 다정하게 시작하되 결론이 흐려지면 피로해질 수 있다는 참고점도 함께 줘요. 부탁이나 거절을 할 때는 이유를 길게 늘이기보다 핵심을 분명히 말하고 따뜻하게 마무리하면 좋아요.",
+        ),
+    },
+}
+
+_PAIR_EXPANSION_RULES: dict[str, dict[str, tuple[str, ...]]] = {
+    "first_impression": {
+        "titles": (
+            "서로의 분위기를 살피는 첫 흐름",
+            "차분함과 반응성이 만나는 첫인상",
+            "서로 다른 중심이 맞물리는 조합",
+            "첫인상에서 보이는 온도 차이",
+            "부드럽게 균형을 찾는 관계 분위기",
+        ),
+        "summaries": (
+            "두 사람의 얼굴 흐름은 {left_main} 쪽과 {right_main} 쪽이 함께 보여요.",
+            "{left_name}님과 {right_name}님은 같은 결보다 서로 다른 표현 방식이 먼저 보여요.",
+            "첫인상에서는 한쪽으로 기울기보다 서로의 속도를 확인하는 흐름이 좋아요.",
+            "얼굴의 중심감과 균형에서 관계의 기본 톤이 부드럽게 읽혀요.",
+            "두 사람은 처음부터 단정하기보다 천천히 맞춰갈 여지가 있는 조합이에요.",
+        ),
+        "bodies": (
+            "{left_name}님은 {left_evidence} {right_name}님은 {right_evidence} 이 근거를 함께 보면 첫인상에서 서로 다른 속도가 만나는 느낌이 생길 수 있어요. 처음부터 결론을 맞추려 하기보다 각자의 리듬을 확인하면 관계가 더 편안해져요.",
+            "{left_name}님에게서는 {left_main} 흐름이, {right_name}님에게서는 {right_main} 흐름이 읽혀요. 이 차이는 어색함보다 서로의 빈 곳을 채워주는 분위기로 이어질 수 있어요. 첫 대화에서는 누가 맞는지보다 어떤 속도가 편한지 맞춰보면 좋아요.",
+            "{left_evidence} {right_evidence} 두 사람 모두 자기 방식의 중심이 있기 때문에 관계가 급하게 흔들리기보다는 천천히 맞춰지는 편이에요. 초반에는 표현 방식이 다를 수 있으니 작은 반응을 자주 확인하면 좋아요.",
+            "{left_name}님은 {left_main} 분위기가 있고, {right_name}님은 {right_main} 분위기가 있어요. 이 온도 차이는 관계에 입체감을 줄 수 있지만 때로는 속도 차이로 느껴질 수 있어요. 처음에는 서로의 편한 대화 간격을 찾는 것이 중요해요.",
+            "{left_evidence} {right_evidence} 이 조합은 처음부터 강하게 부딪히기보다 조금씩 서로의 기준을 확인하며 맞춰가는 관계에 가까워요. 급한 판단보다 편안한 반복 경험을 쌓으면 첫인상의 장점이 더 잘 살아나요.",
+        ),
+    },
+    "communication": {
+        "titles": (
+            "대화 속도를 맞추면 편한 조합",
+            "표현과 관찰이 섞이는 리듬",
+            "서로의 반응을 읽는 소통",
+            "속도 차이를 조율하는 대화",
+            "부드럽게 주고받는 말의 흐름",
+        ),
+        "summaries": (
+            "소통에서는 {left_name}님의 {left_main} 흐름과 {right_name}님의 {right_main} 흐름이 만나요.",
+            "두 사람은 말의 양보다 반응의 타이밍을 맞추는 게 중요해요.",
+            "눈과 입매 흐름에서 관계의 대화 리듬이 보여요.",
+            "소통에서는 빠른 반응과 차분한 확인이 함께 필요해요.",
+            "두 사람의 소통은 편안한 분위기를 만들 여지가 있어요.",
+        ),
+        "bodies": (
+            "{left_evidence} {right_evidence} 이 차이는 대화에서 한 사람은 먼저 살피고, 다른 사람은 표현을 통해 풀어내는 식으로 나타날 수 있어요. 중요한 이야기는 바로 결론 내기보다 서로가 들은 내용을 한 번씩 확인하면 좋아요.",
+            "{left_name}님은 {left_main} 인상이 있고, {right_name}님은 {right_main} 인상이 있어요. 대화에서는 이 차이가 매력으로 보일 수도 있지만 피곤할 때는 오해로 바뀔 수 있어요. 감정이 올라올수록 짧게 묻고 천천히 답하는 방식이 잘 맞아요.",
+            "{left_evidence} {right_evidence} 이런 조합은 말보다 표정이나 분위기로 먼저 반응을 주고받기 쉬워요. 좋은 흐름을 유지하려면 침묵을 부정적으로 해석하지 말고, 필요한 순간에는 직접 확인하는 대화가 좋아요.",
+            "{left_name}님에게는 {left_main} 흐름이, {right_name}님에게는 {right_main} 흐름이 보여요. 한쪽이 빨리 표현하고 다른 한쪽이 천천히 정리하면 타이밍 차이가 생길 수 있어요. 대화의 결론보다 과정의 속도를 맞추는 것이 관계를 편하게 만들어줘요.",
+            "{left_evidence} {right_evidence} 이 흐름은 서로가 방어적으로 굳지만 않으면 안정적인 대화로 이어질 수 있어요. 특히 중요한 이야기는 한 번에 몰아 하기보다 짧게 나누어 말하면 더 자연스럽게 풀려요.",
+        ),
+    },
+    "strength": {
+        "titles": (
+            "서로의 부족한 리듬을 채우는 힘",
+            "차이를 장점으로 바꾸는 조합",
+            "안정감이 쌓이는 관계 장점",
+            "현실적인 보완이 가능한 관계",
+            "함께 있을 때 살아나는 균형",
+        ),
+        "summaries": (
+            "관계 강점은 서로 다른 중심감이 보완되는 데 있어요.",
+            "{left_main} 흐름과 {right_main} 흐름이 만나 관계에 균형을 줄 수 있어요.",
+            "두 사람은 시간을 두고 맞춰갈수록 강점이 잘 드러나요.",
+            "얼굴 흐름에서는 서로 도와줄 수 있는 역할 차이가 보여요.",
+            "두 사람은 서로 다른 인상을 통해 관계의 폭을 넓힐 수 있어요.",
+        ),
+        "bodies": (
+            "{left_evidence} {right_evidence} 두 사람은 같은 방식으로 움직이기보다 각자의 강점을 나눠 맡을 때 안정감이 커질 수 있어요. 한 사람은 방향을 잡고 다른 한 사람은 분위기를 살피는 식으로 역할을 나누면 좋아요.",
+            "{left_name}님은 {left_evidence} {right_name}님은 {right_evidence} 서로의 표현 방식이 다르기 때문에 처음에는 낯설 수 있지만, 익숙해지면 한쪽이 놓친 부분을 다른 쪽이 챙기는 장점이 생겨요.",
+            "{left_evidence} {right_evidence} 이 조합은 빠른 설렘보다 신뢰가 쌓일 때 더 좋은 흐름을 만들 수 있어요. 서로의 장점을 칭찬으로 확인해주면 관계의 안정감이 훨씬 선명해져요.",
+            "{left_name}님의 {left_main} 분위기와 {right_name}님의 {right_main} 분위기는 같은 결을 반복하기보다 다른 결을 더해요. 그래서 역할을 분명히 나누면 관계의 피로가 줄고, 서로가 더 편하게 강점을 낼 수 있어요.",
+            "{left_evidence} {right_evidence} 이 흐름은 혼자일 때보다 함께 있을 때 더 다양한 선택지를 만들 수 있는 조합이에요. 의견이 다를 때도 차이를 문제로 보기보다 역할의 차이로 해석하면 좋아요.",
+        ),
+    },
+    "caution": {
+        "titles": (
+            "속도 차이를 오해하지 않기",
+            "말의 결을 부드럽게 맞추기",
+            "혼자 해석하지 않기",
+            "관계의 마무리를 미루지 않기",
+            "편안함 속에서도 기준 지키기",
+        ),
+        "summaries": (
+            "주의할 점은 서로의 표현 속도를 다르게 받아들일 수 있다는 점이에요.",
+            "관계가 편하려면 표현의 강도와 마무리를 함께 조절해야 해요.",
+            "표정과 분위기만으로 상대의 마음을 단정하지 않는 게 중요해요.",
+            "작은 감정을 오래 쌓아두지 않는 것이 관계를 편하게 만들어줘요.",
+            "서로 편해질수록 작은 약속과 말의 마무리가 중요해요.",
+        ),
+        "bodies": (
+            "{left_evidence} {right_evidence} 한쪽은 바로 표현하고 다른 한쪽은 정리할 시간이 필요할 수 있어요. 감정이 올라올 때는 결론을 재촉하기보다 잠시 시간을 두고 다시 이야기하는 약속을 만드는 게 좋아요.",
+            "{left_name}님은 {left_main} 흐름이 있고, {right_name}님은 {right_main} 흐름이 있어요. 이 차이가 피곤할 때는 말투나 표정을 다르게 해석하는 원인이 될 수 있어요. 중요한 대화에서는 먼저 의도를 말하고, 마지막에는 서로 이해한 내용을 확인하면 좋아요.",
+            "{left_evidence} {right_evidence} 두 사람 모두 분위기를 읽는 힘이 있지만, 그만큼 혼자 결론을 내리기 쉬운 순간도 생길 수 있어요. 불편한 지점은 돌려 말하기보다 짧고 부드럽게 직접 확인하는 편이 좋아요.",
+            "{left_name}님의 {left_main} 흐름과 {right_name}님의 {right_main} 흐름은 평소에는 잘 맞아도 피로할 때 엇갈릴 수 있어요. 그날 생긴 불편함은 너무 오래 묵히지 말고, 짧게 정리해서 풀어내는 습관이 필요해요.",
+            "{left_evidence} {right_evidence} 관계가 익숙해질수록 표현을 생략하거나 상대가 알아줄 거라고 생각하기 쉬워요. 사소한 약속일수록 분명히 말하고 지키는 방식이 두 사람의 안정감을 지켜줘요.",
+        ),
+    },
+}
+
+
+def _expanded_personal_templates(category_key: str) -> tuple[dict[str, str], ...]:
+    result = _PERSONAL_TEMPLATES[category_key] + _compose_template_variations(
+        _PERSONAL_EXPANSION_RULES[category_key],
+    )
+    return result
+
+
+def _expanded_pair_templates(category_key: str) -> tuple[dict[str, str], ...]:
+    result = _PAIR_TEMPLATES[category_key] + _compose_template_variations(
+        _PAIR_EXPANSION_RULES[category_key],
+    )
+    return result
+
+
+def _compose_template_variations(
+    rules: dict[str, tuple[str, ...]],
+) -> tuple[dict[str, str], ...]:
+    titles = rules["titles"]
+    summaries = rules["summaries"]
+    bodies = rules["bodies"]
+    result = tuple(
+        {
+            "title": title,
+            "summary": summaries[(title_index + body_index) % len(summaries)],
+            "body": body,
+        }
+        for title_index, title in enumerate(titles)
+        for body_index, body in enumerate(bodies)
+    )
+    return result
+
+
 def _build_personal_block(
     category_key: str,
     profiles: dict[str, FacePartProfile],
@@ -531,8 +777,12 @@ def _build_personal_block(
     primary, secondary = (
         profiles[part_key] for part_key in _PERSONAL_BLOCK_PARTS[category_key]
     )
-    template = _choose_template(_PERSONAL_TEMPLATES[category_key], seed_text, category_key)
-    values = _personal_template_values(primary, secondary)
+    template = _choose_template(
+        _expanded_personal_templates(category_key),
+        seed_text,
+        category_key,
+    )
+    values = _personal_template_values(primary, secondary, seed_text, category_key)
     result = {
         "category": _PERSONAL_CATEGORIES[category_key],
         "title": template["title"].format(**values),
@@ -554,7 +804,7 @@ def _build_pair_block(
     left_profile = left_profiles[primary_part]
     right_profile = right_profiles[secondary_part]
     template = _choose_template(
-        _PAIR_TEMPLATES[category_key],
+        _expanded_pair_templates(category_key),
         seed_text,
         f"pair:{category_key}",
     )
@@ -563,8 +813,16 @@ def _build_pair_block(
         "right_name": right_name,
         "left_main": left_profile.impression,
         "right_main": right_profile.impression,
-        "left_evidence": left_profile.evidence,
-        "right_evidence": right_profile.evidence,
+        "left_evidence": _evidence_phrase(
+            left_profile,
+            seed_text,
+            f"pair:{category_key}:left",
+        ),
+        "right_evidence": _evidence_phrase(
+            right_profile,
+            seed_text,
+            f"pair:{category_key}:right",
+        ),
     }
     result = {
         "category": _PAIR_CATEGORIES[category_key],
@@ -578,20 +836,103 @@ def _build_pair_block(
 def _personal_template_values(
     primary: FacePartProfile,
     secondary: FacePartProfile,
+    seed_text: str,
+    category_key: str,
 ) -> dict[str, str]:
     result = {
         "main_impression": primary.impression,
         "primary_label": primary.label,
         "primary_impression": primary.impression,
         "primary_summary": f"{primary.label}에서는 {primary.impression}이 읽혀요.",
-        "primary_evidence": primary.evidence,
+        "primary_evidence": _evidence_phrase(
+            primary,
+            seed_text,
+            f"{category_key}:primary",
+        ),
         "secondary_label": secondary.label,
         "secondary_impression": secondary.impression,
         "secondary_summary": f"{secondary.label}에서는 {secondary.impression}이 보여요.",
-        "secondary_evidence": secondary.evidence,
+        "secondary_evidence": _evidence_phrase(
+            secondary,
+            seed_text,
+            f"{category_key}:secondary",
+        ),
+        "part_pair_label": _part_pair_label(primary, secondary),
         "strength": primary.strength,
         "caution": secondary.caution,
     }
+    return result
+
+
+def _part_pair_label(primary: FacePartProfile, secondary: FacePartProfile) -> str:
+    result = f"{_compact_part_label(primary.label)} 흐름과 {_compact_part_label(secondary.label)} 흐름"
+    return result
+
+
+def _compact_part_label(label: str) -> str:
+    result = label.replace("과 ", "/").replace("와 ", "/")
+    return result
+
+
+def _evidence_phrase(profile: FacePartProfile, seed_text: str, salt: str) -> str:
+    observations = _profile_observations(profile)
+    first = observations[0]
+    second = observations[1] if len(observations) > 1 else "같은 흐름도 함께 보여요."
+    templates = (
+        "{label}을 보면 {first} 이 흐름이 {impression}으로 자연스럽게 이어져요.",
+        "{first} 그래서 {label} 쪽은 {impression}으로 정리해서 볼 수 있어요.",
+        "{label}에서는 {first} {second} 이런 근거가 {impression}을 만들어줘요.",
+        "먼저 {label} 쪽에서 {first} 이 부분이 {impression}을 보여주는 단서가 돼요.",
+        "{first} 여기에 {second} 이 점이 더해져 {label}의 {impression}이 부드럽게 살아나요.",
+        "{label}의 흐름을 풀어보면 {first} 그래서 전체적으로 {impression}에 가까워요.",
+        "{first} 이 관찰은 단정적인 의미보다 {label}에서 {impression}이 보인다는 참고점으로 보면 좋아요.",
+        "{label}에서는 {first} 이 점이 첫인상에서 {impression}을 느끼게 해요.",
+    )
+    template = _choose_template_text(templates, seed_text, f"evidence:{salt}")
+    result = template.format(
+        label=profile.label,
+        first=first,
+        second=second,
+        impression=profile.impression,
+    )
+    result = " ".join(result.split())
+    return result
+
+
+def _profile_observations(profile: FacePartProfile) -> tuple[str, ...]:
+    observations = tuple(
+        _soften_observation(match.observation)
+        for match in profile.matches
+        if match.observation.strip()
+    )
+    result = observations[:2]
+    if not result:
+        result = (f"{profile.label}에서 무난한 균형이 관찰돼요.",)
+    return result
+
+
+def _soften_observation(text: str) -> str:
+    result = text.strip()
+    replacements = (
+        ("관찰됩니다.", "관찰돼요."),
+        ("관찰됩니다", "관찰돼요"),
+        ("안정적입니다.", "안정적이에요."),
+        ("안정적입니다", "안정적이에요"),
+        ("균형적입니다.", "균형적이에요."),
+        ("균형적입니다", "균형적이에요"),
+        ("편입니다.", "편이에요."),
+        ("편입니다", "편이에요"),
+        ("보입니다.", "보여요."),
+        ("보입니다", "보여요"),
+        ("나타납니다.", "나타나요."),
+        ("나타납니다", "나타나요"),
+        ("있습니다.", "있어요."),
+        ("있습니다", "있어요"),
+        ("입니다.", "이에요."),
+        ("입니다", "이에요"),
+    )
+    for old_text, new_text in replacements:
+        result = result.replace(old_text, new_text)
     return result
 
 

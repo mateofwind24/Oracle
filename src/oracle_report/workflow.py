@@ -226,7 +226,7 @@ def run_personal_workflow(
         face_args: tuple[object, ...] = (profile, capture_artifact, active_report_client)
         if _configured_face_analysis_mode() == FACE_ANALYSIS_MODE_LANDMARK_RULE:
             face_builder = _build_single_rule_based_face_analysis
-            face_args = (capture_artifact,)
+            face_args = (profile, capture_artifact)
         face_analysis = timing_recorder.run("face_analysis", face_builder, *face_args)
         face_analysis_text = face_analysis.text
     else:
@@ -570,10 +570,22 @@ def _build_single_face_analysis(
 
 
 def _build_single_rule_based_face_analysis(
+    profile: BirthProfile,
     artifact: CaptureArtifact,
 ) -> _GeneratedText:
-    text = artifact.quality.face_payload_json.strip()
+    from oracle_report.vision.physiognomy_text_variations import build_personal_face_payload
+
+    matches = _quality_rule_matches(artifact.quality)
+    text = ""
     error = ""
+    if matches:
+        payload = build_personal_face_payload(
+            matches,
+            _single_face_seed(profile, artifact, matches),
+        )
+        text = json.dumps(payload, ensure_ascii=False)
+    else:
+        text = artifact.quality.face_payload_json.strip()
     if text == "":
         text = artifact.face_analysis.strip()
         error = "rule-based face payload is unavailable; using capture face analysis memo"
@@ -630,7 +642,13 @@ def _build_pair_rule_based_face_analysis(
         right_matches,
         left_profile.name,
         right_profile.name,
-        _pair_face_seed(left_profile, right_profile, left_matches, right_matches),
+        _pair_face_seed(
+            left_profile,
+            right_profile,
+            artifact,
+            left_matches,
+            right_matches,
+        ),
     )
     text = json.dumps(payload, ensure_ascii=False)
     result = _GeneratedText(text=text, error="")
@@ -669,12 +687,27 @@ def _quality_rule_matches(quality) -> tuple[Any, ...]:
 def _pair_face_seed(
     left_profile: BirthProfile,
     right_profile: BirthProfile,
+    artifact: SequentialPairCaptureArtifact,
     left_matches: tuple[Any, ...],
     right_matches: tuple[Any, ...],
 ) -> str:
     left_tags = ",".join(getattr(match, "tag", "") for match in left_matches[:6])
     right_tags = ",".join(getattr(match, "tag", "") for match in right_matches[:6])
-    result = f"{left_profile.name}:{right_profile.name}:{left_tags}:{right_tags}"
+    result = (
+        f"{left_profile.name}:{right_profile.name}:"
+        f"{artifact.left.captured_at.isoformat()}:{artifact.right.captured_at.isoformat()}:"
+        f"{left_tags}:{right_tags}"
+    )
+    return result
+
+
+def _single_face_seed(
+    profile: BirthProfile,
+    artifact: CaptureArtifact,
+    matches: tuple[Any, ...],
+) -> str:
+    tags = ",".join(getattr(match, "tag", "") for match in matches[:8])
+    result = f"{profile.name}:{artifact.captured_at.isoformat()}:{tags}"
     return result
 
 
