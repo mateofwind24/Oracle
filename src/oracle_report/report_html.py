@@ -7,6 +7,10 @@ from typing import Any, Mapping
 
 from oracle_report.models import BirthProfile
 from oracle_report.recommender import FaceRecommendation
+from oracle_report.report_text import (
+    normalize_report_block_text_fields,
+    normalize_report_payload_blocks,
+)
 from oracle_report.saju.calendar import BRANCH_ELEMENTS, STEM_ELEMENTS
 from oracle_report.saju.engine import ELEMENTS
 from oracle_report.saju.repository import (
@@ -289,6 +293,7 @@ def _build_personal_report_view(
     skip_face: bool = False,
 ) -> _PersonalReportView:
     payload = _load_generated_payload(generated_text)
+    payload = normalize_report_payload_blocks(payload)
     if not payload:
         print(
             "[UI FALLBACK:personal_report] generated_text is not valid JSON; "
@@ -412,6 +417,7 @@ def _build_compatibility_report_view(
     generated_text: str,
 ) -> _CompatibilityReportView:
     payload = _load_generated_payload(generated_text)
+    payload = normalize_report_payload_blocks(payload)
     left_view = _compatibility_person_view(left_profile, left_manse)
     right_view = _compatibility_person_view(right_profile, right_manse)
     saju_text = "\n".join(
@@ -642,22 +648,39 @@ def _payload_blocks(
         for index, raw_block in enumerate(raw_blocks):
             default = defaults[min(index, len(defaults) - 1)]
             if isinstance(raw_block, dict):
+                block_values = normalize_report_block_text_fields(
+                    {
+                        "category": _payload_text(
+                            raw_block,
+                            "category",
+                            default["category"],
+                        ),
+                        "title": _payload_text(raw_block, "title", default["title"]),
+                        "summary": _payload_text(
+                            raw_block,
+                            "summary",
+                            default["summary"],
+                        ),
+                        "body": _payload_text(raw_block, "body", default["body"]),
+                    },
+                )
                 blocks.append(
                     _ReportBlock(
-                        category=_payload_text(raw_block, "category", default["category"]),
-                        title=_payload_text(raw_block, "title", default["title"]),
-                        summary=_payload_text(raw_block, "summary", default["summary"]),
-                        body=_payload_text(raw_block, "body", default["body"]),
+                        category=block_values["category"],
+                        title=block_values["title"],
+                        summary=block_values["summary"],
+                        body=block_values["body"],
                     ),
                 )
     while len(blocks) < len(defaults):
         default = defaults[len(blocks)]
+        block_values = normalize_report_block_text_fields(default)
         blocks.append(
             _ReportBlock(
-                category=default["category"],
-                title=default["title"],
-                summary=default["summary"],
-                body=default["body"],
+                category=block_values["category"],
+                title=block_values["title"],
+                summary=block_values["summary"],
+                body=block_values["body"],
             ),
         )
     result = tuple(blocks)
@@ -1172,7 +1195,7 @@ header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)
 .person-mark{display:flex;flex-direction:column;align-items:center;justify-content:center;width:116px;height:116px;border-radius:50%;color:var(--ink);background:var(--paper-2);border:2px solid currentColor}.person-mark .person-hanja{font-family:"Song Myung",serif;font-size:54px;line-height:1;color:#111}.person-mark .person-ko{font-family:"Gowun Batang",serif;font-size:12px;margin-top:6px;color:var(--ink-soft)}
 .name{font-family:"Gowun Batang",serif;font-size:30px;font-weight:700;margin-top:18px}
 .meta{font-size:14px;color:var(--ink-soft);margin-top:8px;letter-spacing:.04em}
-.essence{font-family:"Gowun Batang",serif;font-size:19px;margin-top:24px;color:var(--ink);max-width:30ch;margin-left:auto;margin-right:auto}
+.essence{font-family:"Gowun Batang",serif;font-size:19px;line-height:1.78;margin-top:24px;color:var(--ink)}
 .pair-profiles{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:46px 0}.person-card{background:var(--paper-2);border:1px solid var(--line);border-radius:8px;padding:24px 22px;text-align:center}.person-name{font-size:22px;font-weight:700;margin:4px 0}.person-meta{font-size:13px;color:var(--ink-soft);margin-bottom:16px}.person-day{font-family:"Song Myung",serif;font-size:48px;line-height:1;color:#111;background:var(--paper-2);border:2px solid currentColor;width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}.person-label{font-size:13px;color:var(--ink-soft);margin-bottom:12px}.person-card p{font-size:13.5px;color:var(--ink);line-height:1.65}
 .ohaeng{margin:46px 0;padding:30px 26px;background:var(--paper-2);border:1px solid var(--line);border-radius:6px}
 .ohaeng h3,.myeongsik .cap,.tags h3{font-family:"Gowun Batang",serif;font-size:13px;letter-spacing:.3em;color:var(--ink-soft);text-align:center;margin-bottom:26px;font-weight:400}

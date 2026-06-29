@@ -7,6 +7,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from oracle_report import prompt_templates
 from oracle_report.config import CaptureConfig, LlmConfig
 from oracle_report.models import (
     CaptureArtifact,
@@ -243,6 +244,28 @@ class NewlineBodyReportClient:
                         "title": "newline title",
                         "summary": "newline summary",
                         "body": "first line\\nsecond line\nthird line",
+                    },
+                ],
+            },
+            ensure_ascii=False,
+        )
+        return result
+
+
+class ShortBodyReportClient:
+    def generate(self, prompt: str, image_path: Path | None = None) -> str:
+        del prompt
+        del image_path
+        result = json.dumps(
+            {
+                "essence": "짧은 본문 핵심",
+                "saju_subtitle": "짧은 본문 소제목",
+                "saju_blocks": [
+                    {
+                        "category": "종합 형국",
+                        "title": "짧은 본문",
+                        "summary": "핵심 요약입니다.",
+                        "body": "첫 문장입니다. 두 번째 문장입니다.",
                     },
                 ],
             },
@@ -586,6 +609,42 @@ def test_personal_workflow_normalizes_newline_markers_in_output_body(
     assert "\\n" not in saved_markdown
     assert "\\n" not in result.report_html
     assert "\\n" not in captured
+
+
+def test_personal_workflow_expands_short_block_body_to_sentence_count(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(prompt_templates, "REPORT_BLOCK_SENTENCE_COUNT", 4)
+    capture_config = _capture_config(tmp_path)
+    manse_db_path = _build_test_manse_db(tmp_path)
+    workflow_input = PersonalWorkflowInput(
+        name="tester",
+        birth_date="1995-03-15",
+        birth_time="",
+        gender="male",
+        target_gender="female",
+        skip_face=True,
+    )
+
+    result = run_personal_workflow(
+        workflow_input=workflow_input,
+        capture_config=capture_config,
+        face_llm_config=_llm_config(),
+        report_llm_config=_llm_config(),
+        manse_db_path=manse_db_path,
+        recommendation_db_path=tmp_path / "faces.sqlite",
+        face_client=FailingFaceClient(),
+        report_client=ShortBodyReportClient(),
+        capture_runner=None,
+    )
+    payload = json.loads(result.markdown)
+    body = payload["saju_blocks"][0]["body"]
+
+    assert body.count(".") == 4
+    assert "첫 문장입니다. 두 번째 문장입니다." in body
+    assert "이 내용은 종합 형국 흐름을 참고용으로 더 차분히 풀어 보는 설명이에요." in body
+    assert body in result.report_html
 
 
 def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(

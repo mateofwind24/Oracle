@@ -31,6 +31,7 @@ from oracle_report.report_html import (
     render_compatibility_report_html,
     render_personal_report_html,
 )
+from oracle_report.report_text import normalize_report_payload_blocks
 from oracle_report.saju.repository import (
     ManseLookupResult,
     ManseRepository,
@@ -799,6 +800,7 @@ def _build_personal_report_json(
         recommendations,
         skip_face,
     )
+    payload = normalize_report_payload_blocks(payload)
     payload = _normalize_payload_text(payload)
     result = json.dumps(payload, ensure_ascii=False)
     return result
@@ -821,6 +823,7 @@ def _build_compatibility_report_json(
             f"renderer will fill missing saju fields. reason={saju_error}",
         )
     payload = _merge_compatibility_payloads(face_payload, saju_payload)
+    payload = normalize_report_payload_blocks(payload)
     payload = _normalize_payload_text(payload)
     result = json.dumps(payload, ensure_ascii=False)
     return result

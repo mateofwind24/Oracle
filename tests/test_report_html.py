@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
+from oracle_report import prompt_templates
 from oracle_report.models import BirthProfile
 from oracle_report.recommender import FaceRecommendation
 from oracle_report.report_html import (
@@ -316,3 +317,59 @@ def test_report_block_text_uses_full_block_width() -> None:
     assert ".b-body{" in html
     assert "max-width:42ch}.part.saju .b-sum" not in html
     assert ".b-body{font-size:15.5px;line-height:1.78;color:var(--ink);max-width:" not in html
+
+
+def test_report_expands_short_block_body_to_sentence_count(monkeypatch) -> None:
+    monkeypatch.setattr(prompt_templates, "REPORT_BLOCK_SENTENCE_COUNT", 4)
+    profile = BirthProfile(
+        name="tester",
+        birth_datetime=datetime(1995, 3, 15, 12, 0),
+        gender="남성",
+    )
+    generated_text = json.dumps(
+        {
+            "essence": "사주 핵심",
+            "saju_blocks": [
+                {
+                    "category": "종합 형국",
+                    "title": "짧은 본문",
+                    "summary": "핵심 요약입니다.",
+                    "body": "첫 문장입니다. 두 번째 문장입니다.",
+                },
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    html = render_personal_report_html(
+        profile,
+        ManseRepository().lookup(profile),
+        "",
+        (),
+        generated_text,
+        skip_face=True,
+    )
+
+    assert "첫 문장입니다. 두 번째 문장입니다." in html
+    assert "이 내용은 종합 형국 흐름을 참고용으로 더 차분히 풀어 보는 설명이에요." in html
+    assert "짧은 본문이라는 관점에서 강점과 보완점을 함께 살피면 이해가 쉬워요." in html
+
+
+def test_essence_uses_body_line_spacing_and_full_width() -> None:
+    profile = BirthProfile(
+        name="tester",
+        birth_datetime=datetime(1995, 3, 15, 12, 0),
+        gender="남성",
+    )
+
+    html = render_personal_report_html(
+        profile,
+        ManseRepository().lookup(profile),
+        "",
+        (),
+        '{"essence":"사주 핵심"}',
+        skip_face=True,
+    )
+
+    assert '.essence{font-family:"Gowun Batang",serif;font-size:19px;line-height:1.78;margin-top:24px;color:var(--ink)}' in html
+    assert "max-width:30ch" not in html
