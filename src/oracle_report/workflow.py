@@ -837,7 +837,7 @@ def _parse_face_markdown_to_payload(face_analysis: str, prefix: str = "face") ->
     else:
         payload[subtitle_key] = "얼굴 비율 · 인상 관찰"
 
-    categories = ["타고난 인상과 기본 상", "강점으로 읽히는 복과 기세", "관계와 대인운", "앞으로 살릴 운의 방향", "조심할 점과 생활 조언"]
+    categories = ["기본 구조와 첫인상", "강점으로 읽히는 복과 기세", "관계와 대인운", "앞으로 살릴 운의 방향", "조심할 점과 생활 조언"]
     face_blocks = []
     for i, detail in enumerate(details):
         cat = categories[i % len(categories)]
