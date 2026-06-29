@@ -84,7 +84,7 @@ def test_saju_reading_prompt_omits_face_and_recommendation_schema() -> None:
     assert prompt.name == "saju_reading"
     assert prompt.slot_id == 1
     assert prompt.prefix.strip() != ""
-    assert "각 saju_blocks의 body는 반드시 5줄" in prompt.prefix
+    assert "각 saju_blocks의 body는 반드시 정확히 5줄" in prompt.prefix
     assert "줄바꿈은 \\n으로 표현" in prompt.prefix
     assert "입력받은 이름 필드만 사용" in prompt.prefix
     assert "상담가이자 스토리텔러" in prompt.prefix
@@ -128,7 +128,7 @@ def test_couple_saju_reading_prompt_uses_pair_saju_only() -> None:
     assert "LEFT SAJU INPUT" in prompt
     assert "RIGHT SAJU INPUT" in prompt
     assert "face_analysis_copule" not in prompt
-    assert "각 saju_blocks의 body는 반드시 5줄" in prompt.prefix
+    assert "각 saju_blocks의 body는 반드시 정확히 5줄" in prompt.prefix
     assert "줄바꿈은 \\n으로 표현" in prompt.prefix
     assert "입력받은 left_name/right_name 필드만 사용" in prompt.prefix
     assert "상담가이자 스토리텔러" in prompt.prefix
