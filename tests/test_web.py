@@ -98,6 +98,76 @@ def test_personal_result_page_includes_workflow_loading_state() -> None:
     assert "capture-complete" in html
 
 
+def test_compatibility_input_page_links_to_separate_result_page() -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import create_app
+
+    app = create_app()
+
+    response = app.test_client().get("/compatibility")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'data-workflow-api="/api/compatibility"' in html
+    assert 'id="workflow-loading"' not in html
+    assert 'id="workflow-result"' not in html
+    assert "startPayload.result_url" in html
+    assert "window.location.href" in html
+
+
+def test_compatibility_result_page_includes_workflow_loading_state() -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import create_app
+
+    app = create_app()
+
+    response = app.test_client().get("/compatibility/result/test-job")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'data-workflow-result-job="test-job"' in html
+    assert 'data-skip-face="0"' in html
+    assert 'id="workflow-loading"' in html
+    assert 'class="capture-privacy-veil"' in html
+    assert "촬영 및 리포트 생성 중입니다" in html
+    assert 'href="/compatibility"' in html
+    assert 'href="/api/jobs/test-job/download"' in html
+
+
+def test_compatibility_api_returns_result_url(monkeypatch) -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import create_app
+
+    monkeypatch.setattr(
+        "oracle_report.web._start_compatibility_workflow_job",
+        lambda workflow_input: "compat-job",
+    )
+    app = create_app()
+
+    response = app.test_client().post(
+        "/api/compatibility",
+        data={
+            "left_name": "왼쪽",
+            "left_birth_date": "1997-04-12",
+            "left_birth_time": "",
+            "left_gender": "여성",
+            "right_name": "오른쪽",
+            "right_birth_date": "1999-08-18",
+            "right_birth_time": "",
+            "right_gender": "남성",
+            "mode": "직장동료",
+            "face_analysis_mode": "2",
+        },
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload == {
+        "job_id": "compat-job",
+        "result_url": "/compatibility/result/compat-job",
+    }
+
+
 def test_running_job_status_includes_phase() -> None:
     pytest.importorskip("flask")
     from oracle_report.web import _WorkflowJob, _set_job, create_app

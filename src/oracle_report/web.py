@@ -190,29 +190,13 @@ def create_app() -> Flask:
         body = _compatibility_form()
         if request.method == "POST":
             try:
-                workflow_input = CompatibilityWorkflowInput(
-                    left_name=_form_value("left_name"),
-                    left_birth_date=_form_value("left_birth_date"),
-                    left_birth_time=_form_value("left_birth_time"),
-                    left_gender=_form_value("left_gender"),
-                    right_name=_form_value("right_name"),
-                    right_birth_date=_form_value("right_birth_date"),
-                    right_birth_time=_form_value("right_birth_time"),
-                    right_gender=_form_value("right_gender"),
-                    mode=_form_value("mode"),
-                    face_analysis_mode=_form_int("face_analysis_mode", 1),
+                workflow_input = _compatibility_workflow_input_from_form()
+                job_id = _start_compatibility_workflow_job(workflow_input)
+                result = redirect(
+                    _compatibility_result_url(job_id),
+                    code=303,
                 )
-                workflow_result = run_compatibility_workflow(
-                    workflow_input=workflow_input,
-                    capture_config=load_capture_config(),
-                    face_llm_config=load_face_llm_config(),
-                    report_llm_config=load_report_llm_config(),
-                    manse_db_path=_manse_db_path(),
-                )
-                body = _compatibility_result(
-                    workflow_result.markdown,
-                    workflow_result,
-                )
+                return result
             except Exception as exc:
                 body = _error_panel(exc) + _compatibility_form()
         result = _render_page("두 사람 궁합", body)
@@ -220,36 +204,25 @@ def create_app() -> Flask:
 
     @app.post("/api/compatibility")
     def compatibility_api():
-        workflow_input = CompatibilityWorkflowInput(
-            left_name=_form_value("left_name"),
-            left_birth_date=_form_value("left_birth_date"),
-            left_birth_time=_form_value("left_birth_time"),
-            left_gender=_form_value("left_gender"),
-            right_name=_form_value("right_name"),
-            right_birth_date=_form_value("right_birth_date"),
-            right_birth_time=_form_value("right_birth_time"),
-            right_gender=_form_value("right_gender"),
-            mode=_form_value("mode"),
-            face_analysis_mode=_form_int("face_analysis_mode", 1),
+        workflow_input = _compatibility_workflow_input_from_form()
+        job_id = _start_compatibility_workflow_job(workflow_input)
+        result = jsonify(
+            {
+                "job_id": job_id,
+                "result_url": _compatibility_result_url(job_id),
+            },
         )
+        return result
 
-        def run_job() -> str:
-            workflow_result = run_compatibility_workflow(
-                workflow_input=workflow_input,
-                capture_config=load_capture_config(),
-                face_llm_config=load_face_llm_config(),
-                report_llm_config=load_report_llm_config(),
-                manse_db_path=_manse_db_path(),
-                capture_runner=_preview_capture_runner,
-            )
-            result = _compatibility_result(
-                workflow_result.markdown,
-                workflow_result,
-            )
-            return result
-
-        job_id = _start_workflow_job(run_job)
-        result = jsonify({"job_id": job_id})
+    @app.get("/compatibility/result/<job_id>")
+    def compatibility_result_page(job_id: str):
+        body = _compatibility_result_page(job_id)
+        result = _render_page(
+            "두 사람 궁합 결과",
+            body,
+            page_class="result-page",
+            show_heading=False,
+        )
         return result
 
     @app.get("/api/jobs/<job_id>")
@@ -363,6 +336,22 @@ def _personal_workflow_input_from_form() -> PersonalWorkflowInput:
     return result
 
 
+def _compatibility_workflow_input_from_form() -> CompatibilityWorkflowInput:
+    result = CompatibilityWorkflowInput(
+        left_name=_form_value("left_name"),
+        left_birth_date=_form_value("left_birth_date"),
+        left_birth_time=_form_value("left_birth_time"),
+        left_gender=_form_value("left_gender"),
+        right_name=_form_value("right_name"),
+        right_birth_date=_form_value("right_birth_date"),
+        right_birth_time=_form_value("right_birth_time"),
+        right_gender=_form_value("right_gender"),
+        mode=_form_value("mode"),
+        face_analysis_mode=_form_int("face_analysis_mode", 1),
+    )
+    return result
+
+
 def _start_personal_workflow_job(workflow_input: PersonalWorkflowInput) -> str:
     job_id = uuid.uuid4().hex
     initial_phase = "generating" if workflow_input.skip_face else "capturing"
@@ -414,9 +403,76 @@ def _start_personal_workflow_job(workflow_input: PersonalWorkflowInput) -> str:
     return result
 
 
+def _start_compatibility_workflow_job(
+    workflow_input: CompatibilityWorkflowInput,
+) -> str:
+    job_id = uuid.uuid4().hex
+    capture_count = 0
+
+    def capture_runner(config, output_dir: Path | None = None):
+        nonlocal capture_count
+        capture_artifact = _preview_capture_runner(config, output_dir)
+        capture_count = capture_count + 1
+        if capture_count == 1:
+            _set_job(
+                job_id,
+                _WorkflowJob(
+                    status="running",
+                    phase="capturing",
+                    message="첫 번째 촬영이 완료되었습니다. 두 번째 사람 촬영을 준비해 주세요",
+                ),
+            )
+        else:
+            _set_job(
+                job_id,
+                _WorkflowJob(
+                    status="running",
+                    phase="generating",
+                    message="두 사람 얼굴 인식이 완료되어 리포트를 생성하고 있습니다",
+                ),
+            )
+        return capture_artifact
+
+    def run_job() -> _WorkflowJob:
+        workflow_result = run_compatibility_workflow(
+            workflow_input=workflow_input,
+            capture_config=load_capture_config(),
+            face_llm_config=load_face_llm_config(),
+            report_llm_config=load_report_llm_config(),
+            manse_db_path=_manse_db_path(),
+            capture_runner=capture_runner,
+        )
+        result = _WorkflowJob(
+            status="complete",
+            html=_compatibility_result(
+                workflow_result.markdown,
+                workflow_result,
+            ),
+            download_html=workflow_result.report_html,
+            download_filename=workflow_result.output_path.name,
+        )
+        return result
+
+    result = _start_workflow_job(
+        run_job,
+        job_id=job_id,
+        initial_job=_WorkflowJob(
+            status="running",
+            phase="capturing",
+            message="첫 번째 사람의 얼굴을 카메라 중앙에 맞춰 주세요",
+        ),
+    )
+    return result
+
+
 def _personal_result_url(job_id: str, skip_face: bool) -> str:
     skip_value = "1" if skip_face else "0"
     result = f"/personal/result/{job_id}?skip_face={skip_value}"
+    return result
+
+
+def _compatibility_result_url(job_id: str) -> str:
+    result = f"/compatibility/result/{job_id}"
     return result
 
 
@@ -594,7 +650,6 @@ def _compatibility_form() -> str:
       <p class="hint">두 사람 정보를 먼저 입력한 뒤 첫 번째 사람을 촬영하고, 3초 후 두 번째 사람을 촬영합니다.</p>
       <button type="submit">두 사람 궁합 촬영 시작</button>
     </form>
-    {_capture_preview_panel()}
     """
     return result
 
@@ -652,6 +707,25 @@ def _personal_result_page(job_id: str, skip_face: bool) -> str:
         <a id="download-report-link" class="result-action result-action-primary download-link" href="/api/jobs/{escape(job_id)}/download" hidden>리포트 다운로드</a>
       </div>
       {_capture_preview_panel(job_id=job_id, skip_face=skip_face)}
+    </div>
+    """
+    return result
+
+
+def _compatibility_result_page(job_id: str) -> str:
+    result = f"""
+    <div class="oracle-result-shell">
+      <div class="brand">
+        <div class="logo">ORACLE</div>
+        <div class="tag">두 사람 궁합 결과</div>
+        <div class="ornament"></div>
+      </div>
+      <div class="result-actions">
+        <a class="result-action" href="/compatibility">입력 다시 하기</a>
+        <a class="result-action" href="/">처음으로</a>
+        <a id="download-report-link" class="result-action result-action-primary download-link" href="/api/jobs/{escape(job_id)}/download" hidden>리포트 다운로드</a>
+      </div>
+      {_capture_preview_panel(job_id=job_id, skip_face=False)}
     </div>
     """
     return result
