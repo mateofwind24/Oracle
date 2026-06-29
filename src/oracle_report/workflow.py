@@ -226,6 +226,7 @@ def run_personal_workflow(
             _build_single_face_analysis,
             profile,
             capture_artifact,
+            active_report_client,
         )
         face_analysis_text = face_analysis.text
     else:
@@ -395,6 +396,8 @@ def run_compatibility_workflow(
         left_profile,
         right_profile,
         capture_artifact,
+        mode,
+        active_report_client,
     )
     saju_analysis = timing_recorder.run(
         "saju_analysis_pair",
@@ -534,12 +537,28 @@ def _format_timing_log(
 def _build_single_face_analysis(
     profile: BirthProfile,
     artifact: CaptureArtifact,
+    client: TextGenerator | None = None,
 ) -> _GeneratedText:
-    text = artifact.face_analysis or artifact.quality.face_analysis
-    if text == "":
-        text = "## 관상정보\n- 랜드마크 룰 기반 관상정보를 생성하지 못했습니다."
-    print(f"\n[LLM RAW:face_analysis:BEGIN]\n{text}\n[LLM RAW:face_analysis:END]\n")
-    result = _GeneratedText(text=text, error="")
+    if client is None:
+        from oracle_report.llm import LlamaCppChatClient
+        from oracle_report.config import load_face_llm_config
+        client = LlamaCppChatClient(load_face_llm_config())
+
+    from oracle_report.physiognomy import FaceReadingInput
+    from oracle_report.report import build_personal_face_analysis_prompt
+
+    face_input = FaceReadingInput(
+        image_path=None,
+        quality=artifact.quality,
+    )
+    prompt = build_personal_face_analysis_prompt(profile, face_input)
+    result = _safe_generate(
+        client,
+        prompt,
+        None,
+        "관상정보를 생성하지 못했습니다.",
+        debug_label="face_analysis",
+    )
     return result
 
 
@@ -547,27 +566,34 @@ def _build_pair_face_analysis(
     left_profile: BirthProfile,
     right_profile: BirthProfile,
     artifact: SequentialPairCaptureArtifact,
+    mode: str,
+    client: TextGenerator | None = None,
 ) -> _GeneratedText:
-    left_analysis = _build_single_face_analysis(
+    if client is None:
+        from oracle_report.llm import LlamaCppChatClient
+        from oracle_report.config import load_face_llm_config
+        client = LlamaCppChatClient(load_face_llm_config())
+
+    from oracle_report.physiognomy import FaceReadingInput
+    from oracle_report.report import build_couple_face_analysis_prompt
+
+    left_face_input = FaceReadingInput(image_path=None, quality=artifact.left.quality)
+    right_face_input = FaceReadingInput(image_path=None, quality=artifact.right.quality)
+
+    prompt = build_couple_face_analysis_prompt(
         left_profile,
-        artifact.left,
-    )
-    right_analysis = _build_single_face_analysis(
         right_profile,
-        artifact.right,
+        mode,
+        left_face_input,
+        right_face_input,
     )
-    error = ""
-    if left_analysis.error or right_analysis.error:
-        error = " / ".join(
-            item for item in (left_analysis.error, right_analysis.error) if item
-        )
-    text = "\n\n".join(
-        (
-            f"## 첫 번째 사람 관상정보\n{left_analysis.text}",
-            f"## 두 번째 사람 관상정보\n{right_analysis.text}",
-        ),
+    result = _safe_generate(
+        client,
+        prompt,
+        None,
+        "궁합 관상정보를 생성하지 못했습니다.",
+        debug_label="face_analysis",
     )
-    result = _GeneratedText(text=text, error=error)
     return result
 
 
@@ -785,71 +811,29 @@ def _build_compatibility_saju_analysis(
 
 
 def _parse_face_markdown_to_payload(face_analysis: str, prefix: str = "face") -> dict[str, Any]:
-    payload: dict[str, Any] = {}
-    if not face_analysis.strip():
-        return payload
-
-    lines = face_analysis.splitlines()
-    tags = ""
-    interpretation_text = ""
-
-    for line in lines:
-        line_strip = line.strip()
-        if line_strip.startswith("- 주요 태그:"):
-            tags = line_strip.replace("- 주요 태그:", "").strip()
-        elif line_strip.startswith("- 리포트에 넣을 설명 문장:"):
-            interpretation_text = line_strip.replace("- 리포트에 넣을 설명 문장:", "").strip()
-
+    label = "personal_face_analysis" if prefix == "face" else "face_analysis_copule"
+    payload, error = _load_json_payload_or_error(face_analysis)
+    if error:
+        print(f"[UI FALLBACK:{label}] invalid LLM output; renderer will fill missing face fields. reason={error}")
+        payload = {}
+        
+    if not error:
+        if prefix == "face":
+            val_err = _validate_personal_face_payload(payload)
+        else:
+            val_err = _validate_pair_face_payload(payload)
+        if val_err:
+            print(f"[UI FALLBACK:{label}] validation failed: {val_err}")
+            payload = {}
+            
     subtitle_key = f"{prefix}_subtitle"
     blocks_key = f"{prefix}_blocks"
-
-    if tags:
-        payload[subtitle_key] = f"얼굴 비율 · {tags}"
-    else:
-        payload[subtitle_key] = "얼굴 비율 · 인상 관찰"
-
-    sentences = []
-    instruction_keywords = (
-        "설명 문장으로 정리합니다",
-        "키워드로 정리합니다",
-        "표현으로 정리합니다",
-        "설명 소재로 사용합니다",
-        "설명 소재로 정리합니다",
-        "함께 설명합니다",
-        "참고 자료"
-    )
-    if interpretation_text:
-        parts = interpretation_text.split(".")
-        for part in parts:
-            part_clean = part.strip()
-            if part_clean:
-                if any(kw in part_clean for kw in instruction_keywords):
-                    continue
-                sentences.append(part_clean + ".")
-
-    categories = ["타고난 인상과 기본 상", "강점으로 읽히는 복과 기세", "관계와 대인운", "앞으로 살릴 운의 방향", "조심할 점과 생활 조언"]
-    titles = ["기본 구조와 첫인상", "강점", "관계 인상", "활용 방향", "조심할 점과 생활 팁"]
-    face_blocks = []
     
-    for i, cat in enumerate(categories):
-        default_block = _DEFAULT_FACE_BLOCKS[i]
-        title = titles[i]
+    if subtitle_key not in payload:
+        payload[subtitle_key] = "얼굴 비율 · 인상 관찰"
+    if blocks_key not in payload or not payload[blocks_key]:
+        payload[blocks_key] = list(_DEFAULT_FACE_BLOCKS)
         
-        if i < len(sentences):
-            summary = sentences[i]
-            body = sentences[i]
-        else:
-            summary = default_block["summary"]
-            body = default_block["body"]
-            
-        face_blocks.append({
-            "category": cat,
-            "title": title,
-            "summary": summary,
-            "body": body
-        })
-
-    payload[blocks_key] = face_blocks
     return payload
 
 
@@ -1621,3 +1605,52 @@ def _generate_distributed(
 
     final_dict[block_key] = ordered_blocks
     return json.dumps(final_dict, ensure_ascii=False)
+
+
+_PERSONAL_FACE_BLOCK_COUNT = 5
+_PAIR_FACE_BLOCK_COUNT = 4
+
+
+def _validate_personal_face_payload(payload: dict[str, Any]) -> str:
+    subtitle = payload.get("face_subtitle")
+    if not isinstance(subtitle, str) or subtitle.strip() == "":
+        return "face_subtitle is missing"
+    summary = payload.get("face_summary")
+    if not isinstance(summary, str) or summary.strip() == "":
+        return "face_summary is missing"
+    return _validate_block_payload(
+        payload,
+        "face_blocks",
+        _PERSONAL_FACE_BLOCK_COUNT,
+    )
+
+
+def _validate_pair_face_payload(payload: dict[str, Any]) -> str:
+    subtitle = payload.get("pair_subtitle")
+    if not isinstance(subtitle, str) or subtitle.strip() == "":
+        return "pair_subtitle is missing"
+    return _validate_block_payload(
+        payload,
+        "pair_blocks",
+        _PAIR_FACE_BLOCK_COUNT,
+    )
+
+
+def _validate_block_payload(
+    payload: dict[str, Any],
+    key: str,
+    expected_count: int,
+) -> str:
+    raw_blocks = payload.get(key)
+    if not isinstance(raw_blocks, list):
+        return f"{key} must be a list"
+    if len(raw_blocks) < expected_count:
+        return f"{key} must contain at least {expected_count} blocks"
+    for index, raw_block in enumerate(raw_blocks[:expected_count], start=1):
+        if not isinstance(raw_block, dict):
+            return f"{key}[{index}] must be an object"
+        for field_name in ("category", "title", "summary", "body"):
+            value = raw_block.get(field_name)
+            if not isinstance(value, str) or value.strip() == "":
+                return f"{key}[{index}].{field_name} is missing"
+    return ""

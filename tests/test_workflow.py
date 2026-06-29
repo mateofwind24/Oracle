@@ -262,8 +262,8 @@ def test_personal_workflow_runs_without_real_camera_or_llm(
     assert result.output_path.name == "personal_report.html"
     assert result.report_html.startswith("<!DOCTYPE html>")
     assert "oracle-report" in result.report_fragment_html
-    assert "랜드마크 룰 기반" in result.face_analysis
-    assert "얼굴의 세로·가로 비율" in result.report_html
+    assert "face_blocks" in result.face_analysis
+    assert "얼굴 비율 · 인상 관찰" in result.report_html
     assert len(result.recommendations) > 0
 
 
@@ -288,7 +288,7 @@ def test_personal_workflow_uses_rule_based_face(tmp_path: Path) -> None:
         capture_runner=_fake_single_capture,
     )
 
-    assert "랜드마크 룰 기반" in result.face_analysis
+    assert "face_blocks" in result.face_analysis
     assert result.output_path.suffix == ".html"
     assert "oracle-report" in result.report_html
     assert "시간 미상" in result.report_html
