@@ -212,7 +212,7 @@ Wrapper Options:
   --distributed-split      Split prompts for parallel execution
   --distributed-warmup     Warmup LLM KV cache on start
   --reasoning              Enable reasoning mode (think tags) for LLM
-  --mock-capture           Enable mock camera capture mode using mock_face.jpg
+  --mock-capture           Enable mock capture with default landmark presets
   --face-rulebase          Generate face report text with landmark rules instead of LLM
   --face-llm               Generate face report text with LLM (default)
   --master-addr ADDR       Master address (e.g., http://192.168.0.5:8501)

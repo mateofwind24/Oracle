@@ -12,7 +12,7 @@
 * **리눅스 권한 예외 디버깅 힌트 (`_build_camera_access_hint`)**:
   `/dev/video*` 장치들이 존재하지만 현재 실행 유저가 읽기/쓰기 권한이 없어 카메라 구동에 실패한 경우, 권한 부족 디바이스 목록과 함께 `"video 그룹 멤버십 혹은 장치 권한을 확인하라"`는 구체적인 시스템 명령 조치 가이드를 에러 메시지에 부착해 돌려줍니다.
 * **관상 시뮬레이터 (Mock Capture Mode)**:
-  실제 카메라 장비가 없는 환경(예: CI/CD 환경 또는 특정 서버실)에서도 테스트할 수 있도록 `ORACLE_MOCK_CAPTURE_ENABLED=True` 환경 변수를 지원합니다. 기동 시 Pillow 라이브러리로 테스트용 가상 이미지를 자동 생성하고, 가상의 랜드마크 수치(`ORACLE_MOCK_LANDMARK_METRICS_JSON`)를 주입하여 전체 관상 분석 파이프라인을 온전히 모의 검증(Mocking)할 수 있습니다.
+  실제 카메라 장비가 없는 환경(예: CI/CD 환경 또는 특정 서버실)에서도 테스트할 수 있도록 `ORACLE_MOCK_CAPTURE_ENABLED=True` 환경 변수를 지원합니다. 이 옵션 하나만 export하면 Pillow 기반 테스트용 가상 이미지를 자동 생성하고, 개인 리포트와 궁합 리포트의 두 캡처 대상에 preset 랜드마크 수치를 자동 주입하여 전체 관상 분석 파이프라인을 모의 검증(Mocking)할 수 있습니다. 필요한 경우에만 `ORACLE_MOCK_LANDMARK_METRICS_JSON`, `ORACLE_MOCK_PAIR_LEFT_LANDMARK_METRICS_JSON`, `ORACLE_MOCK_PAIR_RIGHT_LANDMARK_METRICS_JSON`로 preset 값을 덮어씁니다.
 
 ### 1.2. 랜드마크 수치 기반 프롬프트 그라운딩 (Prompt Evidence Flow)
 * **미세 랜드마크 비율 지표 추가 (`LandmarkMetrics`)**:

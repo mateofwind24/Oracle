@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 from oracle_report import prompt_templates
-from oracle_report.config import CaptureConfig, LlmConfig
+from oracle_report.config import CaptureConfig, LlmConfig, load_capture_config
 from oracle_report.models import (
     CaptureArtifact,
     FaceBox,
@@ -18,6 +18,7 @@ from oracle_report.models import (
 from oracle_report.workflow import (
     CompatibilityWorkflowInput,
     PersonalWorkflowInput,
+    _run_sequential_pair_capture,
     run_compatibility_workflow,
     run_personal_workflow,
 )
@@ -474,6 +475,40 @@ def test_compatibility_workflow_rulebase_mode_skips_face_llm(
     assert "두 사람의 관계 분위기" in result.report_html
 
 
+def test_pair_mock_capture_can_use_different_landmark_metrics(
+    tmp_path: Path,
+) -> None:
+    capture_config = replace(
+        _capture_config(tmp_path),
+        mock_capture_enabled=True,
+        mock_pair_left_landmark_metrics_json='{"eye_width_ratio": 0.19}',
+        mock_pair_right_landmark_metrics_json='{"mouth_width_ratio": 0.43}',
+    )
+
+    result = _run_sequential_pair_capture(
+        run_capture,
+        capture_config,
+        tmp_path / "pair-runs",
+        0.0,
+    )
+
+    assert "눈 가로폭/얼굴 폭: 0.190" in result.left.quality.landmark_metrics_text
+    assert "입 폭/얼굴 폭: 0.430" in result.right.quality.landmark_metrics_text
+    assert result.left.image_path.parent.name == "person_1"
+    assert result.right.image_path.parent.name == "person_2"
+
+
+def test_mock_capture_env_enables_default_landmark_metrics(monkeypatch) -> None:
+    monkeypatch.setenv("ORACLE_MOCK_CAPTURE_ENABLED", "1")
+
+    result = load_capture_config()
+
+    assert result.mock_capture_enabled is True
+    assert "eye_width_ratio" in result.mock_landmark_metrics_json
+    assert "eye_width_ratio" in result.mock_pair_left_landmark_metrics_json
+    assert "mouth_width_ratio" in result.mock_pair_right_landmark_metrics_json
+
+
 def _build_test_manse_db(tmp_path: Path) -> Path:
     result = tmp_path / "unused-manse.sqlite"
     return result
@@ -749,5 +784,4 @@ def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(
     assert "오행 분포는" in result.report_html
     assert "사주 데이터는 강점과 보완점을 함께 보여주는 참고 지도입니다." in result.report_html
     assert "final report JSON field saju_blocks has 1 blocks" not in result.markdown
-
 
