@@ -191,3 +191,67 @@ def test_personal_page_prevents_input_overflow_and_uses_wide_single_column_layou
     assert "width: min(860px, calc(100vw - 48px));" in html
     assert 'class="field-stack"' in html
     assert "grid-template-columns: 1fr;" in html
+
+
+def test_compatibility_input_page_links_to_separate_result_page() -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import create_app
+
+    app = create_app()
+
+    response = app.test_client().get("/compatibility")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'data-workflow-api="/api/compatibility"' in html
+    assert 'id="workflow-loading"' not in html
+    assert 'id="workflow-result"' not in html
+    assert "startPayload.result_url" in html
+    assert "window.location.href" in html
+
+
+def test_compatibility_result_page_includes_workflow_loading_state() -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import create_app
+
+    app = create_app()
+
+    response = app.test_client().get("/compatibility/result/pair-job")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "두 사람 궁합 결과" in html
+    assert 'data-workflow-result-job="pair-job"' in html
+    assert 'id="workflow-loading"' in html
+    assert 'href="/compatibility"' in html
+    assert 'href="/api/jobs/pair-job/download"' in html
+    assert "리포트 다운로드" in html
+
+
+def test_compatibility_api_returns_result_url(monkeypatch) -> None:
+    pytest.importorskip("flask")
+    import oracle_report.web as web
+
+    monkeypatch.setattr(web, "_start_compatibility_workflow_job", lambda _: "pair-job")
+    app = web.create_app()
+
+    response = app.test_client().post(
+        "/api/compatibility",
+        data={
+            "left_name": "A",
+            "left_birth_date": "1997-04-12",
+            "left_birth_time": "16:00",
+            "left_gender": "여성",
+            "right_name": "B",
+            "right_birth_date": "1996-03-10",
+            "right_birth_time": "10:00",
+            "right_gender": "남성",
+            "mode": "연인",
+            "face_analysis_mode": "2",
+        },
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["job_id"] == "pair-job"
+    assert payload["result_url"] == "/compatibility/result/pair-job"
