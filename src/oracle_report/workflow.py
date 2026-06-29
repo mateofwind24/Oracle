@@ -790,45 +790,14 @@ def _parse_face_markdown_to_payload(face_analysis: str, prefix: str = "face") ->
 
     lines = face_analysis.splitlines()
     tags = ""
-    details = []
-    
-    system_keywords = (
-        "분석 모드",
-        "참고 기준",
-        "비율 지표",
-        "적용 제외 기준",
-        "캡처 신뢰도",
-        "참고 고지",
-        "리포트에 넣을 설명 문장",
-        "주요 태그",
-        "세부 관찰"
-    )
+    interpretation_text = ""
 
     for line in lines:
         line_strip = line.strip()
         if line_strip.startswith("- 주요 태그:"):
             tags = line_strip.replace("- 주요 태그:", "").strip()
-        elif line_strip.startswith("- ") and ":" in line_strip:
-            content = line_strip[2:].strip()
-            parts = content.split(":", 1)
-            if len(parts) == 2:
-                title = parts[0].strip()
-                desc = parts[1].strip()
-                
-                if title in system_keywords or not desc:
-                    continue
-                    
-                if "(" in desc:
-                    desc = desc.split("(", 1)[0].strip()
-                
-                if desc and not desc.endswith("."):
-                    desc += "."
-                
-                details.append({
-                    "title": title,
-                    "summary": desc,
-                    "body": desc
-                })
+        elif line_strip.startswith("- 리포트에 넣을 설명 문장:"):
+            interpretation_text = line_strip.replace("- 리포트에 넣을 설명 문장:", "").strip()
 
     subtitle_key = f"{prefix}_subtitle"
     blocks_key = f"{prefix}_blocks"
@@ -838,19 +807,33 @@ def _parse_face_markdown_to_payload(face_analysis: str, prefix: str = "face") ->
     else:
         payload[subtitle_key] = "얼굴 비율 · 인상 관찰"
 
+    sentences = []
+    if interpretation_text:
+        parts = interpretation_text.split(".")
+        for part in parts:
+            part_clean = part.strip()
+            if part_clean:
+                sentences.append(part_clean + ".")
+
     categories = ["기본 구조와 첫인상", "강점으로 읽히는 복과 기세", "관계와 대인운", "앞으로 살릴 운의 방향", "조심할 점과 생활 조언"]
     face_blocks = []
-    for i, detail in enumerate(details):
-        cat = categories[i % len(categories)]
+    
+    for i, cat in enumerate(categories):
+        default_block = _DEFAULT_FACE_BLOCKS[i]
+        
+        if i < len(sentences):
+            summary = sentences[i]
+            body = sentences[i]
+        else:
+            summary = default_block["summary"]
+            body = default_block["body"]
+            
         face_blocks.append({
             "category": cat,
-            "title": detail["title"],
-            "summary": detail["summary"],
-            "body": detail["body"]
+            "title": default_block["title"],
+            "summary": summary,
+            "body": body
         })
-        
-    if not face_blocks:
-        face_blocks = list(_DEFAULT_FACE_BLOCKS)
 
     payload[blocks_key] = face_blocks
     return payload
