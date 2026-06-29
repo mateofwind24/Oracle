@@ -782,6 +782,57 @@ def _build_compatibility_saju_analysis(
     return result
 
 
+def _parse_face_markdown_to_payload(face_analysis: str, prefix: str = "face") -> dict[str, Any]:
+    payload: dict[str, Any] = {}
+    if not face_analysis.strip():
+        return payload
+
+    lines = face_analysis.splitlines()
+    tags = ""
+    details = []
+    
+    for line in lines:
+        line_strip = line.strip()
+        if line_strip.startswith("- 주요 태그:"):
+            tags = line_strip.replace("- 주요 태그:", "").strip()
+        elif line_strip.startswith("- ") and ":" in line_strip:
+            content = line_strip[2:].strip()
+            parts = content.split(":", 1)
+            if len(parts) == 2:
+                title = parts[0].strip()
+                desc = parts[1].strip()
+                details.append({
+                    "title": title,
+                    "summary": desc,
+                    "body": desc
+                })
+
+    subtitle_key = f"{prefix}_subtitle"
+    blocks_key = f"{prefix}_blocks"
+
+    if tags:
+        payload[subtitle_key] = f"얼굴 비율 · {tags}"
+    else:
+        payload[subtitle_key] = "얼굴 비율 · 인상 관찰"
+
+    categories = ["타고난 인상과 기본 상", "강점으로 읽히는 복과 기세", "관계와 대인운", "앞으로 살릴 운의 방향", "조심할 점과 생활 조언"]
+    face_blocks = []
+    for i, detail in enumerate(details):
+        cat = categories[i % len(categories)]
+        face_blocks.append({
+            "category": cat,
+            "title": detail["title"],
+            "summary": detail["summary"],
+            "body": detail["body"]
+        })
+        
+    if not face_blocks:
+        face_blocks = list(_DEFAULT_FACE_BLOCKS)
+
+    payload[blocks_key] = face_blocks
+    return payload
+
+
 def _build_personal_report_json(
     manse_lookup: ManseLookupResult,
     face_analysis: str,
@@ -790,6 +841,8 @@ def _build_personal_report_json(
     skip_face: bool = False,
 ) -> str:
     face_payload = {}
+    if not skip_face:
+        face_payload = _parse_face_markdown_to_payload(face_analysis, prefix="face")
     saju_payload, saju_error = _load_json_payload_or_error(saju_analysis)
     if saju_error:
         print(
@@ -811,7 +864,7 @@ def _build_compatibility_report_json(
     face_analysis: str,
     saju_analysis: str,
 ) -> str:
-    face_payload = {}
+    face_payload = _parse_face_markdown_to_payload(face_analysis, prefix="pair")
     saju_payload, saju_error = _load_json_payload_or_error(saju_analysis)
     if saju_error:
         print(

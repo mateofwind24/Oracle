@@ -188,10 +188,8 @@ def _run_prompt_result_command(args: argparse.Namespace) -> int:
         "compatibility-face-analysis",
         "face-analysis-copule",
     ):
-        output_text = LlamaCppChatClient(load_face_llm_config()).generate(
-            prompt_text,
-            image_path=args.image,
-        )
+        # Landmark rules face analysis does not require LLM generation.
+        output_text = prompt_text
     elif args.target in (
         "saju-reading",
         "saju-reading-couple",
@@ -361,11 +359,38 @@ def _override_capture_config(args: argparse.Namespace):
     return result
 
 
+def _run_landmark_analysis_on_image(image_path: Path | None) -> str:
+    if image_path is None or not image_path.exists():
+        return "## 관상정보\n- 오류: 이미지 경로가 지정되지 않았거나 파일이 존재하지 않습니다."
+    
+    import cv2
+    frame = cv2.imread(str(image_path))
+    if frame is None:
+        return "## 관상정보\n- 오류: 이미지를 로드할 수 없습니다."
+        
+    from oracle_report.config import load_capture_config
+    from oracle_report.vision.camera import build_capture_processors
+    
+    config = load_capture_config()
+    detector, analyzer = build_capture_processors(config)
+    
+    faces = detector.detect(frame)
+    if not faces:
+        return "## 관상정보\n- 오류: 얼굴을 감지하지 못했습니다."
+        
+    face = faces[0]
+    quality = analyzer.analyze(frame, face)
+    if not quality.ready:
+        return "## 관상정보\n- 오류: 랜드마크 분석을 위한 이미지 품질이 충분하지 않습니다."
+        
+    return quality.face_analysis
+
+
 def _build_prompt_text(args: argparse.Namespace) -> str:
     profile = _build_prompt_birth_profile(args)
     result = ""
     if args.target in ("personal-face-analysis", "compatibility-face-analysis", "face-analysis-copule"):
-        raise ValueError("Image-based LLM face analysis is no longer supported. Use landmarks rule analysis instead.")
+        result = _run_landmark_analysis_on_image(args.image)
     elif args.target == "saju-reading":
         result = _lookup_manse(args, profile).formatted_text
     elif args.target == "saju-reading-couple":
