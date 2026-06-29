@@ -561,8 +561,8 @@ def _build_single_face_analysis(
         values = {
             "name": profile.name,
             "gender": profile.gender,
-            "birth_datetime": profile.birth_datetime.isoformat(),
-            "birth_time_text": profile.birth_time_text,
+            "birth_datetime": profile.birth_datetime.strftime("%Y년 %m월 %d일"),
+            "birth_time_text": profile.birth_datetime.strftime("%H시 %M분") if profile.birth_time_known else "",
             "quality_text": quality_text,
             "landmark_metrics_text": landmark_metrics_text,
             "landmark_context_text": landmark_context_text,
@@ -622,13 +622,13 @@ def _build_pair_face_analysis(
             "mode": mode,
             "left_name": left_profile.name,
             "left_gender": left_profile.gender,
-            "left_birth_datetime": left_profile.birth_datetime.isoformat(),
-            "left_birth_time_text": left_profile.birth_time_text,
+            "left_birth_datetime": left_profile.birth_datetime.strftime("%Y년 %m월 %d일"),
+            "left_birth_time_text": left_profile.birth_datetime.strftime("%H시 %M분") if left_profile.birth_time_known else "",
             "left_quality_text": format_face_quality(artifact.left.quality),
             "right_name": right_profile.name,
             "right_gender": right_profile.gender,
-            "right_birth_datetime": right_profile.birth_datetime.isoformat(),
-            "right_birth_time_text": right_profile.birth_time_text,
+            "right_birth_datetime": right_profile.birth_datetime.strftime("%Y년 %m월 %d일"),
+            "right_birth_time_text": right_profile.birth_datetime.strftime("%H시 %M분") if right_profile.birth_time_known else "",
             "right_quality_text": format_face_quality(artifact.right.quality),
         }
         try:
