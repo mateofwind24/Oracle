@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Generic, Protocol, TypeVar
 
+from oracle_report import prompt_templates
 from oracle_report.config import CaptureConfig, LlmConfig
 from oracle_report.llm import LlamaCppChatClient
 from oracle_report.models import (
@@ -31,7 +32,6 @@ from oracle_report.report_html import (
     render_compatibility_report_html,
     render_personal_report_html,
 )
-from oracle_report.report_text import normalize_report_payload_blocks
 from oracle_report.saju.repository import (
     ManseLookupResult,
     ManseRepository,
@@ -47,6 +47,9 @@ FACE_ANALYSIS_MODE_LANDMARK_RULE = 2
 FACE_ANALYSIS_MODES = (FACE_ANALYSIS_MODE_LLM_IMAGE, FACE_ANALYSIS_MODE_LANDMARK_RULE)
 _UNKNOWN_BIRTH_TIME_VALUES = frozenset(("", "모름", "미상", "unknown", "none"))
 _FACE_CROP_MARGIN_RATIO = 0.2
+_REPORT_BLOCK_KEYS = ("face_blocks", "saju_blocks", "pair_blocks")
+_BODY_REWRITE_PROMPT_MARKER = "[리포트 본문 재작성]"
+_SENTENCE_ENDINGS = ".!?。！？"
 _T = TypeVar("_T")
 
 
@@ -534,6 +537,11 @@ def _build_single_face_analysis(
             "관상정보를 생성하지 못했습니다.",
             debug_label="personal_face_analysis",
         )
+        result = _repair_short_report_block_bodies(
+            client,
+            result,
+            "personal_face_analysis",
+        )
     return result
 
 
@@ -612,6 +620,11 @@ def _build_couple_face_analysis(
         image_path,
         "궁합 관상정보를 생성하지 못했습니다.",
         debug_label="face_analysis_copule",
+    )
+    result = _repair_short_report_block_bodies(
+        client,
+        result,
+        "face_analysis_copule",
     )
     return result
 
@@ -744,6 +757,11 @@ def _build_saju_analysis(
         "사주정보를 생성하지 못했습니다.",
         debug_label="saju_analysis",
     )
+    result = _repair_short_report_block_bodies(
+        client,
+        result,
+        "saju_analysis",
+    )
     return result
 
 
@@ -768,6 +786,11 @@ def _build_compatibility_saju_analysis(
         None,
         "궁합 사주정보를 생성하지 못했습니다.",
         debug_label="saju_analysis_couple",
+    )
+    result = _repair_short_report_block_bodies(
+        client,
+        result,
+        "saju_analysis_couple",
     )
     return result
 
@@ -800,7 +823,6 @@ def _build_personal_report_json(
         recommendations,
         skip_face,
     )
-    payload = normalize_report_payload_blocks(payload)
     payload = _normalize_payload_text(payload)
     result = json.dumps(payload, ensure_ascii=False)
     return result
@@ -823,7 +845,6 @@ def _build_compatibility_report_json(
             f"renderer will fill missing saju fields. reason={saju_error}",
         )
     payload = _merge_compatibility_payloads(face_payload, saju_payload)
-    payload = normalize_report_payload_blocks(payload)
     payload = _normalize_payload_text(payload)
     result = json.dumps(payload, ensure_ascii=False)
     return result
@@ -1110,6 +1131,120 @@ def _safe_generate(
         text = f"{fallback}\n\n오류: {error}"
         print(f"\n[LLM RAW:{debug_label}:ERROR] {error}\n")
     result = _GeneratedText(text=text, error=error)
+    return result
+
+
+def _repair_short_report_block_bodies(
+    client: TextGenerator,
+    generated: _GeneratedText,
+    debug_label: str,
+) -> _GeneratedText:
+    result = generated
+    if generated.error == "":
+        payload, error = _load_json_payload_or_error(generated.text)
+        if error == "" and _payload_has_short_report_body(payload):
+            repair_prompt = _build_report_body_rewrite_prompt(payload)
+            repaired = _safe_generate(
+                client,
+                repair_prompt,
+                None,
+                generated.text,
+                debug_label=f"{debug_label}_body_rewrite",
+            )
+            repaired_payload, repaired_error = _load_json_payload_or_error(
+                repaired.text,
+            )
+            if repaired.error == "" and repaired_error == "" and repaired_payload:
+                result = repaired
+            else:
+                print(
+                    f"[LLM REPAIR:{debug_label}] body rewrite failed; "
+                    "keeping original LLM output.",
+                )
+    return result
+
+
+def _payload_has_short_report_body(payload: dict[str, Any]) -> bool:
+    target_count = _target_report_body_sentence_count()
+    result = False
+    for block in _iter_report_blocks(payload):
+        body = block.get("body")
+        if isinstance(body, str):
+            sentence_count = _count_sentences(body)
+            if sentence_count < target_count:
+                result = True
+                break
+    return result
+
+
+def _iter_report_blocks(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    blocks: list[dict[str, Any]] = []
+    for key in _REPORT_BLOCK_KEYS:
+        value = payload.get(key)
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    blocks.append(item)
+    result = blocks
+    return result
+
+
+def _target_report_body_sentence_count() -> int:
+    configured_count = int(prompt_templates.REPORT_BLOCK_SENTENCE_COUNT)
+    result = max(1, configured_count)
+    return result
+
+
+def _count_sentences(text: str) -> int:
+    normalized_text = _normalize_inline_text(text)
+    count = 0
+    previous_was_ending = False
+    for character in normalized_text:
+        if character in _SENTENCE_ENDINGS:
+            if not previous_was_ending:
+                count += 1
+            previous_was_ending = True
+        elif not character.isspace():
+            previous_was_ending = False
+    if normalized_text != "" and count == 0:
+        count = 1
+    result = count
+    return result
+
+
+def _build_report_body_rewrite_prompt(payload: dict[str, Any]) -> str:
+    target_count = _target_report_body_sentence_count()
+    payload_text = json.dumps(
+        _normalize_payload_text(payload),
+        ensure_ascii=False,
+    )
+    lines = (
+        _BODY_REWRITE_PROMPT_MARKER,
+        "너는 리포트 JSON의 블록 body를 LLM 출력으로 다시 작성하는 API입니다.",
+        "출력은 JSON 객체 하나만 작성합니다. Markdown 코드블록, 설명문, 주석을 붙이지 않습니다.",
+        "기존 JSON의 키, 배열 순서, category, title은 유지합니다.",
+        (
+            "각 face_blocks/saju_blocks/pair_blocks의 summary는 body의 핵심을 "
+            "1~2개의 짧은 문장으로 요약합니다. summary에는 아래 문장 수를 "
+            "적용하지 않습니다."
+        ),
+        (
+            "각 face_blocks/saju_blocks/pair_blocks의 body는 정확히 "
+            f"{target_count}개의 완성된 문장으로 작성합니다."
+        ),
+        (
+            "부족한 문장을 코드처럼 덧붙이지 말고, category/title/summary와 "
+            "맞는 자연스러운 해설을 LLM이 새로 씁니다."
+        ),
+        (
+            "JSON 문자열 안에 수동 줄바꿈이나 줄바꿈 이스케이프를 넣지 않고, "
+            "문장 사이에는 공백만 사용합니다."
+        ),
+        "",
+        "[원본 JSON]",
+        payload_text,
+    )
+    result = "\n".join(lines)
     return result
 
 

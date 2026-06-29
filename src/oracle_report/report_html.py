@@ -7,10 +7,6 @@ from typing import Any, Mapping
 
 from oracle_report.models import BirthProfile
 from oracle_report.recommender import FaceRecommendation
-from oracle_report.report_text import (
-    normalize_report_block_text_fields,
-    normalize_report_payload_blocks,
-)
 from oracle_report.saju.calendar import BRANCH_ELEMENTS, STEM_ELEMENTS
 from oracle_report.saju.engine import ELEMENTS
 from oracle_report.saju.repository import (
@@ -293,7 +289,6 @@ def _build_personal_report_view(
     skip_face: bool = False,
 ) -> _PersonalReportView:
     payload = _load_generated_payload(generated_text)
-    payload = normalize_report_payload_blocks(payload)
     if not payload:
         print(
             "[UI FALLBACK:personal_report] generated_text is not valid JSON; "
@@ -417,7 +412,6 @@ def _build_compatibility_report_view(
     generated_text: str,
 ) -> _CompatibilityReportView:
     payload = _load_generated_payload(generated_text)
-    payload = normalize_report_payload_blocks(payload)
     left_view = _compatibility_person_view(left_profile, left_manse)
     right_view = _compatibility_person_view(right_profile, right_manse)
     saju_text = "\n".join(
@@ -648,39 +642,30 @@ def _payload_blocks(
         for index, raw_block in enumerate(raw_blocks):
             default = defaults[min(index, len(defaults) - 1)]
             if isinstance(raw_block, dict):
-                block_values = normalize_report_block_text_fields(
-                    {
-                        "category": _payload_text(
+                blocks.append(
+                    _ReportBlock(
+                        category=_payload_text(
                             raw_block,
                             "category",
                             default["category"],
                         ),
-                        "title": _payload_text(raw_block, "title", default["title"]),
-                        "summary": _payload_text(
+                        title=_payload_text(raw_block, "title", default["title"]),
+                        summary=_payload_text(
                             raw_block,
                             "summary",
                             default["summary"],
                         ),
-                        "body": _payload_text(raw_block, "body", default["body"]),
-                    },
-                )
-                blocks.append(
-                    _ReportBlock(
-                        category=block_values["category"],
-                        title=block_values["title"],
-                        summary=block_values["summary"],
-                        body=block_values["body"],
+                        body=_payload_text(raw_block, "body", default["body"]),
                     ),
                 )
     while len(blocks) < len(defaults):
         default = defaults[len(blocks)]
-        block_values = normalize_report_block_text_fields(default)
         blocks.append(
             _ReportBlock(
-                category=block_values["category"],
-                title=block_values["title"],
-                summary=block_values["summary"],
-                body=block_values["body"],
+                category=default["category"],
+                title=default["title"],
+                summary=default["summary"],
+                body=default["body"],
             ),
         )
     result = tuple(blocks)

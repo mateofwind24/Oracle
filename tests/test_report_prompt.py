@@ -85,11 +85,14 @@ def test_saju_reading_prompt_omits_face_and_recommendation_schema() -> None:
     assert prompt.name == "saju_reading"
     assert prompt.slot_id == 1
     assert prompt.prefix.strip() != ""
-    expected_guidance = (
-        "summary와 body는 각각 정확히 "
+    assert "각 saju_blocks의 summary는 body의 핵심을 1~2개의 짧은 문장" in prompt.prefix
+    assert (
+        "각 saju_blocks의 body는 정확히 "
         f"{prompt_templates.REPORT_BLOCK_SENTENCE_COUNT}개의 완성된 문장"
+        in prompt.prefix
     )
-    assert expected_guidance in prompt.prefix
+    assert "summary와 body는 각각 정확히" not in prompt.prefix
+    assert "summary와 body의 문장 수는 서로 같아야" not in prompt.prefix
     assert "자동 줄바꿈 기준" not in prompt.prefix
     assert "5~6줄" not in prompt.prefix
     assert "180~220자" not in prompt.prefix
@@ -138,11 +141,14 @@ def test_couple_saju_reading_prompt_uses_pair_saju_only() -> None:
     assert "RIGHT SAJU INPUT" in prompt
     assert "face_analysis_copule" not in prompt
     assert "saju_blocks는 6개를 작성합니다" in prompt.prefix
-    expected_guidance = (
-        "summary와 body는 각각 정확히 "
+    assert "각 saju_blocks의 summary는 body의 핵심을 1~2개의 짧은 문장" in prompt.prefix
+    assert (
+        "각 saju_blocks의 body는 정확히 "
         f"{prompt_templates.REPORT_BLOCK_SENTENCE_COUNT}개의 완성된 문장"
+        in prompt.prefix
     )
-    assert expected_guidance in prompt.prefix
+    assert "summary와 body는 각각 정확히" not in prompt.prefix
+    assert "summary와 body의 문장 수는 서로 같아야" not in prompt.prefix
     assert "자동 줄바꿈 기준" not in prompt.prefix
     assert "5~6줄" not in prompt.prefix
     assert "180~220자" not in prompt.prefix
@@ -198,18 +204,18 @@ def test_face_analysis_prompts_use_sentence_count_guidance() -> None:
     )
 
     for prompt in json_prompts:
-        expected_guidance = (
-            "summary와 body는 각각 정확히 "
-            f"{prompt_templates.REPORT_BLOCK_SENTENCE_COUNT}개의 완성된 문장"
+        assert "summary는 body의 핵심을 1~2개의 짧은 문장" in prompt
+        assert (
+            f"body는 정확히 {prompt_templates.REPORT_BLOCK_SENTENCE_COUNT}개의 완성된 문장"
+            in prompt
         )
-        assert expected_guidance in prompt
+        assert "summary와 body는 각각 정확히" not in prompt
+        assert "summary와 body의 문장 수는 서로 같아야" not in prompt
         assert "자동 줄바꿈 기준" not in prompt
         assert "5~6줄" not in prompt
         assert "180~220자" not in prompt
         assert "약 6줄 분량" not in prompt
         assert "수동 줄바꿈" in prompt
-        assert "1-2문장" not in prompt
-        assert "1~2문장" not in prompt
         assert "160자" not in prompt
         assert "최대 4문장" not in prompt
     assert (
@@ -240,8 +246,11 @@ def test_report_sentence_count_guidance_uses_single_constant(monkeypatch) -> Non
         },
     )
 
-    assert "정확히 7개의 완성된 문장" in prompt.prefix
-    assert "정확히 7개의 완성된 문장" in debug_prompt
+    assert "summary는 body의 핵심을 1~2개의 짧은 문장" in prompt.prefix
+    assert "body는 정확히 7개의 완성된 문장" in prompt.prefix
+    assert "body는 정확히 7개의 완성된 문장" in debug_prompt
+    assert "summary와 body는 각각 정확히" not in prompt.prefix
+    assert "summary와 body는 각각 정확히" not in debug_prompt
     assert "정확히 6개의 완성된 문장" not in prompt.prefix
 
 

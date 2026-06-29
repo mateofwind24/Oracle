@@ -31,9 +31,17 @@ def _report_blocks(prefix: str, count: int) -> list[dict[str, str]]:
                 "category": f"{prefix} 카테고리 {number}",
                 "title": f"{prefix} 제목 {number}",
                 "summary": f"{prefix} 요약 {number}",
-                "body": f"{prefix} 본문 {number}",
+                "body": _block_body(prefix, number),
             },
         )
+    return result
+
+
+def _block_body(prefix: str, number: int) -> str:
+    sentences = []
+    for sentence_index in range(prompt_templates.REPORT_BLOCK_SENTENCE_COUNT):
+        sentences.append(f"{prefix} 본문 {number}-{sentence_index + 1}입니다.")
+    result = " ".join(sentences)
     return result
 
 
@@ -59,7 +67,7 @@ class FakeLlmClient:
                             "category": "관계 카테고리",
                             "title": "관계 제목",
                             "summary": "관계 요약",
-                            "body": "관계 본문",
+                            "body": _block_body("관계", 1),
                         },
                     ],
                     "saju_subtitle": "궁합 사주 테스트",
@@ -68,7 +76,7 @@ class FakeLlmClient:
                             "category": "궁합 사주 카테고리",
                             "title": "궁합 사주 제목",
                             "summary": "궁합 사주 요약",
-                            "body": "궁합 사주 본문",
+                            "body": _block_body("궁합 사주", 1),
                         },
                     ],
                     "synthesis_title": "궁합 종합 제목",
@@ -252,10 +260,20 @@ class NewlineBodyReportClient:
         return result
 
 
-class ShortBodyReportClient:
+class RepairingShortBodyReportClient:
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+        self.image_paths: list[Path | None] = []
+
     def generate(self, prompt: str, image_path: Path | None = None) -> str:
-        del prompt
-        del image_path
+        self.prompts.append(prompt)
+        self.image_paths.append(image_path)
+        body = "첫 문장입니다. 두 번째 문장입니다."
+        if "[리포트 본문 재작성]" in prompt:
+            body = (
+                "첫 문장입니다. 두 번째 문장입니다. "
+                "세 번째 문장입니다. 네 번째 문장입니다."
+            )
         result = json.dumps(
             {
                 "essence": "짧은 본문 핵심",
@@ -265,7 +283,7 @@ class ShortBodyReportClient:
                         "category": "종합 형국",
                         "title": "짧은 본문",
                         "summary": "핵심 요약입니다.",
-                        "body": "첫 문장입니다. 두 번째 문장입니다.",
+                        "body": body,
                     },
                 ],
             },
@@ -611,7 +629,7 @@ def test_personal_workflow_normalizes_newline_markers_in_output_body(
     assert "\\n" not in captured
 
 
-def test_personal_workflow_expands_short_block_body_to_sentence_count(
+def test_personal_workflow_rewrites_short_block_body_with_llm(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -626,6 +644,7 @@ def test_personal_workflow_expands_short_block_body_to_sentence_count(
         target_gender="female",
         skip_face=True,
     )
+    report_client = RepairingShortBodyReportClient()
 
     result = run_personal_workflow(
         workflow_input=workflow_input,
@@ -635,15 +654,20 @@ def test_personal_workflow_expands_short_block_body_to_sentence_count(
         manse_db_path=manse_db_path,
         recommendation_db_path=tmp_path / "faces.sqlite",
         face_client=FailingFaceClient(),
-        report_client=ShortBodyReportClient(),
+        report_client=report_client,
         capture_runner=None,
     )
     payload = json.loads(result.markdown)
     body = payload["saju_blocks"][0]["body"]
 
+    assert len(report_client.prompts) == 2
+    assert report_client.image_paths == [None, None]
+    assert "[리포트 본문 재작성]" in report_client.prompts[1]
+    assert "summary는 body의 핵심을 1~2개의 짧은 문장" in report_client.prompts[1]
+    assert "body는 정확히 4개의 완성된 문장" in report_client.prompts[1]
     assert body.count(".") == 4
     assert "첫 문장입니다. 두 번째 문장입니다." in body
-    assert "이 내용은 종합 형국 흐름을 참고용으로 더 차분히 풀어 보는 설명이에요." in body
+    assert "이 내용은 종합 형국 흐름" not in body
     assert body in result.report_html
 
 
