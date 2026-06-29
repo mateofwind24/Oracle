@@ -27,6 +27,7 @@ from oracle_report.report import (
 from oracle_report.report_html import (
     render_compatibility_report_html,
     render_personal_report_html,
+    _DEFAULT_FACE_BLOCKS,
 )
 from oracle_report.saju.repository import (
     ManseLookupResult,
@@ -791,6 +792,17 @@ def _parse_face_markdown_to_payload(face_analysis: str, prefix: str = "face") ->
     tags = ""
     details = []
     
+    system_keywords = (
+        "분석 모드",
+        "참고 기준",
+        "비율 지표",
+        "적용 제외 기준",
+        "캡처 신뢰도",
+        "참고 고지",
+        "리포트에 넣을 설명 문장",
+        "주요 태그"
+    )
+
     for line in lines:
         line_strip = line.strip()
         if line_strip.startswith("- 주요 태그:"):
@@ -801,6 +813,16 @@ def _parse_face_markdown_to_payload(face_analysis: str, prefix: str = "face") ->
             if len(parts) == 2:
                 title = parts[0].strip()
                 desc = parts[1].strip()
+                
+                if title in system_keywords:
+                    continue
+                    
+                if "(" in desc:
+                    desc = desc.split("(", 1)[0].strip()
+                
+                if desc and not desc.endswith("."):
+                    desc += "."
+                
                 details.append({
                     "title": title,
                     "summary": desc,

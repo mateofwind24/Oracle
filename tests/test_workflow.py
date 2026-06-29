@@ -263,7 +263,7 @@ def test_personal_workflow_runs_without_real_camera_or_llm(
     assert result.report_html.startswith("<!DOCTYPE html>")
     assert "oracle-report" in result.report_fragment_html
     assert "랜드마크 룰 기반" in result.face_analysis
-    assert "얼굴 관찰에서 보이는 표현 리듬" in result.report_html
+    assert "얼굴의 세로·가로 비율" in result.report_html
     assert len(result.recommendations) > 0
 
 
