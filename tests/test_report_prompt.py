@@ -84,7 +84,9 @@ def test_saju_reading_prompt_omits_face_and_recommendation_schema() -> None:
     assert prompt.name == "saju_reading"
     assert prompt.slot_id == 1
     assert prompt.prefix.strip() != ""
-    assert "각 saju_blocks의 body는 최대 6~7줄" in prompt.prefix
+    assert "각 saju_blocks의 body는 반드시 정확히 5줄" in prompt.prefix
+    assert "줄바꿈은 \\n으로 표현" in prompt.prefix
+    assert "입력받은 이름 필드만 사용" in prompt.prefix
     assert "상담가이자 스토리텔러" in prompt.prefix
     assert "실제 경험, 감정, 관계 장면과 연결" in prompt.prefix
     assert "성향 -> 사람들이 나를 어떻게 보는지 -> 강점 -> 주의할 점 -> 현재 시기의 흐름 -> 앞으로의 조언" in prompt.prefix
@@ -93,6 +95,20 @@ def test_saju_reading_prompt_omits_face_and_recommendation_schema() -> None:
     assert "좋은 내용 -> 안 좋은 내용 -> 좋은 내용" in prompt.prefix
     assert "사주 입력" not in prompt.prefix
     assert "사주 입력" in prompt.body
+
+
+def test_saju_reading_prompt_uses_input_name_for_honorifics() -> None:
+    profile = BirthProfile(name="홍길동", birth_datetime=datetime(1995, 3, 15, 14, 30))
+
+    prompt = build_saju_reading_prompt(
+        profile,
+        "일간은 임수입니다.",
+    )
+
+    assert "- 이름: 홍길동" in prompt.body
+    assert "임수님" not in prompt.body
+    assert "입력받은 이름 필드만 사용" in prompt.prefix
+    assert "일간이나 오행" in prompt.prefix
 
 
 def test_couple_saju_reading_prompt_uses_pair_saju_only() -> None:
@@ -112,7 +128,9 @@ def test_couple_saju_reading_prompt_uses_pair_saju_only() -> None:
     assert "LEFT SAJU INPUT" in prompt
     assert "RIGHT SAJU INPUT" in prompt
     assert "face_analysis_copule" not in prompt
-    assert "각 saju_blocks의 body는 최대 6~7줄" in prompt.prefix
+    assert "각 saju_blocks의 body는 반드시 정확히 5줄" in prompt.prefix
+    assert "줄바꿈은 \\n으로 표현" in prompt.prefix
+    assert "입력받은 left_name/right_name 필드만 사용" in prompt.prefix
     assert "상담가이자 스토리텔러" in prompt.prefix
     assert "실제 경험, 감정, 관계 장면과 연결" in prompt.prefix
     assert "각자의 성향 -> 서로가 상대를 어떻게 느끼는지 -> 관계의 강점 -> 주의할 점 -> 현재 관계 흐름 -> 앞으로의 조언" in prompt.prefix
