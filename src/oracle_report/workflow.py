@@ -721,7 +721,7 @@ def _build_saju_analysis(
 ) -> _GeneratedText:
     from oracle_report.config import load_app_config, load_face_llm_config, load_report_llm_config
     app_config = load_app_config()
-    if app_config.distributed_split and app_config.distributed_role == "master":
+    if app_config.distributed_split and app_config.distributed_role in ("master", "hybrid"):
         categories = ["종합 형국", "타고난 성향과 심리 패턴", "재물운과 적성", "연애운과 인간관계", "올해의 운세", "총평 및 인생의 조언"]
         values = {
             "name": profile.name,
@@ -764,7 +764,7 @@ def _build_compatibility_saju_analysis(
 ) -> _GeneratedText:
     from oracle_report.config import load_app_config, load_face_llm_config, load_report_llm_config
     app_config = load_app_config()
-    if app_config.distributed_split and app_config.distributed_role == "master":
+    if app_config.distributed_split and app_config.distributed_role in ("master", "hybrid"):
         categories = ["관계 구조", "상호 보완", "갈등 관리", "실천 제안"]
         values = {
             "mode": mode,
