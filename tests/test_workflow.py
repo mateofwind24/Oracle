@@ -191,7 +191,7 @@ class RecordingPairSajuClient:
             {
                 "essence": "PAIR SAJU ESSENCE",
                 "saju_subtitle": "PAIR SAJU SUBTITLE",
-                "saju_blocks": _report_blocks("PAIR SAJU", 4),
+                "saju_blocks": _report_blocks("PAIR SAJU", 6),
                 "synthesis_title": "PAIR SYNTHESIS TITLE",
                 "synthesis_body": "PAIR SYNTHESIS BODY",
                 "action_title": "PAIR ACTION TITLE",

@@ -306,7 +306,7 @@ def _build_personal_report_view(
         f"{_ELEMENT_HANJA[day_element]}"
     )
     birth_date_text = profile.birth_datetime.strftime("%Y. %m. %d")
-    birth_time_text = birth_time_display_from_profile(profile)
+    birth_time_text = _profile_birth_time_display(profile)
     birth_text = f"{birth_date_text} · {birth_time_text}"
     meta = f"{birth_text} · {profile.gender or '성별 미입력'} · 양력"
     essence = _payload_text(
@@ -489,7 +489,7 @@ def _compatibility_person_view(
     strongest = _strongest_element(manse_lookup.reading.element_counts)
     weakest = _weakest_element(manse_lookup.reading.element_counts)
     birth_date_text = profile.birth_datetime.strftime("%Y. %m. %d")
-    birth_time_text = birth_time_display_from_profile(profile)
+    birth_time_text = _profile_birth_time_display(profile)
     meta = f"{birth_date_text} · {birth_time_text} · {profile.gender or '성별 미입력'}"
     result = _CompatibilityPersonView(
         name=profile.name,
@@ -503,6 +503,13 @@ def _compatibility_person_view(
         day_master_class=_ELEMENT_CLASS[day_element],
         element_note=f"{strongest} 기운이 강하고 {weakest} 기운을 보완하면 균형이 좋아집니다.",
     )
+    return result
+
+
+def _profile_birth_time_display(profile: BirthProfile) -> str:
+    result = birth_time_display_from_profile(profile)
+    if not profile.birth_time_known:
+        result = "시간 미상"
     return result
 
 
@@ -567,10 +574,22 @@ def _default_compatibility_saju_blocks(
             "body": "두 사람의 리듬이 다를 때는 누가 옳은지보다 어떤 방식으로 조율할지에 초점을 맞추는 편이 좋습니다. 특히 감정이 올라온 순간에는 결론보다 상황 정리가 먼저입니다.",
         },
         {
+            "category": "현재 관계 흐름",
+            "title": f"{mode} 관계에서 지금 점검할 리듬",
+            "summary": "현재의 상호작용 패턴을 보고 장점이 살아나는 지점을 찾습니다.",
+            "body": "관계의 흐름은 한 번에 정해지는 결론이 아니라 반복되는 반응과 선택이 쌓여 만들어집니다. 서로에게 편안한 속도와 부담스러운 순간을 구분하면 같은 기운도 훨씬 부드럽게 쓰일 수 있습니다.",
+        },
+        {
             "category": "실천 제안",
             "title": f"{mode} 관계를 오래 좋게 만드는 습관",
             "summary": "반복 가능한 행동 제안으로 관계 운용 방식을 정리합니다.",
             "body": "서로에게 기대하는 반응을 말로 확인하고, 중요한 결정은 하루 정도 간격을 두고 다시 보는 습관이 좋습니다. 작은 약속을 지키는 경험이 쌓이면 관계의 신뢰감도 안정됩니다.",
+        },
+        {
+            "category": "총평 및 조언",
+            "title": "서로의 차이를 관계의 언어로 바꾸는 법",
+            "summary": "궁합 해석을 단정이 아니라 조율의 참고점으로 정리합니다.",
+            "body": "두 사람의 사주는 관계가 좋다 나쁘다를 가르는 판정표가 아니라 서로 다른 리듬을 이해하는 참고 지도에 가깝습니다. 강점은 더 자주 쓰고 부담이 커지는 지점은 작게 조율하면 관계의 안정감이 오래 유지됩니다.",
         },
     )
     return result
@@ -641,7 +660,7 @@ def _payload_blocks(
                 body=default["body"],
             ),
         )
-    result = tuple(blocks[: len(defaults)])
+    result = tuple(blocks)
     return result
 
 
@@ -1108,8 +1127,8 @@ def _render_recommendation_card(index: int, card: _RecommendationCard) -> str:
 
 
 def _paragraphs(text: str) -> str:
-    parts = [escape(part.strip()) for part in text.splitlines() if part.strip()]
-    result = "<br>".join(parts)
+    normalized_text = " ".join(part.strip() for part in text.splitlines() if part.strip())
+    result = escape(normalized_text)
     return result
 
 
@@ -1160,7 +1179,7 @@ header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)
 .pcol .ptitle{font-size:12px;color:var(--ink-soft);margin-bottom:6px}
 .cell{border-radius:5px;padding:12px 4px;color:#fff}.cell .ch{font-family:"Song Myung",serif;font-size:34px;line-height:1.1}.cell .ss{font-size:11px;opacity:.92;margin-top:3px}.cell.gan{margin-bottom:6px}
 .c-mok{background:var(--mok)}.c-hwa{background:var(--hwa)}.c-to{background:var(--to)}.c-geum{background:var(--geum)}.c-su{background:var(--su)}
-.person-mark.c-mok,.person-day.c-mok{color:var(--mok);background:rgba(58,125,92,.12);border-color:var(--mok)}.person-mark.c-hwa,.person-day.c-hwa{color:var(--hwa);background:rgba(194,82,57,.12);border-color:var(--hwa)}.person-mark.c-to,.person-day.c-to{color:#7A5615;background:rgba(204,154,59,.16);border-color:var(--to)}.person-mark.c-geum,.person-day.c-geum{color:#5F5A52;background:rgba(154,149,139,.16);border-color:var(--geum)}.person-mark.c-su,.person-day.c-su{color:var(--su);background:rgba(46,66,88,.12);border-color:var(--su)}
+.person-mark.c-mok,.person-day.c-mok{color:var(--mok);background:rgba(58,125,92,.12);border-color:var(--mok)}.person-mark.c-hwa,.person-day.c-hwa{color:var(--hwa);background:rgba(194,82,57,.12);border-color:var(--hwa)}.person-mark.c-to,.person-day.c-to{color:#7A5615;background:rgba(204,154,59,.16);border-color:var(--to)}.person-mark.c-geum,.person-day.c-geum{color:#5F5A52;background:rgba(154,149,139,.16);border-color:var(--geum)}.person-mark.c-su,.person-day.c-su{color:#fff;background:var(--su);border-color:var(--su)}.person-mark.c-su .person-ko{color:#fff}
 .part{margin:56px 0 0}.part-head{display:flex;align-items:baseline;gap:14px;padding-bottom:14px;border-bottom:2px solid var(--ink);margin-bottom:30px}
 .part-num{font-family:"Song Myung",serif;font-size:40px;line-height:1;color:var(--gold)}.part-title{font-family:"Gowun Batang",serif;font-size:24px;font-weight:700}.part-sub{font-size:13px;color:var(--ink-soft);margin-left:auto}
 .block{margin-bottom:34px}.b-cat{font-size:11px;letter-spacing:.25em;color:var(--gold);text-transform:uppercase;margin-bottom:8px}.b-title{font-family:"Gowun Batang",serif;font-size:21px;font-weight:700;line-height:1.4;margin-bottom:10px}
