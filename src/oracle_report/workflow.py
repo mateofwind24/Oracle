@@ -1458,6 +1458,7 @@ def _generate_distributed(
             success = False
             output = None
             error_msg = ""
+            start_time = time.perf_counter()
 
             if is_local:
                 try:
@@ -1488,12 +1489,16 @@ def _generate_distributed(
                 except Exception as e:
                     error_msg = str(e)
 
+            elapsed = time.perf_counter() - start_time
+            device_name = "local" if is_local else slave_url
+
             # Mark worker as free
             with assignments_lock:
                 active_assignments[slave_url] = None
 
             if success:
                 consecutive_failures = 0
+                print(f"[Distributed] Task '{cat or 'metadata'}' completed on {device_name} in {elapsed:.2f}s")
                 # Check if we won the speculative race
                 already_done = is_task_done(task)
                 if not already_done:
@@ -1504,12 +1509,11 @@ def _generate_distributed(
                         task_queue.task_done()
                 else:
                     if not speculative:
-                        # Task was done speculatively by someone else, we just acknowledge queue completion
                         task_queue.task_done()
             else:
                 consecutive_failures += 1
+                print(f"[Distributed] Task '{cat or 'metadata'}' failed on {device_name} in {elapsed:.2f}s. Error: {error_msg}")
                 if not speculative:
-                    # Only retry normal queue tasks, not failed speculative attempts
                     task["retries"] += 1
                     if task["retries"] <= 3:
                         print(f"[Distributed][Retry] Task {cat or 'metadata'} failed on {slave_url} (Error: {error_msg}). Retrying ({task['retries']}/3)...")
@@ -1589,16 +1593,20 @@ def _generate_distributed(
             success = False
             output = None
             error_msg = ""
+            start_time = time.perf_counter()
             try:
                 output = client.generate(rendered, image_path=image_path)
                 success = True
             except Exception as e:
                 error_msg = str(e)
 
+            elapsed = time.perf_counter() - start_time
+
             with assignments_lock:
                 active_assignments["local"] = None
 
             if success:
+                print(f"[Distributed] Task '{cat or 'metadata'}' completed on local in {elapsed:.2f}s")
                 already_done = is_task_done(task)
                 if not already_done:
                     mark_task_done(task)
@@ -1610,6 +1618,7 @@ def _generate_distributed(
                     if not speculative:
                         task_queue.task_done()
             else:
+                print(f"[Distributed] Task '{cat or 'metadata'}' failed on local in {elapsed:.2f}s. Error: {error_msg}")
                 if not speculative:
                     task["retries"] += 1
                     if task["retries"] <= 3:
