@@ -76,7 +76,7 @@ class PersonalWorkflowInput:
     birth_time: str
     gender: str
     target_gender: str
-    face_analysis_mode: int = FACE_ANALYSIS_MODE_LLM_IMAGE
+    face_analysis_mode: int = FACE_ANALYSIS_MODE_LANDMARK_RULE
     skip_face: bool = False
 
 
@@ -91,7 +91,7 @@ class CompatibilityWorkflowInput:
     right_birth_time: str
     right_gender: str
     mode: str
-    face_analysis_mode: int = FACE_ANALYSIS_MODE_LLM_IMAGE
+    face_analysis_mode: int = FACE_ANALYSIS_MODE_LANDMARK_RULE
 
 
 @dataclass(frozen=True)
@@ -566,7 +566,7 @@ def _build_single_face_analysis(
     client: TextGenerator | None,
     profile: BirthProfile,
     artifact: CaptureArtifact,
-    face_analysis_mode: int = FACE_ANALYSIS_MODE_LLM_IMAGE,
+    face_analysis_mode: int = FACE_ANALYSIS_MODE_LANDMARK_RULE,
 ) -> _GeneratedText:
     distributed_app_config = _load_active_distributed_app_config()
     if (
@@ -630,7 +630,7 @@ def _build_pair_face_analysis(
     right_profile: BirthProfile,
     artifact: SequentialPairCaptureArtifact,
     mode: str,
-    face_analysis_mode: int = FACE_ANALYSIS_MODE_LLM_IMAGE,
+    face_analysis_mode: int = FACE_ANALYSIS_MODE_LANDMARK_RULE,
 ) -> _GeneratedText:
     distributed_app_config = _load_active_distributed_app_config()
     if (
@@ -2461,20 +2461,9 @@ def _resolve_face_analysis_mode(
     workflow_mode: int | str,
     capture_config: CaptureConfig,
 ) -> int:
+    del capture_config
     configured_mode = os.getenv("ORACLE_FACE_ANALYSIS_MODE", "").strip()
-    mode: int | str = workflow_mode
-    if configured_mode != "":
-        mode = configured_mode
-    elif (
-        int(workflow_mode) == FACE_ANALYSIS_MODE_LLM_IMAGE
-        and getattr(
-            capture_config,
-            "face_analysis_mode",
-            FACE_ANALYSIS_MODE_LLM_IMAGE,
-        )
-        != FACE_ANALYSIS_MODE_LLM_IMAGE
-    ):
-        mode = capture_config.face_analysis_mode
+    mode: int | str = configured_mode if configured_mode != "" else workflow_mode
     result = _validate_face_analysis_mode(mode)
     return result
 

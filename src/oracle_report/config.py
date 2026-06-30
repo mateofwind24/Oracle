@@ -56,7 +56,7 @@ class CaptureConfig:
     show_preview: bool
     eye_min_count: int
     eyebrow_min_edge_density: float
-    face_analysis_mode: int = 1
+    face_analysis_mode: int = 2
     camera_auto_detect: bool = True
     mock_capture_enabled: bool = False
     mock_landmark_metrics_json: str = ""
@@ -264,7 +264,7 @@ def _read_detection_scale() -> float:
 
 
 def _read_face_analysis_mode() -> int:
-    result = _read_int("ORACLE_FACE_ANALYSIS_MODE", 1)
+    result = _read_int("ORACLE_FACE_ANALYSIS_MODE", 2)
     if result not in (1, 2):
         raise ValueError("ORACLE_FACE_ANALYSIS_MODE must be 1 or 2.")
     return result

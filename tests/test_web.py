@@ -245,6 +245,7 @@ def test_personal_page_uses_oracle_input_card_layout() -> None:
     assert "입력한 정보와 촬영 이미지는 기기 안에서만 처리돼요." in html
     assert 'data-workflow-api="/api/personal"' in html
     assert 'name="face_analysis_mode"' in html
+    assert '<option value="2" selected>2 - 랜드마크 룰 기반 분석</option>' in html
 
 
 def test_personal_page_prevents_input_overflow_and_uses_wide_single_column_layout() -> None:

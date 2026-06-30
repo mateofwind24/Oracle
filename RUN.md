@@ -203,7 +203,7 @@ ORACLE_LLAMA_MODEL_SHA256=dd279a54c0c0dc9724ed11d7f73ad7fb4489a45f58fefe9447da24
 ORACLE_LLM_PROMPT_CACHE=0
 ORACLE_CAMERA_INDEX=0
 ORACLE_SHOW_PREVIEW=0
-ORACLE_FACE_ANALYSIS_MODE=1
+ORACLE_FACE_ANALYSIS_MODE=2
 ORACLE_PROMPTS_PATH=configs/prompts.json
 ORACLE_DEBUG_PROMPTS_PATH=configs/prompts_debug.json
 ORACLE_FACE_DB_PATH=data/face_recommendations.sqlite
@@ -234,8 +234,8 @@ configs/prompts_debug.json
 
 관상 모드:
 
+- `ORACLE_FACE_ANALYSIS_MODE=2`: MediaPipe 랜드마크 규칙 기반 분석(기본값)
 - `ORACLE_FACE_ANALYSIS_MODE=1`: 캡처 이미지 기반 LLM 관상 분석
-- `ORACLE_FACE_ANALYSIS_MODE=2`: MediaPipe 랜드마크 규칙 기반 분석
 
 카메라 사용이 어렵거나 랜드마크 룰베이스를 재현 테스트해야 할 때는 mock capture를 켭니다.
 
@@ -249,14 +249,14 @@ configs/prompts_debug.json
 
 ```bash
 export ORACLE_MOCK_CAPTURE_ENABLED=1
-./run.sh --face-rulebase
+./run.sh
 ```
 
 궁합 리포트 mock 실행도 같은 설정을 사용합니다.
 
 ```bash
 export ORACLE_MOCK_CAPTURE_ENABLED=1
-./run.sh --face-rulebase
+./run.sh
 ```
 
 값을 직접 바꿔 테스트하고 싶을 때만 JSON override를 추가합니다.
@@ -265,7 +265,7 @@ export ORACLE_MOCK_CAPTURE_ENABLED=1
 export ORACLE_MOCK_CAPTURE_ENABLED=1
 export ORACLE_MOCK_PAIR_LEFT_LANDMARK_METRICS_JSON='{"eye_width_ratio":0.19,"eye_spacing_ratio":0.28}'
 export ORACLE_MOCK_PAIR_RIGHT_LANDMARK_METRICS_JSON='{"mouth_width_ratio":0.43,"jaw_width_ratio":0.72}'
-./run.sh --face-rulebase
+./run.sh
 ```
 
 ## 8. 데이터 파일

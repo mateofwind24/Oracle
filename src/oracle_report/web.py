@@ -440,7 +440,7 @@ def _personal_workflow_input_from_form() -> PersonalWorkflowInput:
         birth_time=_form_value("birth_time"),
         gender=_form_value("gender"),
         target_gender=_form_value("target_gender"),
-        face_analysis_mode=_form_int("face_analysis_mode", 1),
+        face_analysis_mode=_form_int("face_analysis_mode", 2),
         skip_face=_form_bool("skip_face", False),
     )
     return result
@@ -457,7 +457,7 @@ def _compatibility_workflow_input_from_form() -> CompatibilityWorkflowInput:
         right_birth_time=_form_value("right_birth_time"),
         right_gender=_form_value("right_gender"),
         mode=_form_value("mode"),
-        face_analysis_mode=_form_int("face_analysis_mode", 1),
+        face_analysis_mode=_form_int("face_analysis_mode", 2),
     )
     return result
 
@@ -793,7 +793,7 @@ def _birth_time_options() -> str:
 
 
 def _face_analysis_mode_options() -> str:
-    selected_mode = os.getenv("ORACLE_FACE_ANALYSIS_MODE", "1")
+    selected_mode = os.getenv("ORACLE_FACE_ANALYSIS_MODE", "2")
     mode_one_selected = " selected" if selected_mode == "1" else ""
     mode_two_selected = " selected" if selected_mode == "2" else ""
     result = f"""

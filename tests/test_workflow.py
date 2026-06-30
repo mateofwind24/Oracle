@@ -392,11 +392,11 @@ def test_personal_workflow_runs_without_real_camera_or_llm(
     assert result.report_html.startswith("<!DOCTYPE html>")
     assert "oracle-report" in result.report_fragment_html
     assert "face_blocks" in result.face_analysis
-    assert "관상 제목 1" in result.report_html
+    assert "타고난 인상과 기본 상" in result.report_html
     assert len(result.recommendations) > 0
 
 
-def test_personal_workflow_uses_rule_based_face(tmp_path: Path) -> None:
+def test_personal_workflow_uses_rule_based_face_by_default(tmp_path: Path) -> None:
     capture_config = _capture_config(tmp_path)
     manse_db_path = _build_test_manse_db(tmp_path)
     workflow_input = PersonalWorkflowInput(
@@ -421,6 +421,32 @@ def test_personal_workflow_uses_rule_based_face(tmp_path: Path) -> None:
     assert result.output_path.suffix == ".html"
     assert "oracle-report" in result.report_html
     assert "시간 미상" in result.report_html
+
+
+def test_personal_workflow_can_use_llm_face_mode(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("ORACLE_FACE_ANALYSIS_MODE", raising=False)
+    capture_config = _capture_config(tmp_path)
+    manse_db_path = _build_test_manse_db(tmp_path)
+    workflow_input = PersonalWorkflowInput(
+        name="홍길동",
+        birth_date="1995-03-15",
+        birth_time="모름",
+        gender="남성",
+        target_gender="여성",
+        face_analysis_mode=1,
+    )
+
+    result = run_personal_workflow(
+        workflow_input=workflow_input,
+        capture_config=capture_config,
+        report_llm_config=_llm_config(),
+        manse_db_path=manse_db_path,
+        recommendation_db_path=tmp_path / "faces.sqlite",
+        report_client=FakeLlmClient(),
+        capture_runner=_fake_single_capture,
+    )
+
+    assert "관상 제목 1" in result.report_html
 
 
 def test_personal_workflow_rulebase_mode_skips_face_llm(
@@ -665,6 +691,61 @@ def _fake_single_capture(
             eye_count=2,
             eyebrow_score=0.05,
             face_analysis="## 관상정보\n- 분석 모드: 랜드마크 룰 기반",
+            landmark_matches_json=json.dumps(
+                [
+                    {
+                        "rule_id": "balance_mid",
+                        "metric": "third_balance_error",
+                        "title": "균형 잡힌 삼정",
+                        "basis": "삼정 균형",
+                        "tag": "balance",
+                        "observation": "얼굴의 세로 균형이 안정적으로 읽혀요.",
+                        "interpretation": "전체 인상에서 안정감과 차분함이 드러날 수 있어요.",
+                        "value": 0.08,
+                    },
+                    {
+                        "rule_id": "eyes_mid",
+                        "metric": "eye_spacing_ratio",
+                        "title": "차분한 눈매",
+                        "basis": "눈 간격",
+                        "tag": "eyes",
+                        "observation": "눈 주변의 간격이 자연스럽게 잡혀 있어요.",
+                        "interpretation": "상황을 관찰하고 반응하는 리듬이 차분하게 보일 수 있어요.",
+                        "value": 0.31,
+                    },
+                    {
+                        "rule_id": "nose_mid",
+                        "metric": "nose_width_ratio",
+                        "title": "중심 잡힌 코",
+                        "basis": "코 폭",
+                        "tag": "nose",
+                        "observation": "코의 중심감이 얼굴 폭과 무난하게 어울려요.",
+                        "interpretation": "중요한 선택에서 균형을 잡으려는 경향이 나타날 수 있어요.",
+                        "value": 0.19,
+                    },
+                    {
+                        "rule_id": "mouth_mid",
+                        "metric": "mouth_width_ratio",
+                        "title": "자연스러운 입매",
+                        "basis": "입 폭",
+                        "tag": "mouth",
+                        "observation": "입매가 얼굴 폭과 자연스럽게 조화를 이뤄요.",
+                        "interpretation": "말과 감정을 편안하게 조율하는 인상으로 이어질 수 있어요.",
+                        "value": 0.39,
+                    },
+                    {
+                        "rule_id": "jaw_mid",
+                        "metric": "jaw_width_ratio",
+                        "title": "안정적인 하관",
+                        "basis": "하관 폭",
+                        "tag": "jaw",
+                        "observation": "하관의 폭이 전체 얼굴과 안정적으로 맞아요.",
+                        "interpretation": "마무리와 지속력에서 차분한 장점이 드러날 수 있어요.",
+                        "value": 0.72,
+                    },
+                ],
+                ensure_ascii=False,
+            ),
         ),
         face_analysis="## 관상정보\n- 분석 모드: 랜드마크 룰 기반",
     )

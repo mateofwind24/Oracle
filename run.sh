@@ -36,7 +36,7 @@ RUN_ORACLE_FACE_MIN_SIZE_PX="${RUN_ORACLE_FACE_MIN_SIZE_PX:-96}"
 RUN_ORACLE_FACE_DETECTION_SCALE="${RUN_ORACLE_FACE_DETECTION_SCALE:-0.5}"
 RUN_ORACLE_FACE_DETECTION_INTERVAL="${RUN_ORACLE_FACE_DETECTION_INTERVAL:-2}"
 RUN_ORACLE_SHOW_PREVIEW="${RUN_ORACLE_SHOW_PREVIEW:-0}"
-RUN_ORACLE_FACE_ANALYSIS_MODE="${RUN_ORACLE_FACE_ANALYSIS_MODE:-1}"
+RUN_ORACLE_FACE_ANALYSIS_MODE="${RUN_ORACLE_FACE_ANALYSIS_MODE:-2}"
 
 RUN_ORACLE_OUTPUT_DIR="${RUN_ORACLE_OUTPUT_DIR:-$ROOT_DIR/runs}"
 RUN_ORACLE_FACE_DB_PATH="${RUN_ORACLE_FACE_DB_PATH:-$ROOT_DIR/data/face_recommendations.sqlite}"
@@ -213,8 +213,8 @@ Wrapper Options:
   --distributed-warmup     Warmup LLM KV cache on start
   --reasoning              Enable reasoning mode (think tags) for LLM
   --mock-capture           Enable mock capture with default landmark presets
-  --face-rulebase          Generate face report text with landmark rules instead of LLM
-  --face-llm               Generate face report text with LLM (default)
+  --face-rulebase          Generate face report text with landmark rules (default)
+  --face-llm               Generate face report text with LLM instead of rulebase
   --master-addr ADDR       Master address (e.g., http://192.168.0.5:8501)
   --slave-addrs ADDRS      Comma-separated list of slave addresses
   --python-env ENV         Force Python env type (active-conda, active-venv, conda, uv, venv, auto)
