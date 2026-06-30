@@ -370,12 +370,120 @@ def create_app() -> Flask:
         result = ("", 204)
         return result
 
+    @app.post("/api/distributed/generate")
+    def distributed_generate():
+        payload = request.json or {}
+        prompt_name = payload.get("prompt_name")
+        target_category = payload.get("target_category")
+        is_metadata = payload.get("is_metadata", False)
+        values = payload.get("values", {})
+        image_base64 = payload.get("image_base64")
+
+        from oracle_report.prompt_templates import render_distributed_prompt_template
+        rendered = render_distributed_prompt_template(
+            name=prompt_name,
+            values=values,
+            target_category=target_category,
+            is_metadata=is_metadata,
+        )
+
+        temp_img_path = None
+        if image_base64:
+            import base64
+            img_data = base64.b64decode(image_base64)
+            temp_dir = Path("runs/temp")
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            temp_img_path = temp_dir / f"distributed_temp_{uuid.uuid4().hex}.jpg"
+            temp_img_path.write_bytes(img_data)
+
+        from oracle_report.llm import LlamaCppChatClient
+        from oracle_report.config import load_report_llm_config
+
+        llm_config = load_report_llm_config()
+        client = LlamaCppChatClient(llm_config)
+
+        try:
+            output = client.generate(rendered, image_path=temp_img_path)
+            result = jsonify({"status": "success", "output": output})
+        except Exception as exc:
+            result = jsonify({"status": "error", "error": str(exc)}), 500
+        finally:
+            if temp_img_path and temp_img_path.exists():
+                try:
+                    temp_img_path.unlink()
+                except Exception:
+                    pass
+        return result
+
+    @app.get("/api/distributed/status")
+    def distributed_status():
+        from oracle_report.llm import is_local_llm_running, LlamaCppChatClient
+        from oracle_report.config import load_llm_config
+        is_busy = _CAPTURE_LOCK.locked() or is_local_llm_running()
+        
+        llm_config = load_llm_config()
+        client = LlamaCppChatClient(llm_config)
+        
+        tps = 1.0
+        score = 2.0
+        model_name = llm_config.model
+        if not is_busy:
+            try:
+                tps = client.get_or_measure_tps()
+                score = client.get_compute_score()
+            except Exception:
+                pass
+                
+        result = jsonify({
+            "status": "busy" if is_busy else "idle",
+            "tps": tps,
+            "compute_score": score,
+            "model": model_name
+        })
+        return result
+
     result = app
     return result
 
 
 def serve() -> None:
     config = load_app_config()
+
+    if config.distributed_role in ("master", "hybrid") and config.distributed_warmup:
+        import threading
+        def run_warmup_background():
+            import time
+            time.sleep(5.0)
+            print("[Distributed] Starting LLM warmup for distributed nodes...", flush=True)
+            try:
+                from oracle_report.workflow import _generate_distributed
+                dummy_values = {
+                    "name": "더미",
+                    "gender": "남성",
+                    "timezone": "KST",
+                    "saju_text": "사주 테스트 텍스트",
+                }
+                dummy_categories = [
+                    "종합 형국",
+                    "타고난 성향과 심리 패턴",
+                    "재물운과 적성",
+                    "연애운과 인간관계",
+                    "올해의 운세",
+                    "총평 및 인생의 조언",
+                ]
+                _generate_distributed(
+                    prompt_name="saju_reading",
+                    values=dummy_values,
+                    categories=dummy_categories,
+                    image_path=None,
+                    app_config=config,
+                )
+                print("[Distributed] LLM warmup complete.", flush=True)
+            except Exception as e:
+                print(f"[Distributed][Error] LLM warmup failed: {e}", flush=True)
+
+        t = threading.Thread(target=run_warmup_background, daemon=True)
+        t.start()
 
     app = create_app()
     app.run(host=config.host, port=config.port, debug=config.debug, threaded=True)
