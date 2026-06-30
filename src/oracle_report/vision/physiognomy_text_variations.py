@@ -317,7 +317,7 @@ _PAIR_TEMPLATES: dict[str, tuple[dict[str, str], ...]] = {
         {
             "title": "서로 다른 분위기가 맞물리는 첫인상",
             "summary": "두 사람의 얼굴 흐름은 {left_main} 쪽과 {right_main} 쪽이 함께 보여요.",
-            "body": "{left_name}님은 {left_evidence} {right_name}님은 {right_evidence} 그래서 첫인상에서는 한쪽으로만 기울기보다 서로 다른 속도가 만나는 느낌이 생길 수 있어요. 처음부터 결론을 맞추려 하기보다 각자의 리듬을 확인하면 관계가 더 편안해져요.",
+            "body": "{left_named_evidence} {right_named_evidence} 그래서 첫인상에서는 한쪽으로만 기울기보다 서로 다른 속도가 만나는 느낌이 생길 수 있어요. 처음부터 결론을 맞추려 하기보다 각자의 리듬을 확인하면 관계가 더 편안해져요.",
         },
         {
             "title": "차분함과 반응성이 만나는 분위기",
@@ -327,7 +327,7 @@ _PAIR_TEMPLATES: dict[str, tuple[dict[str, str], ...]] = {
         {
             "title": "서로의 중심을 살피는 조합",
             "summary": "얼굴의 중심감과 균형에서 관계의 기본 톤이 보여요.",
-            "body": "{left_evidence} {right_evidence} 두 사람 모두 자기 방식의 중심이 있기 때문에 관계가 급하게 흔들리기보다는 천천히 맞춰지는 편이에요. 다만 초반에는 표현 방식이 다를 수 있으니 작은 반응을 자주 확인하면 좋아요.",
+            "body": "{left_named_evidence} {right_named_evidence} 두 사람 모두 자기 방식의 중심이 있기 때문에 관계가 급하게 흔들리기보다는 천천히 맞춰지는 편이에요. 다만 초반에는 표현 방식이 다를 수 있으니 작은 반응을 자주 확인하면 좋아요.",
         },
         {
             "title": "첫인상에서 보이는 온도 차이",
@@ -337,14 +337,14 @@ _PAIR_TEMPLATES: dict[str, tuple[dict[str, str], ...]] = {
         {
             "title": "부드럽게 균형을 찾는 첫 흐름",
             "summary": "두 사람의 얼굴 관찰에서는 조율할 여지가 있는 안정감이 보여요.",
-            "body": "{left_evidence} {right_evidence} 이 조합은 처음부터 강하게 부딪히기보다 조금씩 서로의 기준을 확인하며 맞춰가는 관계에 가까워요. 급한 판단보다 편안한 반복 경험을 쌓으면 첫인상의 장점이 더 잘 살아나요.",
+            "body": "{left_named_evidence} {right_named_evidence} 이 조합은 처음부터 강하게 부딪히기보다 조금씩 서로의 기준을 확인하며 맞춰가는 관계에 가까워요. 급한 판단보다 편안한 반복 경험을 쌓으면 첫인상의 장점이 더 잘 살아나요.",
         },
     ),
     "communication": (
         {
             "title": "대화 속도를 맞추면 편한 조합",
             "summary": "소통에서는 {left_name}님의 {left_main} 흐름과 {right_name}님의 {right_main} 흐름이 만나요.",
-            "body": "{left_evidence} {right_evidence} 이 차이는 대화에서 한 사람은 먼저 살피고, 다른 사람은 표현을 통해 풀어내는 식으로 나타날 수 있어요. 중요한 이야기는 바로 결론 내기보다 서로가 들은 내용을 한 번씩 확인하면 좋아요.",
+            "body": "{left_named_evidence} {right_named_evidence} 이 차이는 대화에서 한 사람은 먼저 살피고, 다른 사람은 표현을 통해 풀어내는 식으로 나타날 수 있어요. 중요한 이야기는 바로 결론 내기보다 서로가 들은 내용을 한 번씩 확인하면 좋아요.",
         },
         {
             "title": "표현과 관찰이 섞이는 리듬",
@@ -354,7 +354,7 @@ _PAIR_TEMPLATES: dict[str, tuple[dict[str, str], ...]] = {
         {
             "title": "서로의 반응을 읽는 소통",
             "summary": "눈과 입매 흐름에서 관계의 대화 리듬이 보여요.",
-            "body": "{left_evidence} {right_evidence} 이런 조합은 말보다 표정이나 분위기로 먼저 반응을 주고받기 쉬워요. 좋은 흐름을 유지하려면 침묵을 부정적으로 해석하지 말고, 필요한 순간에는 직접 확인하는 대화가 좋아요.",
+            "body": "{left_named_evidence} {right_named_evidence} 이런 조합은 말보다 표정이나 분위기로 먼저 반응을 주고받기 쉬워요. 좋은 흐름을 유지하려면 침묵을 부정적으로 해석하지 말고, 필요한 순간에는 직접 확인하는 대화가 좋아요.",
         },
         {
             "title": "속도 차이를 조율하는 대화",
@@ -364,24 +364,24 @@ _PAIR_TEMPLATES: dict[str, tuple[dict[str, str], ...]] = {
         {
             "title": "부드럽게 주고받는 말의 흐름",
             "summary": "두 사람의 소통은 편안한 분위기를 만들 여지가 있어요.",
-            "body": "{left_evidence} {right_evidence} 이 흐름은 서로가 방어적으로 굳지만 않으면 안정적인 대화로 이어질 수 있어요. 특히 중요한 이야기는 한 번에 몰아 하기보다 짧게 나누어 말하면 더 자연스럽게 풀려요.",
+            "body": "{left_named_evidence} {right_named_evidence} 이 흐름은 서로가 방어적으로 굳지만 않으면 안정적인 대화로 이어질 수 있어요. 특히 중요한 이야기는 한 번에 몰아 하기보다 짧게 나누어 말하면 더 자연스럽게 풀려요.",
         },
     ),
     "strength": (
         {
             "title": "서로의 부족한 리듬을 채우는 힘",
             "summary": "관계 강점은 서로 다른 중심감이 보완되는 데 있어요.",
-            "body": "{left_evidence} {right_evidence} 두 사람은 같은 방식으로 움직이기보다 각자의 강점을 나눠 맡을 때 안정감이 커질 수 있어요. 한 사람은 방향을 잡고 다른 한 사람은 분위기를 살피는 식으로 역할을 나누면 좋아요.",
+            "body": "{left_named_evidence} {right_named_evidence} 두 사람은 같은 방식으로 움직이기보다 각자의 강점을 나눠 맡을 때 안정감이 커질 수 있어요. 한 사람은 방향을 잡고 다른 한 사람은 분위기를 살피는 식으로 역할을 나누면 좋아요.",
         },
         {
             "title": "차이를 장점으로 바꾸는 조합",
             "summary": "{left_main} 흐름과 {right_main} 흐름이 만나 관계에 균형을 줄 수 있어요.",
-            "body": "{left_name}님은 {left_evidence} {right_name}님은 {right_evidence} 서로의 표현 방식이 다르기 때문에 처음에는 낯설 수 있지만, 익숙해지면 한쪽이 놓친 부분을 다른 쪽이 챙기는 장점이 생겨요.",
+            "body": "{left_named_evidence} {right_named_evidence} 서로의 표현 방식이 다르기 때문에 처음에는 낯설 수 있지만, 익숙해지면 한쪽이 놓친 부분을 다른 쪽이 챙기는 장점이 생겨요.",
         },
         {
             "title": "안정감이 쌓이는 관계 장점",
             "summary": "두 사람은 시간을 두고 맞춰갈수록 강점이 잘 드러나요.",
-            "body": "{left_evidence} {right_evidence} 이 조합은 빠른 설렘보다 신뢰가 쌓일 때 더 좋은 흐름을 만들 수 있어요. 서로의 장점을 칭찬으로 확인해주면 관계의 안정감이 훨씬 선명해져요.",
+            "body": "{left_named_evidence} {right_named_evidence} 이 조합은 빠른 설렘보다 신뢰가 쌓일 때 더 좋은 흐름을 만들 수 있어요. 서로의 장점을 칭찬으로 확인해주면 관계의 안정감이 훨씬 선명해져요.",
         },
         {
             "title": "현실적인 보완이 가능한 관계",
@@ -391,14 +391,14 @@ _PAIR_TEMPLATES: dict[str, tuple[dict[str, str], ...]] = {
         {
             "title": "함께 있을 때 살아나는 균형",
             "summary": "두 사람은 서로 다른 인상을 통해 관계의 폭을 넓힐 수 있어요.",
-            "body": "{left_evidence} {right_evidence} 이 흐름은 혼자일 때보다 함께 있을 때 더 다양한 선택지를 만들 수 있는 조합이에요. 의견이 다를 때도 차이를 문제로 보기보다 역할의 차이로 해석하면 좋아요.",
+            "body": "{left_named_evidence} {right_named_evidence} 이 흐름은 혼자일 때보다 함께 있을 때 더 다양한 선택지를 만들 수 있는 조합이에요. 의견이 다를 때도 차이를 문제로 보기보다 역할의 차이로 해석하면 좋아요.",
         },
     ),
     "caution": (
         {
             "title": "속도 차이를 오해하지 않기",
             "summary": "주의할 점은 서로의 표현 속도를 다르게 받아들일 수 있다는 점이에요.",
-            "body": "{left_evidence} {right_evidence} 한쪽은 바로 표현하고 다른 한쪽은 정리할 시간이 필요할 수 있어요. 감정이 올라올 때는 결론을 재촉하기보다 잠시 시간을 두고 다시 이야기하는 약속을 만드는 게 좋아요.",
+            "body": "{left_named_evidence} {right_named_evidence} 한쪽은 바로 표현하고 다른 한쪽은 정리할 시간이 필요할 수 있어요. 감정이 올라올 때는 결론을 재촉하기보다 잠시 시간을 두고 다시 이야기하는 약속을 만드는 게 좋아요.",
         },
         {
             "title": "말의 결을 부드럽게 맞추기",
@@ -408,7 +408,7 @@ _PAIR_TEMPLATES: dict[str, tuple[dict[str, str], ...]] = {
         {
             "title": "혼자 해석하지 않기",
             "summary": "표정과 분위기만으로 상대의 마음을 단정하지 않는 게 중요해요.",
-            "body": "{left_evidence} {right_evidence} 두 사람 모두 분위기를 읽는 힘이 있지만, 그만큼 혼자 결론을 내리기 쉬운 순간도 생길 수 있어요. 불편한 지점은 돌려 말하기보다 짧고 부드럽게 직접 확인하는 편이 좋아요.",
+            "body": "{left_named_evidence} {right_named_evidence} 두 사람 모두 분위기를 읽는 힘이 있지만, 그만큼 혼자 결론을 내리기 쉬운 순간도 생길 수 있어요. 불편한 지점은 돌려 말하기보다 짧고 부드럽게 직접 확인하는 편이 좋아요.",
         },
         {
             "title": "관계의 마무리를 미루지 않기",
@@ -418,7 +418,7 @@ _PAIR_TEMPLATES: dict[str, tuple[dict[str, str], ...]] = {
         {
             "title": "편안함 속에서도 기준 지키기",
             "summary": "서로 편해질수록 작은 약속과 말의 마무리가 중요해요.",
-            "body": "{left_evidence} {right_evidence} 관계가 익숙해질수록 표현을 생략하거나 상대가 알아줄 거라고 생각하기 쉬워요. 사소한 약속일수록 분명히 말하고 지키는 방식이 두 사람의 안정감을 지켜줘요.",
+            "body": "{left_named_evidence} {right_named_evidence} 관계가 익숙해질수록 표현을 생략하거나 상대가 알아줄 거라고 생각하기 쉬워요. 사소한 약속일수록 분명히 말하고 지키는 방식이 두 사람의 안정감을 지켜줘요.",
         },
     ),
 }
@@ -747,11 +747,11 @@ _PAIR_EXPANSION_RULES: dict[str, dict[str, tuple[str, ...]]] = {
             "두 사람은 처음부터 단정하기보다 천천히 맞춰갈 여지가 있는 조합이에요.",
         ),
         "bodies": (
-            "{left_name}님은 {left_evidence} {right_name}님은 {right_evidence} 두 사람의 단서를 함께 보면 첫인상에서 서로 다른 속도가 만나는 느낌이 생길 수 있어요. 처음부터 결론을 맞추려 하기보다 각자의 리듬을 확인하면 관계가 더 편안해져요.",
+            "{left_named_evidence} {right_named_evidence} 두 사람의 단서를 함께 보면 첫인상에서 서로 다른 속도가 만나는 느낌이 생길 수 있어요. 처음부터 결론을 맞추려 하기보다 각자의 리듬을 확인하면 관계가 더 편안해져요.",
             "{left_name}님에게서는 {left_main} 흐름이, {right_name}님에게서는 {right_main} 흐름이 읽혀요. 이 차이는 어색함보다 서로의 빈 곳을 채워주는 분위기로 이어질 수 있어요. 첫 대화에서는 누가 맞는지보다 어떤 속도가 편한지 맞춰보면 좋아요.",
-            "{left_evidence} {right_evidence} 두 사람 모두 자기 방식의 중심이 있기 때문에 관계가 급하게 흔들리기보다는 천천히 맞춰지는 편이에요. 초반에는 표현 방식이 다를 수 있으니 작은 반응을 자주 확인하면 좋아요.",
+            "{left_named_evidence} {right_named_evidence} 두 사람 모두 자기 방식의 중심이 있기 때문에 관계가 급하게 흔들리기보다는 천천히 맞춰지는 편이에요. 초반에는 표현 방식이 다를 수 있으니 작은 반응을 자주 확인하면 좋아요.",
             "{left_name}님은 {left_main} 분위기가 있고, {right_name}님은 {right_main} 분위기가 있어요. 이 온도 차이는 관계에 입체감을 줄 수 있지만 때로는 속도 차이로 느껴질 수 있어요. 처음에는 서로의 편한 대화 간격을 찾는 것이 중요해요.",
-            "{left_evidence} {right_evidence} 이 관계 흐름은 처음부터 강하게 부딪히기보다 조금씩 서로의 기준을 확인하며 맞춰가는 쪽에 가까워요. 급한 판단보다 편안한 반복 경험을 쌓으면 첫인상의 장점이 더 잘 살아나요.",
+            "{left_named_evidence} {right_named_evidence} 이 관계 흐름은 처음부터 강하게 부딪히기보다 조금씩 서로의 기준을 확인하며 맞춰가는 쪽에 가까워요. 급한 판단보다 편안한 반복 경험을 쌓으면 첫인상의 장점이 더 잘 살아나요.",
         ),
     },
     "communication": {
@@ -770,11 +770,11 @@ _PAIR_EXPANSION_RULES: dict[str, dict[str, tuple[str, ...]]] = {
             "두 사람의 소통은 편안한 분위기를 만들 여지가 있어요.",
         ),
         "bodies": (
-            "{left_evidence} {right_evidence} 대화에서는 한 사람은 먼저 살피고, 다른 사람은 표현을 통해 풀어내는 식으로 차이가 나타날 수 있어요. 중요한 이야기는 바로 결론 내기보다 서로가 들은 내용을 한 번씩 확인하면 좋아요.",
+            "{left_named_evidence} {right_named_evidence} 대화에서는 한 사람은 먼저 살피고, 다른 사람은 표현을 통해 풀어내는 식으로 차이가 나타날 수 있어요. 중요한 이야기는 바로 결론 내기보다 서로가 들은 내용을 한 번씩 확인하면 좋아요.",
             "{left_name}님은 {left_main} 인상이 있고, {right_name}님은 {right_main} 인상이 있어요. 대화에서는 이 차이가 매력으로 보일 수도 있지만 피곤할 때는 오해로 바뀔 수 있어요. 감정이 올라올수록 짧게 묻고 천천히 답하는 방식이 잘 맞아요.",
-            "{left_evidence} {right_evidence} 두 사람은 말보다 표정이나 분위기로 먼저 반응을 주고받기 쉬운 조합이에요. 좋은 흐름을 유지하려면 침묵을 부정적으로 해석하지 말고, 필요한 순간에는 직접 확인하는 대화가 좋아요.",
+            "{left_named_evidence} {right_named_evidence} 두 사람은 말보다 표정이나 분위기로 먼저 반응을 주고받기 쉬운 조합이에요. 좋은 흐름을 유지하려면 침묵을 부정적으로 해석하지 말고, 필요한 순간에는 직접 확인하는 대화가 좋아요.",
             "{left_name}님에게는 {left_main} 흐름이, {right_name}님에게는 {right_main} 흐름이 보여요. 한쪽이 빨리 표현하고 다른 한쪽이 천천히 정리하면 타이밍 차이가 생길 수 있어요. 대화의 결론보다 과정의 속도를 맞추는 것이 관계를 편하게 만들어줘요.",
-            "{left_evidence} {right_evidence} 서로가 방어적으로 굳지만 않으면 이 흐름은 안정적인 대화로 이어질 수 있어요. 특히 중요한 이야기는 한 번에 몰아 하기보다 짧게 나누어 말하면 더 자연스럽게 풀려요.",
+            "{left_named_evidence} {right_named_evidence} 서로가 방어적으로 굳지만 않으면 이 흐름은 안정적인 대화로 이어질 수 있어요. 특히 중요한 이야기는 한 번에 몰아 하기보다 짧게 나누어 말하면 더 자연스럽게 풀려요.",
         ),
     },
     "strength": {
@@ -793,11 +793,11 @@ _PAIR_EXPANSION_RULES: dict[str, dict[str, tuple[str, ...]]] = {
             "두 사람은 서로 다른 인상을 통해 관계의 폭을 넓힐 수 있어요.",
         ),
         "bodies": (
-            "{left_evidence} {right_evidence} 두 사람은 같은 방식으로 움직이기보다 각자의 강점을 나눠 맡을 때 안정감이 커질 수 있어요. 한 사람은 방향을 잡고 다른 한 사람은 분위기를 살피는 식으로 역할을 나누면 좋아요.",
-            "{left_name}님은 {left_evidence} {right_name}님은 {right_evidence} 서로의 표현 방식이 다르기 때문에 처음에는 낯설 수 있지만, 익숙해지면 한쪽이 놓친 부분을 다른 쪽이 챙기는 장점이 생겨요.",
-            "{left_evidence} {right_evidence} 빠른 설렘보다 신뢰가 쌓일 때 더 좋은 흐름을 만들 수 있는 조합이에요. 서로의 장점을 칭찬으로 확인해주면 관계의 안정감이 훨씬 선명해져요.",
+            "{left_named_evidence} {right_named_evidence} 두 사람은 같은 방식으로 움직이기보다 각자의 강점을 나눠 맡을 때 안정감이 커질 수 있어요. 한 사람은 방향을 잡고 다른 한 사람은 분위기를 살피는 식으로 역할을 나누면 좋아요.",
+            "{left_named_evidence} {right_named_evidence} 서로의 표현 방식이 다르기 때문에 처음에는 낯설 수 있지만, 익숙해지면 한쪽이 놓친 부분을 다른 쪽이 챙기는 장점이 생겨요.",
+            "{left_named_evidence} {right_named_evidence} 빠른 설렘보다 신뢰가 쌓일 때 더 좋은 흐름을 만들 수 있는 조합이에요. 서로의 장점을 칭찬으로 확인해주면 관계의 안정감이 훨씬 선명해져요.",
             "{left_name}님의 {left_main} 분위기와 {right_name}님의 {right_main} 분위기는 같은 결을 반복하기보다 다른 결을 더해요. 그래서 역할을 분명히 나누면 관계의 피로가 줄고, 서로가 더 편하게 강점을 낼 수 있어요.",
-            "{left_evidence} {right_evidence} 함께 있을 때 더 다양한 선택지를 만들 수 있다는 점이 이 흐름의 장점이에요. 의견이 다를 때도 차이를 문제로 보기보다 역할의 차이로 해석하면 좋아요.",
+            "{left_named_evidence} {right_named_evidence} 함께 있을 때 더 다양한 선택지를 만들 수 있다는 점이 이 흐름의 장점이에요. 의견이 다를 때도 차이를 문제로 보기보다 역할의 차이로 해석하면 좋아요.",
         ),
     },
     "caution": {
@@ -816,11 +816,11 @@ _PAIR_EXPANSION_RULES: dict[str, dict[str, tuple[str, ...]]] = {
             "서로 편해질수록 작은 약속과 말의 마무리가 중요해요.",
         ),
         "bodies": (
-            "{left_evidence} {right_evidence} 한쪽은 바로 표현하고 다른 한쪽은 정리할 시간이 필요할 수 있어요. 감정이 올라올 때는 결론을 재촉하기보다 잠시 시간을 두고 다시 이야기하는 약속을 만드는 게 좋아요.",
+            "{left_named_evidence} {right_named_evidence} 한쪽은 바로 표현하고 다른 한쪽은 정리할 시간이 필요할 수 있어요. 감정이 올라올 때는 결론을 재촉하기보다 잠시 시간을 두고 다시 이야기하는 약속을 만드는 게 좋아요.",
             "{left_name}님은 {left_main} 흐름이 있고, {right_name}님은 {right_main} 흐름이 있어요. 이 차이가 피곤할 때는 말투나 표정을 다르게 해석하는 원인이 될 수 있어요. 중요한 대화에서는 먼저 의도를 말하고, 마지막에는 서로 이해한 내용을 확인하면 좋아요.",
-            "{left_evidence} {right_evidence} 두 사람 모두 분위기를 읽는 힘이 있지만, 그만큼 혼자 결론을 내리기 쉬운 순간도 생길 수 있어요. 불편한 지점은 돌려 말하기보다 짧고 부드럽게 직접 확인하는 편이 좋아요.",
+            "{left_named_evidence} {right_named_evidence} 두 사람 모두 분위기를 읽는 힘이 있지만, 그만큼 혼자 결론을 내리기 쉬운 순간도 생길 수 있어요. 불편한 지점은 돌려 말하기보다 짧고 부드럽게 직접 확인하는 편이 좋아요.",
             "{left_name}님의 {left_main} 흐름과 {right_name}님의 {right_main} 흐름은 평소에는 잘 맞아도 피로할 때 엇갈릴 수 있어요. 그날 생긴 불편함은 너무 오래 묵히지 말고, 짧게 정리해서 풀어내는 습관이 필요해요.",
-            "{left_evidence} {right_evidence} 관계가 익숙해질수록 표현을 생략하거나 상대가 알아줄 거라고 생각하기 쉬워요. 사소한 약속일수록 분명히 말하고 지키는 방식이 두 사람의 안정감을 지켜줘요.",
+            "{left_named_evidence} {right_named_evidence} 관계가 익숙해질수록 표현을 생략하거나 상대가 알아줄 거라고 생각하기 쉬워요. 사소한 약속일수록 분명히 말하고 지키는 방식이 두 사람의 안정감을 지켜줘요.",
         ),
     },
 }
@@ -899,21 +899,25 @@ def _build_pair_block(
         seed_text,
         f"pair:{category_key}",
     )
+    left_evidence = _evidence_phrase(
+        left_profile,
+        seed_text,
+        f"pair:{category_key}:left",
+    )
+    right_evidence = _evidence_phrase(
+        right_profile,
+        seed_text,
+        f"pair:{category_key}:right",
+    )
     values = {
         "left_name": left_name,
         "right_name": right_name,
         "left_main": left_profile.impression,
         "right_main": right_profile.impression,
-        "left_evidence": _evidence_phrase(
-            left_profile,
-            seed_text,
-            f"pair:{category_key}:left",
-        ),
-        "right_evidence": _evidence_phrase(
-            right_profile,
-            seed_text,
-            f"pair:{category_key}:right",
-        ),
+        "left_evidence": left_evidence,
+        "right_evidence": right_evidence,
+        "left_named_evidence": _named_evidence_phrase(left_name, left_evidence),
+        "right_named_evidence": _named_evidence_phrase(right_name, right_evidence),
     }
     result = {
         "category": _PAIR_CATEGORIES[category_key],
@@ -1162,6 +1166,15 @@ def _evidence_phrase(profile: FacePartProfile, seed_text: str, salt: str) -> str
         impression=profile.impression,
     )
     result = " ".join(result.split())
+    return result
+
+
+def _named_evidence_phrase(name: str, evidence: str) -> str:
+    cleaned_name = name.strip()
+    cleaned_evidence = evidence.strip()
+    result = cleaned_evidence
+    if cleaned_name:
+        result = f"{cleaned_name}님은 {cleaned_evidence}"
     return result
 
 

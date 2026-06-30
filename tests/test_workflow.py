@@ -515,6 +515,9 @@ def test_pair_rulebase_payload_reflects_compatibility_mode() -> None:
     assert "친구 관계에서는" in friend["pair_blocks"][0]["summary"]
     assert "직장동료 관계에서는" in coworker["pair_blocks"][0]["summary"]
     assert lover["pair_blocks"][0]["body"] != coworker["pair_blocks"][0]["body"]
+    for block in lover["pair_blocks"]:
+        assert "갑님은" in block["body"]
+        assert "을님은" in block["body"]
 
 
 def test_pair_mock_capture_can_use_different_landmark_metrics(
