@@ -2529,12 +2529,12 @@ def _render_page(
           }}
           .personal-result-shell .capture-visual {{
             position: relative;
-            min-height: 410px;
+            min-height: 500px;
             overflow: visible;
             background: #111111;
           }}
           .personal-result-shell #capture-preview-image {{
-            height: 410px;
+            height: 500px;
             max-height: none;
             object-fit: cover;
             border-radius: 0;
@@ -2580,12 +2580,12 @@ def _render_page(
             z-index: 4;
             left: 50%;
             top: 50%;
-            width: 270px;
-            height: 270px;
+            width: 290px;
+            height: 330px;
             border: 3px dashed #ffb0c0;
             border-radius: 10px;
             box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.54);
-            transform: translate(-50%, -44%);
+            transform: translate(-50%, -46%);
           }}
           .personal-result-shell .face-guide::before,
           .personal-result-shell .face-guide::after {{
