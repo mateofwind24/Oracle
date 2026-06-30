@@ -18,6 +18,7 @@ from oracle_report.models import (
 from oracle_report.workflow import (
     CompatibilityWorkflowInput,
     PersonalWorkflowInput,
+    _load_json_payload_or_error,
     _run_sequential_pair_capture,
     run_compatibility_workflow,
     run_personal_workflow,
@@ -48,6 +49,15 @@ def _block_body(prefix: str, number: int) -> str:
         sentences.append(f"{prefix} 본문 {number}-{sentence_index + 1}입니다.")
     result = " ".join(sentences)
     return result
+
+
+def test_load_json_payload_ignores_text_after_first_object() -> None:
+    payload, error = _load_json_payload_or_error(
+        '{"essence":"핵심"}\n\n{"extra":"ignored"}',
+    )
+
+    assert error == ""
+    assert payload == {"essence": "핵심"}
 
 
 class FakeLlmClient:

@@ -1819,13 +1819,12 @@ def _load_json_payload_or_error(text: str) -> tuple[dict[str, Any], str]:
     if cleaned.startswith("```"):
         cleaned = _strip_markdown_fence_text(cleaned)
     start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start >= 0 and end >= start:
-        cleaned = cleaned[start : end + 1]
+    if start >= 0:
+        cleaned = cleaned[start:]
     payload: dict[str, Any] = {}
     error = ""
     try:
-        loaded = json.loads(cleaned)
+        loaded, _ = json.JSONDecoder().raw_decode(cleaned)
         if isinstance(loaded, dict):
             payload = loaded
         else:
