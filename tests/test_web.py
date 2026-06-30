@@ -26,10 +26,14 @@ def test_home_page_uses_oracle_home_layout_and_hover_effects() -> None:
     assert response.status_code == 200
     assert 'class="oracle-home-shell"' in html
     assert 'ORACLE<span class="stamp serif">運</span>' in html
-    assert 'class="hero"' in html
+    assert "오늘도 운명을 함께 찾아볼까요?" in html
+    assert "오라와 함께 나의 운명과 인연을" in html
+    assert 'class="hero-orbit"' in html
     assert 'class="mode solo"' in html
+    assert "나의 운세 보기" in html
     assert 'href="/personal"' in html
     assert 'class="mode pair"' in html
+    assert "우리 궁합 보기" in html
     assert 'href="/compatibility"' in html
     assert ".mode:hover" in html
     assert "transform: translateY(-6px);" in html
@@ -37,7 +41,7 @@ def test_home_page_uses_oracle_home_layout_and_hover_effects() -> None:
     assert "transform: translateX(4px);" in html
 
 
-def test_home_page_serves_saju_illustration() -> None:
+def test_home_page_serves_oracle_character_illustration() -> None:
     pytest.importorskip("flask")
     from oracle_report.web import create_app
 
@@ -46,12 +50,12 @@ def test_home_page_serves_saju_illustration() -> None:
 
     response = client.get("/")
     html = response.get_data(as_text=True)
-    image_response = client.get("/static/assets/saju.jpg")
+    image_response = client.get("/static/assets/oracle-character.png")
 
     assert response.status_code == 200
-    assert 'src="/static/assets/saju.jpg"' in html
+    assert 'src="/static/assets/oracle-character.png"' in html
     assert image_response.status_code == 200
-    assert image_response.content_type == "image/jpeg"
+    assert image_response.content_type == "image/png"
 
 
 def test_personal_input_page_links_to_separate_result_page() -> None:
