@@ -958,8 +958,8 @@ def _render_page(
             padding: 24px 0;
           }}
           main.home-page {{
-            width: min(1540px, calc(100vw - 48px));
-            padding: 28px 0 140px;
+            width: min(1180px, calc(100vw - 48px));
+            padding: 22px 0 112px;
           }}
           h1 {{
             margin: 0 0 24px;
@@ -1021,7 +1021,7 @@ def _render_page(
           }}
           .brand-lockup .logo {{
             font-family: "Song Myung", serif;
-            font-size: 46px;
+            font-size: 36px;
             letter-spacing: 0;
             color: var(--ink);
             position: relative;
@@ -1029,14 +1029,14 @@ def _render_page(
           }}
           .brand-lockup .logo .stamp {{
             position: absolute;
-            top: -3px;
-            right: -43px;
-            width: 38px;
-            height: 38px;
+            top: -2px;
+            right: -34px;
+            width: 30px;
+            height: 30px;
             border: 2px solid var(--hwa);
             border-radius: 8px;
             color: var(--hwa);
-            font-size: 19px;
+            font-size: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1044,46 +1044,46 @@ def _render_page(
             opacity: 0.9;
           }}
           .brand-lockup .tag {{
-            font-size: 18px;
+            font-size: 15px;
             color: var(--ink);
             margin-top: 6px;
           }}
           .home-hero {{
             position: relative;
             text-align: center;
-            padding-top: 28px;
+            padding-top: 14px;
           }}
           .home-hero .speech {{
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-height: 58px;
-            padding: 12px 30px;
+            min-height: 44px;
+            padding: 8px 24px;
             border: 2px solid #ffc6cf;
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.64);
             color: var(--hwa);
             font-family: "Gowun Batang", serif;
-            font-size: 24px;
+            font-size: 18px;
             font-weight: 700;
             position: relative;
           }}
           .home-hero .speech::after {{
             content: "";
             position: absolute;
-            bottom: -10px;
+            bottom: -8px;
             left: 50%;
-            width: 18px;
-            height: 18px;
+            width: 14px;
+            height: 14px;
             border-right: 2px solid #ffc6cf;
             border-bottom: 2px solid #ffc6cf;
             background: #fff8f3;
             transform: translateX(-50%) rotate(45deg);
           }}
           .home-hero h1 {{
-            margin: 26px 0 16px;
+            margin: 18px 0 10px;
             font-family: "Gowun Batang", serif;
-            font-size: 72px;
+            font-size: 50px;
             line-height: 1.12;
             color: var(--ink);
             letter-spacing: 0;
@@ -1092,20 +1092,20 @@ def _render_page(
             color: var(--hwa);
           }}
           .home-hero p {{
-            margin: 0 auto 24px;
+            margin: 0 auto 14px;
             color: var(--ink);
-            font-size: 24px;
+            font-size: 18px;
             line-height: 1.55;
           }}
           .oracle-character {{
             position: relative;
             z-index: 2;
             display: block;
-            width: min(880px, 100vw);
+            width: min(620px, 78vw);
             height: auto;
             object-fit: contain;
             object-position: center center;
-            margin: 18px auto -94px;
+            margin: 4px auto -62px;
             border: 0;
             border-radius: 0;
             mix-blend-mode: normal;
@@ -1113,24 +1113,24 @@ def _render_page(
           .cards {{
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 28px;
+            gap: 18px;
             width: 100%;
-            max-width: 1320px;
-            margin: -26px auto 28px;
+            max-width: 960px;
+            margin: -16px auto 20px;
             position: relative;
             z-index: 4;
           }}
           .mode {{
             position: relative;
             display: flex;
-            min-height: 300px;
+            min-height: 210px;
             align-items: center;
             justify-content: space-between;
             gap: 14px;
             background: rgba(255, 255, 255, 0.82);
             border: 2px solid var(--line);
             border-radius: 8px;
-            padding: 44px 42px;
+            padding: 28px 30px;
             color: inherit;
             cursor: pointer;
             overflow: hidden;
@@ -1172,14 +1172,14 @@ def _render_page(
             z-index: 2;
           }}
           .mode .ic {{
-            width: 52px;
-            height: 52px;
+            width: 38px;
+            height: 38px;
             border-radius: 999px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             margin-bottom: 12px;
-            font-size: 37px;
+            font-size: 27px;
             line-height: 1;
           }}
           .mode.solo .ic {{
@@ -1190,7 +1190,7 @@ def _render_page(
           }}
           .mode h2 {{
             font-family: "Gowun Batang", serif;
-            font-size: 44px;
+            font-size: 31px;
             font-weight: 700;
             margin: 0 0 14px;
           }}
@@ -1201,10 +1201,10 @@ def _render_page(
             color: var(--hwa);
           }}
           .mode p {{
-            font-size: 21px;
+            font-size: 15px;
             color: var(--ink);
             line-height: 1.7;
-            min-height: 70px;
+            min-height: 46px;
             margin: 0;
           }}
           .mode .go {{
@@ -1213,12 +1213,12 @@ def _render_page(
             gap: 6px;
             justify-content: center;
             min-width: 160px;
-            min-height: 62px;
-            margin-top: 28px;
-            padding: 14px 30px;
+            min-height: 46px;
+            margin-top: 18px;
+            padding: 10px 20px;
             border-radius: 999px;
             font-family: "Gowun Batang", serif;
-            font-size: 21px;
+            font-size: 15px;
             font-weight: 700;
             color: #ffffff;
           }}
@@ -1237,25 +1237,25 @@ def _render_page(
           .mode .mode-art {{
             position: relative;
             z-index: 2;
-            width: 250px;
-            height: 270px;
+            width: 170px;
+            height: 184px;
             object-fit: contain;
             border-radius: 0;
             mix-blend-mode: normal;
             flex: 0 0 auto;
             align-self: flex-end;
-            margin: 0 -22px -28px 0;
+            margin: 0 -14px -18px 0;
           }}
           .mode .mode-art-pair {{
-            width: 238px;
-            height: 274px;
-            margin-right: -18px;
+            width: 164px;
+            height: 188px;
+            margin-right: -12px;
           }}
           .feature-row {{
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 0;
-            max-width: 1320px;
+            max-width: 960px;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.78);
             border: 1px solid var(--line);
@@ -1264,8 +1264,8 @@ def _render_page(
             overflow: hidden;
           }}
           .feature {{
-            min-height: 190px;
-            padding: 34px 28px 30px;
+            min-height: 132px;
+            padding: 22px 18px 20px;
             text-align: center;
             border-right: 1px dashed #e8cfc6;
           }}
@@ -1276,9 +1276,9 @@ def _render_page(
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 76px;
-            height: 76px;
-            margin-bottom: 16px;
+            width: 54px;
+            height: 54px;
+            margin-bottom: 10px;
             border-radius: 999px;
             font-weight: 700;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
@@ -1302,18 +1302,18 @@ def _render_page(
           .feature strong {{
             display: block;
             font-family: "Gowun Batang", serif;
-            font-size: 24px;
+            font-size: 17px;
             color: var(--ink);
           }}
           .feature p {{
             margin: 9px 0 0;
             color: var(--ink);
-            font-size: 17px;
+            font-size: 12px;
             line-height: 1.6;
           }}
           .more-section {{
             display: none;
-            max-width: 1320px;
+            max-width: 1040px;
             margin: 0 auto;
             scroll-margin-top: 34px;
           }}
@@ -1325,42 +1325,42 @@ def _render_page(
             position: relative;
             display: inline-block;
             font-family: "Song Myung", serif;
-            font-size: 38px;
+            font-size: 32px;
             letter-spacing: 0;
             color: var(--ink);
           }}
           .more-head .logo .stamp {{
             position: absolute;
             top: -2px;
-            right: -36px;
-            width: 30px;
-            height: 30px;
+            right: -30px;
+            width: 25px;
+            height: 25px;
             border: 2px solid var(--hwa);
             border-radius: 7px;
             color: var(--hwa);
-            font-size: 15px;
+            font-size: 13px;
             display: flex;
             align-items: center;
             justify-content: center;
             transform: rotate(9deg);
           }}
           .more-head h2 {{
-            margin: 18px 0 8px;
+            margin: 14px 0 6px;
             font-family: "Gowun Batang", serif;
-            font-size: 42px;
+            font-size: 34px;
             color: var(--ink);
           }}
           .more-head p {{
             margin: 0;
             color: var(--ink-soft);
-            font-size: 19px;
+            font-size: 15px;
           }}
           .more-grid {{
             display: grid;
-            gap: 24px;
+            gap: 18px;
           }}
           .more-card {{
-            padding: 32px;
+            padding: 24px;
             border: 1px solid var(--line);
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.82);
@@ -1373,45 +1373,45 @@ def _render_page(
           .more-kicker {{
             display: inline-flex;
             align-items: center;
-            min-height: 38px;
-            padding: 7px 16px;
+            min-height: 32px;
+            padding: 6px 14px;
             border-radius: 999px;
             background: rgba(255, 111, 130, 0.1);
             color: var(--hwa);
             font-family: "Gowun Batang", serif;
-            font-size: 17px;
+            font-size: 14px;
             font-weight: 700;
           }}
           .more-copy h3 {{
-            margin: 16px 0 20px;
+            margin: 12px 0 16px;
             font-family: "Gowun Batang", serif;
-            font-size: 34px;
+            font-size: 27px;
             line-height: 1.25;
             color: var(--ink);
           }}
           .more-copy ul, .more-copy ol {{
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
+            gap: 12px;
             list-style: none;
             margin: 0;
             padding: 0;
           }}
           .more-copy li, .faq-list div {{
             display: grid;
-            grid-template-columns: 58px 1fr;
-            column-gap: 16px;
+            grid-template-columns: 46px 1fr;
+            column-gap: 12px;
             align-items: center;
-            min-height: 94px;
-            padding: 16px 18px;
+            min-height: 76px;
+            padding: 12px 14px;
             border: 1px solid var(--line-soft);
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.82);
           }}
           .more-copy li > span, .faq-list div > span {{
             grid-row: span 2;
-            width: 58px;
-            height: 58px;
+            width: 46px;
+            height: 46px;
             border-radius: 999px;
             display: inline-flex;
             align-items: center;
@@ -1419,54 +1419,54 @@ def _render_page(
             background: #fff2e8;
             color: var(--gold);
             font-family: "Gowun Batang", serif;
-            font-size: 26px;
+            font-size: 20px;
             font-weight: 700;
           }}
           .more-copy li strong, .faq-list strong {{
             display: block;
             color: var(--ink);
             font-family: "Gowun Batang", serif;
-            font-size: 22px;
+            font-size: 18px;
             line-height: 1.35;
           }}
           .more-copy li em, .faq-list em {{
             display: block;
             margin-top: 4px;
             color: var(--ink-soft);
-            font-size: 16px;
+            font-size: 13px;
             font-style: normal;
             line-height: 1.55;
           }}
           .faq-list {{
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
+            gap: 12px;
           }}
           .more-note {{
             display: flex;
             align-items: center;
-            gap: 18px;
-            margin-top: 18px;
-            padding: 18px 22px;
+            gap: 14px;
+            margin-top: 14px;
+            padding: 14px 18px;
             border-radius: 8px;
             background: linear-gradient(90deg, rgba(255, 111, 130, 0.12), rgba(255, 255, 255, 0.72));
           }}
           .more-note img {{
-            width: 96px;
-            height: 96px;
+            width: 72px;
+            height: 72px;
             object-fit: contain;
             flex: 0 0 auto;
           }}
           .more-note p {{
             margin: 0;
             color: var(--ink-soft);
-            font-size: 17px;
+            font-size: 14px;
             line-height: 1.55;
           }}
           .more-note strong {{
             color: var(--hwa);
             font-family: "Gowun Batang", serif;
-            font-size: 22px;
+            font-size: 18px;
           }}
           .home-foot {{
             position: fixed;
@@ -1477,10 +1477,10 @@ def _render_page(
             display: flex;
             justify-content: space-around;
             align-items: center;
-            width: min(1320px, calc(100vw - 48px));
-            min-height: 90px;
+            width: min(960px, calc(100vw - 48px));
+            min-height: 68px;
             margin: 0;
-            padding: 10px 0;
+            padding: 6px 0;
             border: 1px solid var(--line);
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.94);
@@ -1491,7 +1491,7 @@ def _render_page(
           }}
           .foot-item {{
             flex: 1;
-            min-height: 70px;
+            min-height: 54px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -1500,7 +1500,7 @@ def _render_page(
             border-right: 1px solid var(--line-soft);
             color: var(--ink-soft);
             font-family: "Gowun Batang", serif;
-            font-size: 16px;
+            font-size: 12px;
             font-weight: 700;
             text-decoration: none;
             letter-spacing: 0;
@@ -1513,9 +1513,9 @@ def _render_page(
           }}
           .foot-icon {{
             display: block;
-            min-height: 28px;
+            min-height: 20px;
             font-family: "Gowun Dodum", sans-serif;
-            font-size: 28px;
+            font-size: 20px;
             line-height: 1;
           }}
           .oracle-input-shell {{
