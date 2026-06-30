@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any, Callable, Generic, Protocol, TypeVar
@@ -48,9 +49,6 @@ FACE_ANALYSIS_MODE_LANDMARK_RULE = 2
 FACE_ANALYSIS_MODES = (FACE_ANALYSIS_MODE_LLM_IMAGE, FACE_ANALYSIS_MODE_LANDMARK_RULE)
 _UNKNOWN_BIRTH_TIME_VALUES = frozenset(("", "모름", "미상", "unknown", "none"))
 _FACE_CROP_MARGIN_RATIO = 0.2
-_REPORT_BLOCK_KEYS = ("face_blocks", "saju_blocks", "pair_blocks")
-_BODY_REWRITE_PROMPT_MARKER = "[리포트 본문 재작성]"
-_SENTENCE_ENDINGS = ".!?。！？"
 _T = TypeVar("_T")
 
 
@@ -587,11 +585,6 @@ def _build_single_face_analysis(
             "관상정보를 생성하지 못했습니다.",
             debug_label="personal_face_analysis",
         )
-        result = _repair_short_report_block_bodies(
-            client,
-            result,
-            "personal_face_analysis",
-        )
     return result
 
 
@@ -689,11 +682,6 @@ def _build_couple_face_analysis(
         image_path,
         "궁합 관상정보를 생성하지 못했습니다.",
         debug_label="face_analysis_copule",
-    )
-    result = _repair_short_report_block_bodies(
-        client,
-        result,
-        "face_analysis_copule",
     )
     return result
 
@@ -909,11 +897,6 @@ def _build_saju_analysis(
         "사주정보를 생성하지 못했습니다.",
         debug_label="saju_analysis",
     )
-    result = _repair_short_report_block_bodies(
-        client,
-        result,
-        "saju_analysis",
-    )
     return result
 
 
@@ -938,11 +921,6 @@ def _build_compatibility_saju_analysis(
         None,
         "궁합 사주정보를 생성하지 못했습니다.",
         debug_label="saju_analysis_couple",
-    )
-    result = _repair_short_report_block_bodies(
-        client,
-        result,
-        "saju_analysis_couple",
     )
     return result
 
@@ -1036,8 +1014,6 @@ def _safe_generate_distributed(
         text = f"{fallback}\n\n오류: {error}"
         print(f"\n[LLM RAW:{debug_label}:ERROR] {error}\n")
     result = _GeneratedText(text=text, error=error)
-    if error == "" and client is not None:
-        result = _repair_short_report_block_bodies(client, result, debug_label)
     return result
 
 
@@ -1346,9 +1322,15 @@ def _build_personal_report_json(
     skip_face: bool = False,
 ) -> str:
     face_payload, face_error = ({}, "")
-    saju_payload, saju_error = _load_json_payload_or_error(saju_analysis)
+    saju_payload, saju_error = _load_json_payload_or_error(
+        saju_analysis,
+        label="saju_analysis",
+    )
     if not skip_face:
-        face_payload, face_error = _load_json_payload_or_error(face_analysis)
+        face_payload, face_error = _load_json_payload_or_error(
+            face_analysis,
+            label="personal_face_analysis",
+        )
     if saju_error:
         print(
             "[UI FALLBACK:saju_analysis] invalid LLM output; "
@@ -1375,8 +1357,14 @@ def _build_compatibility_report_json(
     face_analysis: str,
     saju_analysis: str,
 ) -> str:
-    face_payload, face_error = _load_json_payload_or_error(face_analysis)
-    saju_payload, saju_error = _load_json_payload_or_error(saju_analysis)
+    face_payload, face_error = _load_json_payload_or_error(
+        face_analysis,
+        label="face_analysis_copule",
+    )
+    saju_payload, saju_error = _load_json_payload_or_error(
+        saju_analysis,
+        label="saju_analysis_couple",
+    )
     if face_error:
         print(
             "[UI FALLBACK:face_analysis_copule] invalid LLM output; "
@@ -1682,7 +1670,7 @@ def _safe_generate(
     error = ""
     try:
         text = client.generate(prompt, image_path=image_path)
-        text = _normalize_generated_output_text(text)
+        text = _normalize_generated_output_text(text, debug_label)
         print(f"\n[LLM RAW:{debug_label}:BEGIN]\n{text}\n[LLM RAW:{debug_label}:END]\n")
     except Exception as exc:
         error = str(exc)
@@ -1692,129 +1680,18 @@ def _safe_generate(
     return result
 
 
-def _repair_short_report_block_bodies(
-    client: TextGenerator,
-    generated: _GeneratedText,
-    debug_label: str,
-) -> _GeneratedText:
-    result = generated
-    if generated.error == "":
-        payload, error = _load_json_payload_or_error(generated.text)
-        if error == "" and _payload_has_short_report_body(payload):
-            repair_prompt = _build_report_body_rewrite_prompt(payload)
-            repaired = _safe_generate(
-                client,
-                repair_prompt,
-                None,
-                generated.text,
-                debug_label=f"{debug_label}_body_rewrite",
-            )
-            repaired_payload, repaired_error = _load_json_payload_or_error(
-                repaired.text,
-            )
-            if repaired.error == "" and repaired_error == "" and repaired_payload:
-                result = repaired
-            else:
-                print(
-                    f"[LLM REPAIR:{debug_label}] body rewrite failed; "
-                    "keeping original LLM output.",
-                )
-    return result
-
-
-def _payload_has_short_report_body(payload: dict[str, Any]) -> bool:
-    target_count = _target_report_body_sentence_count()
-    result = False
-    for block in _iter_report_blocks(payload):
-        body = block.get("body")
-        if isinstance(body, str):
-            sentence_count = _count_sentences(body)
-            if sentence_count < target_count:
-                result = True
-                break
-    return result
-
-
-def _iter_report_blocks(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
-    for key in _REPORT_BLOCK_KEYS:
-        value = payload.get(key)
-        if isinstance(value, list):
-            for item in value:
-                if isinstance(item, dict):
-                    blocks.append(item)
-    result = blocks
-    return result
-
-
-def _target_report_body_sentence_count() -> int:
-    configured_count = int(prompt_templates.REPORT_BLOCK_SENTENCE_COUNT)
-    result = max(1, configured_count)
-    return result
-
-
-def _count_sentences(text: str) -> int:
-    normalized_text = _normalize_inline_text(text)
-    count = 0
-    previous_was_ending = False
-    for character in normalized_text:
-        if character in _SENTENCE_ENDINGS:
-            if not previous_was_ending:
-                count += 1
-            previous_was_ending = True
-        elif not character.isspace():
-            previous_was_ending = False
-    if normalized_text != "" and count == 0:
-        count = 1
-    result = count
-    return result
-
-
-def _build_report_body_rewrite_prompt(payload: dict[str, Any]) -> str:
-    target_count = _target_report_body_sentence_count()
-    payload_text = json.dumps(
-        _normalize_payload_text(payload),
-        ensure_ascii=False,
-    )
-    lines = (
-        _BODY_REWRITE_PROMPT_MARKER,
-        "너는 리포트 JSON의 블록 body를 LLM 출력으로 다시 작성하는 API입니다.",
-        "출력은 JSON 객체 하나만 작성합니다. Markdown 코드블록, 설명문, 주석을 붙이지 않습니다.",
-        "기존 JSON의 키, 배열 순서, category, title은 유지합니다.",
-        (
-            "각 face_blocks/saju_blocks/pair_blocks의 summary는 body의 핵심을 "
-            "1~2개의 짧은 문장으로 요약합니다. summary에는 아래 문장 수를 "
-            "적용하지 않습니다."
-        ),
-        (
-            "각 face_blocks/saju_blocks/pair_blocks의 body는 정확히 "
-            f"{target_count}개의 완성된 문장으로 작성합니다."
-        ),
-        (
-            "부족한 문장을 코드처럼 덧붙이지 말고, category/title/summary와 "
-            "맞는 자연스러운 해설을 LLM이 새로 씁니다."
-        ),
-        (
-            "JSON 문자열 안에 수동 줄바꿈이나 줄바꿈 이스케이프를 넣지 않고, "
-            "문장 사이에는 공백만 사용합니다."
-        ),
-        "",
-        "[원본 JSON]",
-        payload_text,
-    )
-    result = "\n".join(lines)
-    return result
-
-
-def _normalize_generated_output_text(text: str) -> str:
-    payload, error = _load_json_payload_or_error(text)
+def _normalize_generated_output_text(text: str, label: str = "llm_json") -> str:
+    payload, error = _load_json_payload_or_error(text, label=label)
     result = text
     if not error and payload:
         result = json.dumps(_normalize_payload_text(payload), ensure_ascii=False)
     return result
 
 
-def _load_json_payload_or_error(text: str) -> tuple[dict[str, Any], str]:
+def _load_json_payload_or_error(
+    text: str,
+    label: str = "llm_json",
+) -> tuple[dict[str, Any], str]:
     cleaned = text.strip()
     if cleaned.startswith("```"):
         cleaned = _strip_markdown_fence_text(cleaned)
@@ -1824,7 +1701,12 @@ def _load_json_payload_or_error(text: str) -> tuple[dict[str, Any], str]:
     payload: dict[str, Any] = {}
     error = ""
     try:
-        loaded, _ = json.JSONDecoder().raw_decode(cleaned)
+        loaded, repair_steps = _load_json_with_repairs(cleaned)
+        if repair_steps:
+            print(
+                f"[LLM JSON REPAIR:{label}] applied repairs: "
+                + ", ".join(repair_steps),
+            )
         if isinstance(loaded, dict):
             payload = loaded
         else:
@@ -1836,6 +1718,81 @@ def _load_json_payload_or_error(text: str) -> tuple[dict[str, Any], str]:
         )
     result = (payload, error)
     return result
+
+
+def _load_json_with_repairs(text: str) -> tuple[Any, tuple[str, ...]]:
+    candidates = [text]
+    candidate_steps = [tuple()]
+    normalized_quotes = _normalize_json_quotes(text)
+    if normalized_quotes != text:
+        candidates.append(normalized_quotes)
+        candidate_steps.append(("normalize_quotes",))
+    repaired = normalized_quotes
+    repaired_steps = list(candidate_steps[-1])
+    for _ in range(3):
+        next_repaired, step_names = _repair_json_text(repaired)
+        if next_repaired == repaired:
+            break
+        repaired = next_repaired
+        repaired_steps.extend(step_names)
+        candidates.append(repaired)
+        candidate_steps.append(tuple(repaired_steps))
+    last_error: json.JSONDecodeError | None = None
+    decoder = json.JSONDecoder()
+    for candidate, steps in zip(candidates, candidate_steps):
+        try:
+            loaded, _ = decoder.raw_decode(candidate)
+            return loaded, steps
+        except json.JSONDecodeError as exc:
+            last_error = exc
+    if last_error is None:
+        raise json.JSONDecodeError("empty JSON", text, 0)
+    raise last_error
+
+
+def _normalize_json_quotes(text: str) -> str:
+    replacements = {
+        "“": '"',
+        "”": '"',
+        "„": '"',
+        "‟": '"',
+        "’": "'",
+        "‘": "'",
+    }
+    result = text
+    for old_text, new_text in replacements.items():
+        result = result.replace(old_text, new_text)
+    return result
+
+
+def _repair_json_text(text: str) -> tuple[str, tuple[str, ...]]:
+    result = text
+    applied_steps: list[str] = []
+    without_trailing_commas = re.sub(r",\s*([}\]])", r"\1", result)
+    if without_trailing_commas != result:
+        applied_steps.append("remove_trailing_commas")
+        result = without_trailing_commas
+    with_missing_commas = re.sub(
+        (
+            r'("(?:[^"\\]|\\.)*"|\btrue\b|\bfalse\b|\bnull\b|'
+            r'-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[}\]])'
+            r'(\s*)(?=(?:"|[{\[]|\btrue\b|\bfalse\b|\bnull\b|-?\d))'
+        ),
+        _insert_missing_comma,
+        result,
+    )
+    if with_missing_commas != result:
+        applied_steps.append("insert_missing_commas")
+        result = with_missing_commas
+    return result, tuple(applied_steps)
+
+
+def _insert_missing_comma(match: re.Match[str]) -> str:
+    token = match.group(1)
+    whitespace = match.group(2)
+    if "," in whitespace:
+        return match.group(0)
+    return f"{token},{whitespace}"
 
 
 def _strip_markdown_fence_text(text: str) -> str:

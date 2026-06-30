@@ -284,36 +284,24 @@ class NewlineBodyReportClient:
         return result
 
 
-class RepairingShortBodyReportClient:
-    def __init__(self) -> None:
-        self.prompts: list[str] = []
-        self.image_paths: list[Path | None] = []
-
+class MalformedJsonReportClient:
     def generate(self, prompt: str, image_path: Path | None = None) -> str:
-        self.prompts.append(prompt)
-        self.image_paths.append(image_path)
-        body = "첫 문장입니다. 두 번째 문장입니다."
-        if "[리포트 본문 재작성]" in prompt:
-            body = (
-                "첫 문장입니다. 두 번째 문장입니다. "
-                "세 번째 문장입니다. 네 번째 문장입니다."
-            )
-        result = json.dumps(
-            {
-                "essence": "짧은 본문 핵심",
-                "saju_subtitle": "짧은 본문 소제목",
-                "saju_blocks": [
-                    {
-                        "category": "종합 형국",
-                        "title": "짧은 본문",
-                        "summary": "핵심 요약입니다.",
-                        "body": body,
-                    },
-                ],
-            },
-            ensure_ascii=False,
-        )
-        return result
+        del prompt
+        del image_path
+        return """```json
+{
+    “essence”: “보정된 결과예요.”,
+    “saju_blocks”: [
+        {
+            “category”: “보정 카테고리”
+            “title”: “보정 제목”,
+            “summary”: “보정 요약은 충분한 길이를 갖고 있어요.”,
+            “body”: “보정 본문은 쉼표가 빠졌더라도 후처리로 복구되어 UI에 반영되어야 해요.”
+        },
+    ],
+    “disclaimer”: “보정 고지예요.”
+}
+```"""
 
 
 def test_personal_workflow_runs_without_real_camera_or_llm(
@@ -768,22 +756,46 @@ def test_personal_workflow_normalizes_newline_markers_in_output_body(
     assert "\\n" not in captured
 
 
-def test_personal_workflow_rewrites_short_block_body_with_llm(
-    monkeypatch,
-    tmp_path: Path,
-) -> None:
-    monkeypatch.setattr(prompt_templates, "REPORT_BLOCK_SENTENCE_COUNT", 4)
+def test_json_payload_loader_repairs_common_llm_format_errors(capsys) -> None:
+    payload, error = _load_json_payload_or_error(
+        """```json
+{
+    “face_subtitle”: “보정된 관상 소제목”,
+    “face_blocks”: [
+        {
+            “category”: “타고난 인상과 기본 상”
+            “title”: “보정 제목”,
+            “summary”: “보정 요약은 충분한 길이를 갖고 있어요.”,
+            “body”: “보정 본문은 쉼표가 빠졌더라도 후처리로 복구되어 UI에 반영되어야 해요.”
+        },
+    ],
+    “face_summary”: “보정된 요약이에요.”
+}
+```""",
+        label="personal_face_analysis",
+    )
+
+    captured = capsys.readouterr()
+    assert error == ""
+    assert "[LLM JSON REPAIR:personal_face_analysis] applied repairs:" in captured.out
+    assert "normalize_quotes" in captured.out
+    assert "insert_missing_commas" in captured.out
+    assert "remove_trailing_commas" in captured.out
+    assert payload["face_subtitle"] == "보정된 관상 소제목"
+    assert payload["face_blocks"][0]["title"] == "보정 제목"
+
+
+def test_personal_workflow_uses_repaired_saju_json_output(tmp_path: Path) -> None:
     capture_config = _capture_config(tmp_path)
     manse_db_path = _build_test_manse_db(tmp_path)
     workflow_input = PersonalWorkflowInput(
-        name="tester",
+        name="홍길동",
         birth_date="1995-03-15",
         birth_time="",
-        gender="male",
-        target_gender="female",
+        gender="남성",
+        target_gender="여성",
         skip_face=True,
     )
-    report_client = RepairingShortBodyReportClient()
 
     result = run_personal_workflow(
         workflow_input=workflow_input,
@@ -793,21 +805,13 @@ def test_personal_workflow_rewrites_short_block_body_with_llm(
         manse_db_path=manse_db_path,
         recommendation_db_path=tmp_path / "faces.sqlite",
         face_client=FailingFaceClient(),
-        report_client=report_client,
+        report_client=MalformedJsonReportClient(),
         capture_runner=None,
     )
-    payload = json.loads(result.markdown)
-    body = payload["saju_blocks"][0]["body"]
 
-    assert len(report_client.prompts) == 2
-    assert report_client.image_paths == [None, None]
-    assert "[리포트 본문 재작성]" in report_client.prompts[1]
-    assert "summary는 body의 핵심을 1~2개의 짧은 문장" in report_client.prompts[1]
-    assert "body는 정확히 4개의 완성된 문장" in report_client.prompts[1]
-    assert body.count(".") == 4
-    assert "첫 문장입니다. 두 번째 문장입니다." in body
-    assert "이 내용은 종합 형국 흐름" not in body
-    assert body in result.report_html
+    assert "보정 제목" in result.report_html
+    assert "보정된 결과예요." in result.report_html
+    assert "보정 고지예요." in result.report_html
 
 
 def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(
