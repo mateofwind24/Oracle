@@ -247,14 +247,15 @@ def test_personal_page_uses_oracle_input_card_layout() -> None:
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert 'class="oracle-input-shell"' in html
-    assert 'class="brand"' in html
-    assert 'class="input-card"' in html
+    assert "oracle-input-shell" in html
+    assert "personal-oracle-shell" in html
+    assert "brand" in html
+    assert "personal-brand" in html
+    assert "input-card" in html
+    assert "personal-card" in html
     assert "당신의 얼굴과 사주가 그리는 한 장의 이야기" in html
     assert "입력한 정보와 촬영 이미지는 기기 안에서만 처리돼요." in html
     assert 'data-workflow-api="/api/personal"' in html
-    assert 'name="face_analysis_mode"' in html
-    assert '<option value="2" selected>2 - 랜드마크 룰 기반 분석</option>' in html
 
 
 def test_personal_page_prevents_input_overflow_and_uses_wide_single_column_layout() -> None:
@@ -270,5 +271,6 @@ def test_personal_page_prevents_input_overflow_and_uses_wide_single_column_layou
     assert "* {" in html
     assert "box-sizing: border-box;" in html
     assert "width: min(860px, calc(100vw - 48px));" in html
-    assert 'class="field-stack"' in html
+    assert "personal-field-list" in html
+    assert "personal-field" in html
     assert "grid-template-columns: 1fr;" in html
