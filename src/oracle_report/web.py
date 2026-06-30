@@ -136,17 +136,17 @@ def create_app() -> Flask:
                 <p>사진 한 장으로<br>관상을 분석해요</p>
               </div>
               <div class="feature">
-                <span class="feature-ic calendar">▦▣</span>
+                <span class="feature-ic calendar"><img src="/static/assets/calendar.png" width="35" height="35" alt="" aria-hidden="true"></span>
                 <strong>사주 분석</strong>
                 <p>생년월일시를 기반으로<br>사주를 분석해요</p>
               </div>
               <div class="feature">
-                <span class="feature-ic ai">AI</span>
+                <span class="feature-ic ai"><img src="/static/assets/ai.png" width="35" height="35" alt="" aria-hidden="true"></span>
                 <strong>100% 온디바이스</strong>
                 <p>모든 분석이 기기 내에서<br>이루어져 안전해요</p>
               </div>
               <div class="feature">
-                <span class="feature-ic lock">▤</span>
+                <span class="feature-ic lock"><img src="/static/assets/privacy.png" width="35" height="35" alt="" aria-hidden="true"></span>
                 <strong>프라이버시 보호</strong>
                 <p>당신의 데이터는 외부로<br>전송되지 않아요</p>
               </div>
