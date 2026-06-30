@@ -131,12 +131,12 @@ def create_app() -> Flask:
 
             <div class="feature-row">
               <div class="feature">
-                <span class="feature-ic camera">▣</span>
+                <span class="feature-ic camera"><img src="/static/assets/camera.png" width="35" height="35" alt="" aria-hidden="true"></span>
                 <strong>얼굴 분석</strong>
                 <p>사진 한 장으로<br>관상을 분석해요</p>
               </div>
               <div class="feature">
-                <span class="feature-ic calendar">▦</span>
+                <span class="feature-ic calendar">▦▣</span>
                 <strong>사주 분석</strong>
                 <p>생년월일시를 기반으로<br>사주를 분석해요</p>
               </div>
