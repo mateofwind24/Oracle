@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
+os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
+os.environ["OPENCV_VIDEOIO_DEBUG"] = "0"
+
+from dataclasses import dataclass
 from pathlib import Path
 import threading
 import uuid

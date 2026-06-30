@@ -133,6 +133,10 @@ def _import_cv2() -> Any:
             "OpenCV is required for camera capture. Install python3-opencv on "
             "Raspberry Pi or pip install -e '.[camera]'.",
         ) from exc
+    try:
+        cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_SILENT)
+    except Exception:
+        pass
     result = cv2
     return result
 
