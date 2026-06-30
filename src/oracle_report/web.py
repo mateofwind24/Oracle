@@ -733,16 +733,6 @@ def _personal_form() -> str:
               <label>성별</label>
               <select name="gender" required>{gender_options}</select>
             </div>
-            <div class="field personal-field">
-              <span class="field-icon" aria-hidden="true">☆</span>
-              <label>추천받고 싶은<br>얼굴 성별</label>
-              <select name="target_gender">{target_gender_options}</select>
-            </div>
-            <div class="field personal-field">
-              <span class="field-icon" aria-hidden="true">✧</span>
-              <label>관상 분석 모드</label>
-              <select name="face_analysis_mode">{mode_options}</select>
-            </div>
           </div>
           <div class="actions">
             <button type="submit" class="btn btn-primary" onclick="this.form.skip_face.value='0';">
