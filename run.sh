@@ -203,8 +203,13 @@ Wrapper Options:
   -c, --ctx-size SIZE      Context size for llama.cpp (default: 8192)
   --parallel N             Number of llama.cpp slots
   -b, --batch-size SIZE    Batch size for llama.cpp
+  --distributed-role ROLE  Legacy distributed option, accepted and ignored
+  --distributed-split      Legacy distributed option, accepted and ignored
+  --distributed-warmup     Legacy distributed option, accepted and ignored
   --reasoning              Enable reasoning mode (think tags) for LLM
   --mock-capture           Enable mock capture with default landmark presets
+  --master-addr ADDR       Legacy distributed option, accepted and ignored
+  --slave-addrs ADDRS      Legacy distributed option, accepted and ignored
   --python-env ENV         Force Python env type (active-conda, active-venv, conda, uv, venv, auto)
   --llama-dir DIR          Path to llama.cpp repository
   --extra-llama-args ARGS  Additional raw command-line arguments for llama-server
@@ -251,6 +256,15 @@ parse_args() {
       -b|--batch-size)
         LLAMA_BATCH_SIZE="$2"
         shift 2
+        ;;
+      --distributed-role|--master-addr|--slave-addrs)
+        shift 2
+        ;;
+      --distributed-role=*|--master-addr=*|--slave-addrs=*)
+        shift 1
+        ;;
+      --distributed-split|--distributed-warmup)
+        shift 1
         ;;
       --reasoning)
         RUN_ORACLE_REASONING=1
