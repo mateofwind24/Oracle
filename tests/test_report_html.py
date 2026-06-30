@@ -287,7 +287,6 @@ def test_report_graphic_hanja_glyphs_use_black_text() -> None:
         '{"essence":"궁합 핵심"}',
     )
 
-    assert ".ilgan.c-mok,.ilgan.c-hwa,.ilgan.c-to,.ilgan.c-geum,.ilgan.c-su{color:#111}" in html
     assert '.person-mark .person-hanja{font-family:"Song Myung",serif;font-size:54px;line-height:1;color:#111}' in html
     assert '.person-day{font-family:"Song Myung",serif;font-size:48px;line-height:1;color:#111;' in html
     assert '.cell .ch{font-family:"Song Myung",serif;font-size:34px;line-height:1.1;color:#111}' in html

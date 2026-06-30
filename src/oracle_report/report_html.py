@@ -863,7 +863,12 @@ def _render_report_body(view: _PersonalReportView) -> str:
 <div class="wrap">
   <header class="fade">
     <div class="eyebrow">{eyebrow_text}</div>
-    <div class="ilgan {escape(view.day_master_class)}">{escape(view.day_master_hanja)}<span class="ko">{escape(view.day_master_label)}</span></div>
+    <div class="ilgan-wrap">
+      <span class="person-mark {escape(view.day_master_class)}">
+        <span class="person-hanja">{escape(view.day_master_hanja)}</span>
+        <span class="person-ko">{escape(view.day_master_label)}</span>
+      </span>
+    </div>
     <div class="name">{escape(view.name)} 님</div>
     <div class="meta">{escape(view.meta)}</div>
     <p class="essence serif">{escape(view.essence)}</p>
@@ -1173,9 +1178,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:"Gowun Dodum"
 .serif{font-family:"Gowun Batang",serif}
 header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)}
 .eyebrow{font-size:12px;letter-spacing:.42em;color:var(--gold);text-transform:uppercase;margin-bottom:26px}
-.ilgan{font-family:"Song Myung",serif;font-size:120px;line-height:1;position:relative;display:inline-block}
-.ilgan.c-mok,.ilgan.c-hwa,.ilgan.c-to,.ilgan.c-geum,.ilgan.c-su{color:#111}
-.ilgan .ko{font-family:"Gowun Batang",serif;font-size:20px;color:var(--ink-soft);position:absolute;bottom:14px;right:-8px;transform:translateX(100%)}
+.ilgan-wrap{margin:18px 0;display:flex;justify-content:center}
 .pair-mark{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0 18px}.pair-x{font-family:"Gowun Batang",serif;font-size:34px;color:var(--gold)}
 .person-mark{display:flex;flex-direction:column;align-items:center;justify-content:center;width:116px;height:116px;border-radius:50%;color:var(--ink);background:var(--paper-2);border:2px solid currentColor}.person-mark .person-hanja{font-family:"Song Myung",serif;font-size:54px;line-height:1;color:#111}.person-mark .person-ko{font-family:"Gowun Batang",serif;font-size:12px;margin-top:6px;color:var(--ink-soft)}
 .name{font-family:"Gowun Batang",serif;font-size:30px;font-weight:700;margin-top:18px}
@@ -1213,6 +1216,6 @@ header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)
 .card .nm{font-family:"Gowun Batang",serif;font-size:16px;font-weight:700}.score{font-family:"Song Myung",serif;font-size:30px;color:var(--su);line-height:1.1;margin:4px 0 2px}.score span{font-size:14px;color:var(--ink-soft)}.reason{font-size:12.5px;color:var(--ink);line-height:1.6;margin-top:8px}.mtag{display:inline-block;margin-top:12px;padding:3px 10px;background:rgba(46,66,88,.08);color:var(--su);border-radius:20px;font-size:11px}.reco-note{text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:18px}
 footer{text-align:center;padding:44px 0 60px;border-top:1px solid var(--line);margin-top:50px}footer .logo{font-family:"Song Myung",serif;font-size:22px;letter-spacing:.2em;color:var(--ink)}footer .disc{font-size:11.5px;color:var(--ink-soft);margin-top:12px;max-width:46ch;margin-left:auto;margin-right:auto;line-height:1.7}
 .fade{opacity:0;transform:translateY(16px);animation:rise .8s ease forwards}@keyframes rise{to{opacity:1;transform:none}}@media (prefers-reduced-motion:reduce){.fade{animation:none;opacity:1;transform:none}.col{transition:none}}
-@media (max-width:560px){.ilgan{font-size:88px}.name{font-size:24px}.cell .ch{font-size:26px}.part-title{font-size:20px}.cards,.pair-profiles{grid-template-columns:1fr;gap:12px}.pair-mark{gap:10px}.person-mark{width:92px;height:92px}.person-mark .person-hanja{font-size:42px}.pair-x{font-size:26px}.cv{grid-template-columns:1fr;text-align:center;gap:2px}.cv .g{text-align:center}.part-head{display:block}.part-sub{margin-left:0;margin-top:6px}.grid4{gap:6px}.wrap{padding:0 16px}}
+@media (max-width:560px){.name{font-size:24px}.cell .ch{font-size:26px}.part-title{font-size:20px}.cards,.pair-profiles{grid-template-columns:1fr;gap:12px}.pair-mark{gap:10px}.person-mark{width:92px;height:92px}.person-mark .person-hanja{font-size:42px}.pair-x{font-size:26px}.cv{grid-template-columns:1fr;text-align:center;gap:2px}.cv .g{text-align:center}.part-head{display:block}.part-sub{margin-left:0;margin-top:6px}.grid4{gap:6px}.wrap{padding:0 16px}}
 """
     return result.strip()
