@@ -262,7 +262,7 @@ def create_app() -> Flask:
         result = _render_page(
             "개인 리포트 결과",
             body,
-            page_class="result-page",
+            page_class="result-page personal-result-page",
             show_heading=False,
         )
         return result
@@ -837,18 +837,31 @@ def _face_analysis_mode_options() -> str:
 
 def _personal_result_page(job_id: str, skip_face: bool) -> str:
     result = f"""
-    <div class="oracle-result-shell">
-      <div class="brand">
+    <div class="oracle-result-shell personal-result-shell">
+      <div class="input-topbar result-topbar" aria-label="페이지 이동">
+        <a class="back-link" href="/personal" aria-label="입력 화면으로 돌아가기">‹</a>
+        <span class="heart-mark" aria-hidden="true">♡</span>
+      </div>
+
+      <div class="brand personal-result-brand">
         <div class="logo">ORACLE</div>
         <div class="tag">개인 리포트 결과</div>
         <div class="ornament"></div>
       </div>
+
+      <div class="result-sky" aria-hidden="true">
+        <span class="result-cloud result-cloud-left"></span>
+        <span class="result-spark result-spark-left">✧</span>
+        <span class="result-spark result-spark-right">✧</span>
+        <img class="result-hero-ora" src="/static/assets/oracle-character.png" alt="">
+      </div>
+
       <div class="result-actions">
         <a class="result-action" href="/personal">입력 다시 하기</a>
         <a class="result-action" href="/">처음으로</a>
         <a id="download-report-link" class="result-action result-action-primary download-link" href="/api/jobs/{escape(job_id)}/download" hidden>리포트 다운로드</a>
       </div>
-      {_capture_preview_panel(job_id=job_id, skip_face=skip_face)}
+      {_capture_preview_panel(job_id=job_id, skip_face=skip_face, cute=True)}
     </div>
     """
     return result
@@ -877,6 +890,7 @@ def _capture_preview_panel(
     *,
     job_id: str = "",
     skip_face: bool = False,
+    cute: bool = False,
 ) -> str:
     job_attr = f' data-workflow-result-job="{escape(job_id)}"' if job_id != "" else ""
     skip_attr = ' data-skip-face="1"' if skip_face else ' data-skip-face="0"'
@@ -897,15 +911,49 @@ def _capture_preview_panel(
         if skip_face
         else "정면 얼굴을 카메라 중앙에 맞춰 주세요."
     )
-    result = f"""
-    <section id="workflow-loading" class="panel workflow-loading" role="status" aria-live="polite" aria-busy="true"{job_attr}{skip_attr}{loading_hidden}>
-      <span class="loading-spinner" aria-hidden="true"></span>
-      <div>
-        <strong id="workflow-loading-title">{loading_title}</strong>
-        <p id="workflow-loading-message" class="hint">{loading_message}</p>
+    loading_heart = (
+        '<span class="loading-heart" aria-hidden="true">♡</span>' if cute else ""
+    )
+    if cute:
+        preview_content = f"""
+      <h2><span class="capture-title-icon" aria-hidden="true">▣</span>실시간 촬영 상태</h2>
+      <div class="capture-stage">
+        <div class="capture-direction">
+          <span class="capture-heart" aria-hidden="true">♡</span>
+          <img src="/static/assets/oracle-solo-card.png" alt="" aria-hidden="true">
+          <strong>정면 얼굴을 <span>카메라 중앙</span>에 맞춰 주세요.</strong>
+          <span class="capture-heart" aria-hidden="true">♡</span>
+        </div>
+        <div class="capture-visual">
+          <img id="capture-preview-image" alt="실시간 촬영 상태">
+          <span class="camera-corner camera-corner-tl" aria-hidden="true"></span>
+          <span class="camera-corner camera-corner-tr" aria-hidden="true"></span>
+          <span class="camera-corner camera-corner-bl" aria-hidden="true"></span>
+          <span class="camera-corner camera-corner-br" aria-hidden="true"></span>
+          <span class="face-guide" aria-hidden="true"></span>
+          <div class="capture-side-note capture-side-note-left" aria-hidden="true">
+            <p>카메라를<br>눈높이에 맞추고<br>정면을 바라봐 주세요!</p>
+            <span>✧</span>
+            <img src="/static/assets/oracle-pair-card.png" alt="">
+          </div>
+          <div class="capture-side-note capture-side-note-right" aria-hidden="true">
+            <p>밝은 곳에서<br>촬영하면 더<br>정확해요!</p>
+            <span>✧</span>
+            <img src="/static/assets/oracle-solo-card.png" alt="">
+          </div>
+          <div class="capture-privacy-veil" hidden>
+            <div class="veil-card">
+              <span class="veil-mark" aria-hidden="true">✦</span>
+              <strong>얼굴 인식 완료</strong>
+              <p>이제 리포트를 예쁘게 빚는 중이에요.</p>
+            </div>
+          </div>
+        </div>
+        <p id="workflow-status" class="hint capture-tip"><span aria-hidden="true">✧</span>{status_text}<span aria-hidden="true">☆</span></p>
       </div>
-    </section>
-    <section class="panel capture-preview"{preview_hidden}>
+        """
+    else:
+        preview_content = f"""
       <h2>실시간 촬영 상태</h2>
       <img id="capture-preview-image" alt="실시간 촬영 상태">
       <div class="capture-privacy-veil" hidden>
@@ -916,6 +964,19 @@ def _capture_preview_panel(
         </div>
       </div>
       <p id="workflow-status" class="hint">{status_text}</p>
+        """
+    cute_class = " capture-preview-cute" if cute else ""
+    result = f"""
+    <section id="workflow-loading" class="panel workflow-loading" role="status" aria-live="polite" aria-busy="true"{job_attr}{skip_attr}{loading_hidden}>
+      <span class="loading-spinner" aria-hidden="true"></span>
+      <div>
+        <strong id="workflow-loading-title">{loading_title}</strong>
+        <p id="workflow-loading-message" class="hint">{loading_message}</p>
+      </div>
+      {loading_heart}
+    </section>
+    <section class="panel capture-preview{cute_class}"{preview_hidden}>
+      {preview_content}
     </section>
     <section id="workflow-result"></section>
     """
@@ -2142,11 +2203,107 @@ def _render_page(
             position: relative;
           }}
           .oracle-result-shell {{
+            position: relative;
             width: 100%;
           }}
           main.result-page {{
             width: min(960px, calc(100vw - 40px));
             padding: 24px 0 60px;
+          }}
+          main.personal-result-page {{
+            width: min(1120px, calc(100vw - 56px));
+            padding: 24px 0 112px;
+          }}
+          .personal-result-shell {{
+            min-height: 820px;
+          }}
+          .result-topbar {{
+            top: 7px;
+          }}
+          .personal-result-brand {{
+            margin-bottom: 18px;
+          }}
+          .personal-result-brand .logo {{
+            font-size: 39px;
+            line-height: 1;
+          }}
+          .personal-result-brand .tag {{
+            margin-top: 14px;
+            color: #c8844a;
+            font-family: "Gowun Batang", serif;
+            font-size: 15px;
+            text-transform: none;
+          }}
+          .personal-result-brand .ornament {{
+            margin-top: 12px;
+          }}
+          .personal-result-brand .ornament::before {{
+            background: #fff8ef;
+          }}
+          .result-sky {{
+            position: absolute;
+            top: 50px;
+            left: 0;
+            right: 0;
+            height: 150px;
+            pointer-events: none;
+          }}
+          .result-cloud {{
+            position: absolute;
+            width: 72px;
+            height: 31px;
+            border: 2px solid #ffd7ce;
+            border-top: 0;
+            border-radius: 0 0 24px 24px;
+            opacity: 0.86;
+          }}
+          .result-cloud::before,
+          .result-cloud::after {{
+            content: "";
+            position: absolute;
+            bottom: 11px;
+            border: 2px solid #ffd7ce;
+            border-bottom: 0;
+            background: #fff8ef;
+          }}
+          .result-cloud::before {{
+            left: 12px;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px 999px 0 0;
+          }}
+          .result-cloud::after {{
+            right: 8px;
+            width: 37px;
+            height: 37px;
+            border-radius: 999px 999px 0 0;
+          }}
+          .result-cloud-left {{
+            left: 126px;
+            top: 26px;
+          }}
+          .result-spark {{
+            position: absolute;
+            color: #ffc36d;
+            font-family: "Gowun Dodum", sans-serif;
+            font-size: 30px;
+          }}
+          .result-spark-left {{
+            left: 96px;
+            top: 84px;
+          }}
+          .result-spark-right {{
+            right: 218px;
+            top: 58px;
+          }}
+          .result-hero-ora {{
+            position: absolute;
+            top: 18px;
+            right: 78px;
+            width: 170px;
+            height: 130px;
+            object-fit: contain;
+            object-position: center top;
           }}
           .result-actions {{
             display: flex;
@@ -2154,6 +2311,12 @@ def _render_page(
             gap: 10px;
             margin: 2px 0 22px;
             flex-wrap: wrap;
+          }}
+          .personal-result-shell .result-actions {{
+            position: relative;
+            z-index: 2;
+            gap: 14px;
+            margin: 8px 0 26px;
           }}
           .result-action {{
             min-height: 46px;
@@ -2186,6 +2349,21 @@ def _render_page(
             background: var(--mok-deep);
             border-color: var(--mok-deep);
           }}
+          .personal-result-shell .result-action {{
+            min-width: 134px;
+            min-height: 48px;
+            padding: 11px 22px;
+            border-color: #ffd8ce;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.82);
+            box-shadow: 0 10px 26px -20px rgba(74, 47, 38, 0.42);
+          }}
+          .personal-result-shell .result-action-primary {{
+            min-width: 174px;
+            border-color: #42b883;
+            background: linear-gradient(135deg, #42b883, #3bbb86);
+            color: #ffffff;
+          }}
           .workflow-loading {{
             display: flex;
             align-items: center;
@@ -2193,6 +2371,19 @@ def _render_page(
             margin-top: 16px;
             border-color: #b7c7aa;
             background: #fbfdf8;
+          }}
+          .personal-result-shell .workflow-loading {{
+            position: relative;
+            z-index: 2;
+            min-height: 88px;
+            margin: 0 auto 22px;
+            padding: 20px 66px 20px 24px;
+            border: 1px solid #bdd8c3;
+            border-radius: 10px;
+            background:
+              radial-gradient(circle at 4% 50%, rgba(66, 184, 131, 0.14), transparent 18%),
+              rgba(255, 255, 255, 0.8);
+            box-shadow: 0 16px 34px -30px rgba(74, 47, 38, 0.38);
           }}
           .workflow-loading[hidden] {{
             display: none;
@@ -2204,6 +2395,15 @@ def _render_page(
           .workflow-loading p {{
             margin: 0;
           }}
+          .personal-result-shell .workflow-loading strong {{
+            color: #3f211b;
+            font-family: "Gowun Batang", serif;
+            font-size: 18px;
+          }}
+          .personal-result-shell .workflow-loading p {{
+            color: #8b6f64;
+            font-size: 14px;
+          }}
           .loading-spinner {{
             width: 24px;
             height: 24px;
@@ -2213,12 +2413,42 @@ def _render_page(
             border-radius: 999px;
             animation: oracle-spin 0.8s linear infinite;
           }}
+          .personal-result-shell .loading-spinner {{
+            position: relative;
+            width: 34px;
+            height: 34px;
+            flex-basis: 34px;
+            border: 0;
+            animation: oracle-spin 1.8s linear infinite;
+          }}
+          .personal-result-shell .loading-spinner::before {{
+            content: "☘";
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #42b883;
+            font-size: 30px;
+          }}
+          .loading-heart {{
+            display: none;
+          }}
+          .personal-result-shell .loading-heart {{
+            position: absolute;
+            right: 28px;
+            top: 50%;
+            display: block;
+            color: #ff8fab;
+            font-size: 32px;
+            transform: translateY(-50%);
+          }}
           @keyframes oracle-spin {{
             to {{
               transform: rotate(360deg);
             }}
           }}
-          .capture-preview img {{
+          #capture-preview-image {{
             display: block;
             width: 100%;
             max-height: 70vh;
@@ -2226,8 +2456,237 @@ def _render_page(
             border-radius: 6px;
             background: #111111;
           }}
-          .capture-preview.capture-complete img {{
+          .capture-preview.capture-complete #capture-preview-image {{
             filter: blur(12px) saturate(0.75);
+          }}
+          .personal-result-shell .capture-preview {{
+            position: relative;
+            z-index: 2;
+            overflow: visible;
+            padding: 24px 24px 22px;
+            border: 1px solid #ffd8ce;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.86);
+            box-shadow: 0 18px 44px -34px rgba(74, 47, 38, 0.42);
+          }}
+          .personal-result-shell .capture-preview h2 {{
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 0 0 22px;
+            color: #3f211b;
+            font-family: "Gowun Batang", serif;
+            font-size: 26px;
+          }}
+          .personal-result-shell .capture-title-icon {{
+            width: 38px;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ffd8ce;
+            border-radius: 999px;
+            background: #fff9f5;
+            color: #ff7c91;
+            font-family: "Gowun Dodum", sans-serif;
+            font-size: 20px;
+          }}
+          .personal-result-shell .capture-stage {{
+            position: relative;
+            overflow: visible;
+            border: 1px solid #ffcfd8;
+            border-radius: 8px;
+            background: #fff9f9;
+          }}
+          .personal-result-shell .capture-direction {{
+            min-height: 86px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            padding: 16px 24px;
+            border-bottom: 1px solid #ffd8ce;
+            background: linear-gradient(90deg, #fff8fb, #fff1f5, #fff8fb);
+            text-align: center;
+          }}
+          .personal-result-shell .capture-direction img {{
+            width: 74px;
+            height: 58px;
+            object-fit: contain;
+          }}
+          .personal-result-shell .capture-direction strong {{
+            color: #4a2f26;
+            font-family: "Gowun Batang", serif;
+            font-size: 27px;
+            line-height: 1.25;
+          }}
+          .personal-result-shell .capture-direction strong span {{
+            color: #ff6f82;
+          }}
+          .personal-result-shell .capture-heart {{
+            color: #ff9caf;
+            font-size: 36px;
+          }}
+          .personal-result-shell .capture-visual {{
+            position: relative;
+            min-height: 410px;
+            overflow: visible;
+            background: #111111;
+          }}
+          .personal-result-shell #capture-preview-image {{
+            height: 410px;
+            max-height: none;
+            object-fit: cover;
+            border-radius: 0;
+          }}
+          .personal-result-shell .camera-corner {{
+            position: absolute;
+            z-index: 3;
+            width: 42px;
+            height: 42px;
+            color: rgba(255, 255, 255, 0.9);
+            border-color: rgba(255, 255, 255, 0.9);
+          }}
+          .personal-result-shell .camera-corner-tl {{
+            left: 26px;
+            top: 26px;
+            border-left: 3px solid;
+            border-top: 3px solid;
+            border-radius: 14px 0 0 0;
+          }}
+          .personal-result-shell .camera-corner-tr {{
+            right: 26px;
+            top: 26px;
+            border-right: 3px solid;
+            border-top: 3px solid;
+            border-radius: 0 14px 0 0;
+          }}
+          .personal-result-shell .camera-corner-bl {{
+            left: 26px;
+            bottom: 26px;
+            border-left: 3px solid;
+            border-bottom: 3px solid;
+            border-radius: 0 0 0 14px;
+          }}
+          .personal-result-shell .camera-corner-br {{
+            right: 26px;
+            bottom: 26px;
+            border-right: 3px solid;
+            border-bottom: 3px solid;
+            border-radius: 0 0 14px 0;
+          }}
+          .personal-result-shell .face-guide {{
+            position: absolute;
+            z-index: 4;
+            left: 50%;
+            top: 50%;
+            width: 270px;
+            height: 270px;
+            border: 3px dashed #ffb0c0;
+            border-radius: 10px;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.54);
+            transform: translate(-50%, -44%);
+          }}
+          .personal-result-shell .face-guide::before,
+          .personal-result-shell .face-guide::after {{
+            content: "";
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border: 7px solid #ff9caf;
+          }}
+          .personal-result-shell .face-guide::before {{
+            left: -10px;
+            top: -10px;
+            border-right: 0;
+            border-bottom: 0;
+            border-radius: 10px 0 0 0;
+          }}
+          .personal-result-shell .face-guide::after {{
+            right: -10px;
+            bottom: -10px;
+            border-left: 0;
+            border-top: 0;
+            border-radius: 0 0 10px 0;
+          }}
+          .personal-result-shell .capture-side-note {{
+            position: absolute;
+            z-index: 5;
+            width: 174px;
+            color: #5b3b34;
+            text-align: center;
+            pointer-events: none;
+          }}
+          .personal-result-shell .capture-side-note p {{
+            position: relative;
+            margin: 0;
+            padding: 22px 20px;
+            border: 1px solid #ffcfc4;
+            border-radius: 44% 48% 42% 46%;
+            background: #fff2ed;
+            font-family: "Gowun Batang", serif;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.55;
+          }}
+          .personal-result-shell .capture-side-note p::after {{
+            content: "";
+            position: absolute;
+            bottom: -12px;
+            width: 22px;
+            height: 22px;
+            border-right: 1px solid #ffcfc4;
+            border-bottom: 1px solid #ffcfc4;
+            background: #fff2ed;
+            transform: rotate(45deg);
+          }}
+          .personal-result-shell .capture-side-note span {{
+            position: absolute;
+            right: 18px;
+            top: 20px;
+            color: #ffc36d;
+            font-size: 22px;
+          }}
+          .personal-result-shell .capture-side-note img {{
+            display: block;
+            width: 110px;
+            height: 112px;
+            margin: 8px auto 0;
+            object-fit: contain;
+          }}
+          .personal-result-shell .capture-side-note-left {{
+            left: -186px;
+            bottom: 26px;
+          }}
+          .personal-result-shell .capture-side-note-left p::after {{
+            right: 42px;
+          }}
+          .personal-result-shell .capture-side-note-right {{
+            right: -182px;
+            bottom: 18px;
+          }}
+          .personal-result-shell .capture-side-note-right p::after {{
+            left: 42px;
+          }}
+          .personal-result-shell .capture-tip {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 22px;
+            min-height: 54px;
+            margin: 18px 0 0;
+            border: 1px solid #ffd8ce;
+            border-radius: 8px;
+            background: linear-gradient(90deg, #fff5f7, #fffafa);
+            color: #d36472;
+            font-family: "Gowun Batang", serif;
+            font-size: 16px;
+            font-weight: 700;
+          }}
+          .personal-result-shell .capture-tip span {{
+            color: #ffc36d;
+            font-family: "Gowun Dodum", sans-serif;
+            font-size: 22px;
           }}
           .capture-privacy-veil {{
             position: absolute;
