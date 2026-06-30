@@ -696,7 +696,7 @@ def _personal_form() -> str:
           <div class="field-stack">
             <div class="field">
               <label>생년월일</label>
-              <input name="birth_date" type="date" required>
+              <input name="birth_date" type="date" min="1800-01-01" max="2300-12-31" required>
             </div>
             <div class="field">
               <label>태어난 시간<span class="hint">모르면 '모름'을 선택하세요</span></label>
@@ -743,14 +743,14 @@ def _compatibility_form() -> str:
         <fieldset>
           <legend>첫 번째 사람</legend>
           <label>이름<input name="left_name" required></label>
-          <label>생년월일<input name="left_birth_date" type="date" required></label>
+          <label>생년월일<input name="left_birth_date" type="date" min="1800-01-01" max="2300-12-31" required></label>
           <label>태어난 시간<span class="hint">모르면 모름 선택</span><select name="left_birth_time">{birth_time_options}</select></label>
           <label>성별<select name="left_gender" required>{gender_options}</select></label>
         </fieldset>
         <fieldset>
           <legend>두 번째 사람</legend>
           <label>이름<input name="right_name" required></label>
-          <label>생년월일<input name="right_birth_date" type="date" required></label>
+          <label>생년월일<input name="right_birth_date" type="date" min="1800-01-01" max="2300-12-31" required></label>
           <label>태어난 시간<span class="hint">모르면 모름 선택</span><select name="right_birth_time">{birth_time_options}</select></label>
           <label>성별<select name="right_gender" required>{gender_options}</select></label>
         </fieldset>
@@ -1637,6 +1637,41 @@ def _render_page(
           {body}
         </main>
         <script>
+          document.querySelectorAll('input[type="date"]').forEach((input) => {{
+            input.addEventListener("input", (e) => {{
+              const val = e.target.value;
+              if (val) {{
+                const parts = val.split("-");
+                if (parts[0] && parts[0].length > 4) {{
+                  parts[0] = parts[0].substring(0, 4);
+                  e.target.value = parts.join("-");
+                }}
+              }}
+            }});
+
+            input.addEventListener("keyup", (e) => {{
+              const val = e.target.value;
+              if (val) {{
+                const parts = val.split("-");
+                if (parts[0] && parts[0].length === 4 && !e.target.dataset.focusedNext) {{
+                  e.target.dataset.focusedNext = "true";
+                  setTimeout(() => {{
+                    const tabEvent = new KeyboardEvent("keydown", {{
+                      key: "Tab",
+                      keyCode: 9,
+                      code: "Tab",
+                      bubbles: true,
+                      cancelable: true
+                    }});
+                    e.target.dispatchEvent(tabEvent);
+                  }}, 50);
+                }} else if (parts[0] && parts[0].length < 4) {{
+                  delete e.target.dataset.focusedNext;
+                }}
+              }}
+            }});
+          }});
+
           const forms = document.querySelectorAll(".workflow-form");
           forms.forEach((form) => {{
             form.addEventListener("submit", async (event) => {{
