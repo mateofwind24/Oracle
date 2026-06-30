@@ -319,10 +319,9 @@ def _build_personal_report_view(
         "element_note",
         f"가장 강한 오행은 {strongest}, 보완하면 좋은 오행은 {weakest}입니다.",
     )
-    synth_title_fallback = "관상과 사주를 함께 보면 더 선명해지는 흐름"
+    synth_title_fallback = "전체 흐름을 정리하면"
     synth_body_fallback = (
-        "사주 데이터와 얼굴 관찰 메모가 같은 방향을 가리키는 지점을 중심으로 "
-        "해석합니다."
+        "사주 데이터에 나타난 강점과 보완할 리듬을 중심으로 현재 흐름을 정리합니다."
     )
     synth_summary_fallback = (
         "결론은 단정이 아니라 참고입니다. 강점은 살리고 부족한 리듬은 생활에서 "
@@ -333,10 +332,9 @@ def _build_personal_report_view(
         "콘텐츠입니다. 운명을 단정하지 않으며 참고로만 즐겨 주세요."
     )
     if skip_face:
-        synth_title_fallback = "사주 흐름을 정리하면"
+        synth_title_fallback = "전체 흐름을 정리하면"
         synth_body_fallback = (
-            "사주/만세력 데이터에 나타난 일간, 사주팔자, 오행 분포를 중심으로 "
-            "해석합니다."
+            "사주/만세력 데이터에 나타난 오행 분포와 생활 리듬을 중심으로 해석합니다."
         )
         synth_summary_fallback = (
             "결론은 단정이 아니라 참고입니다. 강점은 살리고 부족한 리듬은 생활에서 "
@@ -1069,26 +1067,10 @@ def _render_block(block: _ReportBlock) -> str:
 
 
 def _render_synthesis(view: _PersonalReportView) -> str:
-    if view.skip_face:
-        result = f"""
+    result = f"""
   <section class="synth fade">
     <div class="b-title serif">{escape(view.synth_title)}</div>
     <div class="b-body">{_paragraphs(view.synth_body)}</div>
-    <div class="b-body synth-summary">{_paragraphs(view.synth_summary)}</div>
-  </section>
-"""
-    else:
-        convergence = "\n".join(
-            f"""      <div class="cv"><span class="g">{escape(item.face)}</span><span class="eq">＝</span><span class="s">{escape(item.saju)}</span></div>"""
-            for item in view.convergence
-        )
-        result = f"""
-  <section class="synth fade">
-    <div class="b-title serif">{escape(view.synth_title)}</div>
-    <div class="b-body">{_paragraphs(view.synth_body)}</div>
-    <div class="converge">
-{convergence}
-    </div>
     <div class="b-body synth-summary">{_paragraphs(view.synth_summary)}</div>
   </section>
 """

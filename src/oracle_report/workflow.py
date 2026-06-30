@@ -53,6 +53,18 @@ _SAJU_DAY_MASTER_HONORIFICS = (
     "임수님",
     "계수님",
 )
+_SAJU_DAY_MASTER_TERM_REPLACEMENTS = (
+    ("갑목", "나무 기운"),
+    ("을목", "나무 기운"),
+    ("병화", "불 기운"),
+    ("정화", "불 기운"),
+    ("무토", "흙 기운"),
+    ("기토", "흙 기운"),
+    ("경금", "금 기운"),
+    ("신금", "금 기운"),
+    ("임수", "물 기운"),
+    ("계수", "물 기운"),
+)
 _T = TypeVar("_T")
 
 
@@ -660,7 +672,7 @@ def _build_saju_analysis(
             "사주정보를 생성하지 못했습니다.",
             debug_label="saju_analysis",
         )
-    result = _replace_day_master_honorifics(result, profile.name, "saju_analysis")
+    result = _repair_saju_terms(result, profile.name, "saju_analysis")
     return result
 
 
@@ -714,6 +726,7 @@ def _build_compatibility_saju_analysis(
             "궁합 사주정보를 생성하지 못했습니다.",
             debug_label="saju_analysis_couple",
         )
+    result = _repair_saju_terms(result, "", "saju_analysis_couple")
     return result
 
 
@@ -874,7 +887,6 @@ def _merge_personal_payloads(
             value = face_payload.get(key)
             if value:
                 payload[key] = value
-        payload["convergence"] = _combined_convergence(face_payload, saju_payload)
         payload["recommendation_title"] = f"{weakest} 기운을 보완해 줄 얼굴"
         payload["recommendation_lead"] = _recommendation_lead(recommendations)
     payload["synthesis_title"] = _synthesis_title(skip_face)
@@ -978,9 +990,7 @@ def _recommendation_lead(recommendations: tuple[FaceRecommendation, ...]) -> str
 
 
 def _synthesis_title(skip_face: bool) -> str:
-    result = "사주와 얼굴 관찰이 만나는 지점"
-    if skip_face:
-        result = "사주 흐름을 정리하면"
+    result = "전체 흐름을 정리하면"
     return result
 
 
@@ -996,14 +1006,7 @@ def _synthesis_body(
         "essence",
         f"{strongest} 기운을 살리고 {weakest} 기운을 보완하는 흐름이 보여요.",
     )
-    face_line = _text_from_payload(
-        face_payload,
-        "face_summary",
-        "얼굴 관찰은 표현 방식과 대화 분위기를 보조적으로 보여줘요.",
-    )
     result = saju_line
-    if not skip_face:
-        result = f"{saju_line} {face_line}"
     return result
 
 
@@ -1092,24 +1095,36 @@ def _normalize_generated_output_text(text: str, label: str = "llm_json") -> str:
     return result
 
 
-def _replace_day_master_honorifics(
+def _repair_saju_terms(
     generated: _GeneratedText,
     name: str,
     label: str,
 ) -> _GeneratedText:
     cleaned_name = name.strip()
     result = generated
-    if generated.error != "" or cleaned_name == "":
+    if generated.error != "":
         return result
     payload, error = _load_json_payload_or_error(generated.text, label=label)
     if error:
         return result
-    fixed_payload = _replace_day_master_honorifics_in_value(
-        payload,
-        f"{cleaned_name}님",
-    )
+    fixed_payload = payload
+    if cleaned_name != "":
+        fixed_payload = _replace_day_master_honorifics_in_value(
+            fixed_payload,
+            f"{cleaned_name}님",
+        )
+        fixed_payload = _remove_personal_name_mentions_in_value(
+            fixed_payload,
+            cleaned_name,
+        )
+    fixed_payload = _replace_day_master_terms_in_value(fixed_payload)
+    if cleaned_name != "":
+        fixed_payload = _remove_personal_name_mentions_in_value(
+            fixed_payload,
+            cleaned_name,
+        )
     if fixed_payload != payload:
-        print(f"[LLM JSON REPAIR:{label}] replaced day-master honorifics with input name.")
+        print(f"[LLM JSON REPAIR:{label}] softened day-master terms.")
         result = _GeneratedText(
             text=json.dumps(_normalize_payload_text(fixed_payload), ensure_ascii=False),
             error="",
@@ -1133,6 +1148,57 @@ def _replace_day_master_honorifics_in_value(value: Any, replacement: str) -> Any
             key: _replace_day_master_honorifics_in_value(item, replacement)
             for key, item in value.items()
         }
+    return result
+
+
+def _replace_day_master_terms_in_value(value: Any) -> Any:
+    result = value
+    if isinstance(value, str):
+        result = _replace_day_master_terms_in_text(value)
+    elif isinstance(value, list):
+        result = [_replace_day_master_terms_in_value(item) for item in value]
+    elif isinstance(value, dict):
+        result = {
+            key: _replace_day_master_terms_in_value(item)
+            for key, item in value.items()
+        }
+    return result
+
+
+def _replace_day_master_terms_in_text(text: str) -> str:
+    result = text
+    for term, replacement in _SAJU_DAY_MASTER_TERM_REPLACEMENTS:
+        result = result.replace(f"{term}님", replacement)
+    for term, replacement in _SAJU_DAY_MASTER_TERM_REPLACEMENTS:
+        result = re.sub(rf"{term}\s*일간", replacement, result)
+    for term, replacement in _SAJU_DAY_MASTER_TERM_REPLACEMENTS:
+        result = result.replace(term, replacement)
+    result = result.replace(" 일간", " 중심 기운")
+    result = result.replace("일간", "중심 기운")
+    return result
+
+
+def _remove_personal_name_mentions_in_value(value: Any, name: str) -> Any:
+    result = value
+    if isinstance(value, str):
+        result = _remove_personal_name_mentions_in_text(value, name)
+    elif isinstance(value, list):
+        result = [_remove_personal_name_mentions_in_value(item, name) for item in value]
+    elif isinstance(value, dict):
+        result = {
+            key: _remove_personal_name_mentions_in_value(item, name)
+            for key, item in value.items()
+        }
+    return result
+
+
+def _remove_personal_name_mentions_in_text(text: str, name: str) -> str:
+    result = text
+    escaped_name = re.escape(name)
+    result = re.sub(rf"{escaped_name}\s*님(?:은|이|에게는|에게|의)?\s*", "", result)
+    result = re.sub(r"(?<![가-힣A-Za-z0-9])님(?:은|이|에게는|에게|의)?\s*", "", result)
+    result = re.sub(r"\s+([,.!?])", r"\1", result)
+    result = " ".join(result.split())
     return result
 
 
@@ -1977,4 +2043,3 @@ def _is_local_distributed_worker(worker_url: str, app_config) -> bool:
         if not result and port == app_config.port:
             result = host == ""
     return result
-

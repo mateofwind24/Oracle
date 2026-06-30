@@ -342,7 +342,7 @@ class DayMasterHonorificReportClient:
                     {
                         "category": "종합 형국",
                         "title": "임수님이 잡아야 할 중심",
-                        "summary": "임수님은 변화에 강한 흐름을 보여요.",
+                        "summary": "님은 변화에 강한 흐름을 보여요.",
                         "body": "임수님은 큰 흐름을 보는 힘이 있어요. 임수님은 변화를 잘 받아들일 수 있어요.",
                     },
                 ],
@@ -907,9 +907,14 @@ def test_personal_workflow_replaces_day_master_honorific_with_name(
 
     assert "임수님" not in result.markdown
     assert "임수님" not in result.report_html
-    assert "홍길동님은 넓은 시야" in result.markdown
-    assert "홍길동님의 균형" in result.report_html
-    assert '"임수"' in result.markdown
+    assert "홍길동님" not in result.markdown
+    assert "홍길동님" not in result.report_html
+    assert "넓은 시야" in result.markdown
+    assert "변화에 강한 흐름" in result.markdown
+    assert "균형" in result.report_html
+    assert "님은" not in result.markdown
+    assert '"임수"' not in result.markdown
+    assert '"물 기운"' in result.markdown
 
 
 def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(
@@ -1006,4 +1011,3 @@ def test_compatibility_saju_follows_main_when_distributed_split_enabled(
     assert "두 사람 궁합 핵심 문장" in result.report_html
     assert "궁합 행동 제목" in result.report_html
     assert "궁합 사주정보를 생성하지 못했습니다" not in result.report_html
-

@@ -65,7 +65,7 @@ def test_saju_reading_prompt_omits_face_and_recommendation_schema() -> None:
     assert "180~220자" not in prompt.prefix
     assert "줄바꿈 이스케이프" in prompt.prefix
     assert "줄바꿈은 \\n으로 표현" not in prompt.prefix
-    assert "입력받은 이름 필드에 '님'을 붙여 사용" in prompt.prefix
+    assert "출력 문장에는 입력 이름이나 '님은'" in prompt.prefix
     assert "상담가이자 스토리텔러" in prompt.prefix
     assert "실제 경험, 감정, 관계 장면과 연결" in prompt.prefix
     assert "성향 -> 사람들이 나를 어떻게 보는지 -> 강점 -> 주의할 점 -> 현재 시기의 흐름 -> 앞으로의 조언" in prompt.prefix
@@ -77,10 +77,10 @@ def test_saju_reading_prompt_omits_face_and_recommendation_schema() -> None:
     assert "같은 근거와 같은 표현을 여러 블록에서 반복하지 않습니다" in prompt.prefix
     assert "[블록별 근거 배분]" in prompt.prefix
     assert "일간 하나로 모든 블록을 설명하지 않습니다" in prompt.prefix
-    assert "'임수 일간', '갑목 일간'처럼 일간명을 직접 반복하지 않습니다" in prompt.prefix
+    assert "'임수 일간', '갑목 일간', '병화', '계수'처럼 천간/일간명을 직접 쓰지 않습니다" in prompt.prefix
 
 
-def test_saju_reading_prompt_uses_input_name_for_honorifics() -> None:
+def test_saju_reading_prompt_avoids_input_name_honorifics() -> None:
     profile = BirthProfile(name="홍길동", birth_datetime=datetime(1995, 3, 15, 14, 30))
 
     prompt = build_saju_reading_prompt(
@@ -90,8 +90,8 @@ def test_saju_reading_prompt_uses_input_name_for_honorifics() -> None:
 
     assert "- 이름: 홍길동" in prompt.body
     assert "임수님" not in prompt.body
-    assert "입력받은 이름 필드에 '님'을 붙여 사용" in prompt.prefix
-    assert "이름과 님 사이를 띄어쓰지 않습니다" in prompt.prefix
+    assert "출력 문장에는 입력 이름이나 '님은'" in prompt.prefix
+    assert "이름 없이 성향과 흐름을 바로 설명합니다" in prompt.prefix
     assert "일간이나 오행" in prompt.prefix
     assert "갑목님, 임수님, 계수님 같은 표현은 절대 쓰지 않습니다" in prompt.prefix
     assert "임수 일간은" not in prompt.prefix
@@ -129,7 +129,7 @@ def test_couple_saju_reading_prompt_uses_pair_saju_only() -> None:
     assert "줄바꿈은 \\n으로 표현" not in prompt.prefix
     assert "입력받은 left_name/right_name 필드에 '님'을 붙여 사용" in prompt.prefix
     assert "이름과 님 사이를 띄어쓰지 않습니다" in prompt.prefix
-    assert "'임수 일간', '갑목 일간'처럼 일간명을 직접 반복하지 않습니다" in prompt.prefix
+    assert "'임수 일간', '갑목 일간', '병화', '계수'처럼 천간/일간명을 직접 쓰지 않습니다" in prompt.prefix
     assert "상담가이자 스토리텔러" in prompt.prefix
     assert "실제 경험, 감정, 관계 장면과 연결" in prompt.prefix
     assert "각자의 성향 -> 서로가 상대를 어떻게 느끼는지 -> 관계의 강점 -> 주의할 점 -> 현재 관계 흐름 -> 앞으로의 조언" in prompt.prefix
