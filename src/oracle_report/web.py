@@ -894,8 +894,8 @@ def _render_page(
             padding: 24px 0;
           }}
           main.home-page {{
-            width: min(1120px, calc(100vw - 40px));
-            padding: 28px 0 132px;
+            width: min(1540px, calc(100vw - 48px));
+            padding: 28px 0 140px;
           }}
           h1 {{
             margin: 0 0 24px;
@@ -1025,11 +1025,11 @@ def _render_page(
             position: relative;
             z-index: 2;
             display: block;
-            width: min(800px, 102vw);
+            width: min(880px, 100vw);
             height: auto;
             object-fit: contain;
             object-position: center center;
-            margin: 18px auto -78px;
+            margin: 18px auto -94px;
             border: 0;
             border-radius: 0;
             mix-blend-mode: normal;
@@ -1037,24 +1037,24 @@ def _render_page(
           .cards {{
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 28px;
             width: 100%;
-            max-width: 1000px;
-            margin: -36px auto 22px;
+            max-width: 1320px;
+            margin: -26px auto 28px;
             position: relative;
             z-index: 4;
           }}
           .mode {{
             position: relative;
             display: flex;
-            min-height: 238px;
+            min-height: 300px;
             align-items: center;
             justify-content: space-between;
             gap: 14px;
             background: rgba(255, 255, 255, 0.82);
             border: 2px solid var(--line);
             border-radius: 8px;
-            padding: 32px 26px;
+            padding: 44px 42px;
             color: inherit;
             cursor: pointer;
             overflow: hidden;
@@ -1096,14 +1096,14 @@ def _render_page(
             z-index: 2;
           }}
           .mode .ic {{
-            width: 42px;
-            height: 42px;
+            width: 52px;
+            height: 52px;
             border-radius: 999px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             margin-bottom: 12px;
-            font-size: 31px;
+            font-size: 37px;
             line-height: 1;
           }}
           .mode.solo .ic {{
@@ -1114,7 +1114,7 @@ def _render_page(
           }}
           .mode h2 {{
             font-family: "Gowun Batang", serif;
-            font-size: 34px;
+            font-size: 44px;
             font-weight: 700;
             margin: 0 0 14px;
           }}
@@ -1125,10 +1125,10 @@ def _render_page(
             color: var(--hwa);
           }}
           .mode p {{
-            font-size: 17px;
+            font-size: 21px;
             color: var(--ink);
             line-height: 1.7;
-            min-height: 58px;
+            min-height: 70px;
             margin: 0;
           }}
           .mode .go {{
@@ -1137,12 +1137,12 @@ def _render_page(
             gap: 6px;
             justify-content: center;
             min-width: 160px;
-            min-height: 54px;
-            margin-top: 22px;
-            padding: 12px 22px;
+            min-height: 62px;
+            margin-top: 28px;
+            padding: 14px 30px;
             border-radius: 999px;
             font-family: "Gowun Batang", serif;
-            font-size: 18px;
+            font-size: 21px;
             font-weight: 700;
             color: #ffffff;
           }}
@@ -1161,25 +1161,25 @@ def _render_page(
           .mode .mode-art {{
             position: relative;
             z-index: 2;
-            width: 190px;
-            height: 204px;
+            width: 250px;
+            height: 270px;
             object-fit: contain;
             border-radius: 0;
             mix-blend-mode: normal;
             flex: 0 0 auto;
             align-self: flex-end;
-            margin: 0 -18px -18px 0;
+            margin: 0 -22px -28px 0;
           }}
           .mode .mode-art-pair {{
-            width: 184px;
-            height: 208px;
-            margin-right: -14px;
+            width: 238px;
+            height: 274px;
+            margin-right: -18px;
           }}
           .feature-row {{
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 0;
-            max-width: 1000px;
+            max-width: 1320px;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.78);
             border: 1px solid var(--line);
@@ -1188,8 +1188,8 @@ def _render_page(
             overflow: hidden;
           }}
           .feature {{
-            min-height: 170px;
-            padding: 28px 20px 24px;
+            min-height: 190px;
+            padding: 34px 28px 30px;
             text-align: center;
             border-right: 1px dashed #e8cfc6;
           }}
@@ -1200,9 +1200,9 @@ def _render_page(
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 64px;
-            height: 64px;
-            margin-bottom: 13px;
+            width: 76px;
+            height: 76px;
+            margin-bottom: 16px;
             border-radius: 999px;
             font-weight: 700;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
@@ -1226,13 +1226,13 @@ def _render_page(
           .feature strong {{
             display: block;
             font-family: "Gowun Batang", serif;
-            font-size: 20px;
+            font-size: 24px;
             color: var(--ink);
           }}
           .feature p {{
             margin: 9px 0 0;
             color: var(--ink);
-            font-size: 14px;
+            font-size: 17px;
             line-height: 1.6;
           }}
           .home-foot {{
@@ -1244,10 +1244,10 @@ def _render_page(
             display: flex;
             justify-content: space-around;
             align-items: center;
-            width: min(1000px, calc(100vw - 32px));
-            min-height: 78px;
+            width: min(1320px, calc(100vw - 48px));
+            min-height: 90px;
             margin: 0;
-            padding: 8px 0;
+            padding: 10px 0;
             border: 1px solid var(--line);
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.94);
@@ -1258,7 +1258,7 @@ def _render_page(
           }}
           .foot-item {{
             flex: 1;
-            min-height: 62px;
+            min-height: 70px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -1267,7 +1267,7 @@ def _render_page(
             border-right: 1px solid var(--line-soft);
             color: var(--ink-soft);
             font-family: "Gowun Batang", serif;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
             text-decoration: none;
             letter-spacing: 0;
@@ -1280,9 +1280,9 @@ def _render_page(
           }}
           .foot-icon {{
             display: block;
-            min-height: 24px;
+            min-height: 28px;
             font-family: "Gowun Dodum", sans-serif;
-            font-size: 24px;
+            font-size: 28px;
             line-height: 1;
           }}
           .oracle-input-shell {{
@@ -1650,7 +1650,7 @@ def _render_page(
           }}
           @media (max-width: 480px) {{
             main.home-page {{
-              width: min(100vw - 24px, 1120px);
+              width: min(100vw - 24px, 1540px);
               padding-top: 20px;
             }}
             .brand-lockup .logo {{
@@ -1685,8 +1685,8 @@ def _render_page(
               margin: 8px -11vw -52px;
             }}
             .mode {{
-              min-height: 210px;
-              padding: 24px 22px;
+              min-height: 230px;
+              padding: 26px 24px;
             }}
             .mode h2 {{
               font-size: 27px;
@@ -1701,17 +1701,17 @@ def _render_page(
               font-size: 16px;
             }}
             .mode .mode-art {{
-              width: 132px;
-              height: 150px;
+              width: 150px;
+              height: 170px;
               margin: 0 -12px -12px 0;
             }}
             .mode .mode-art-pair {{
-              width: 126px;
-              height: 152px;
+              width: 142px;
+              height: 172px;
             }}
             .home-foot {{
               width: calc(100vw - 24px);
-              min-height: 70px;
+              min-height: 74px;
               bottom: max(10px, env(safe-area-inset-bottom));
             }}
             .foot-item {{
