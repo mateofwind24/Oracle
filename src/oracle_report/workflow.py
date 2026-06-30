@@ -1490,6 +1490,25 @@ def _generate_distributed(
 
     scheduler = DistributedTaskScheduler(app_config.slave_addrs)
 
+    local_score = 5.0
+    if client is not None:
+        try:
+            local_score = client.get_compute_score()
+        except Exception:
+            pass
+    else:
+        try:
+            from oracle_report.llm import LlamaCppChatClient
+            temp_client = LlamaCppChatClient(report_llm_config)
+            local_score = temp_client.get_compute_score()
+        except Exception:
+            pass
+    scheduler.slave_metadata["local"] = {
+        "status": "idle",
+        "compute_score": local_score,
+        "tps": 1.0,
+    }
+
     results = []
     results_lock = threading.Lock()
     completed_tasks = set()  # Set of (is_metadata, target_category) that have succeeded
@@ -1522,7 +1541,7 @@ def _generate_distributed(
                 if is_my_local and not is_other_local:
                     if not is_task_done(assigned_task):
                         return copy.deepcopy(assigned_task)
-                elif not is_my_local and not is_other_local and worker_url != my_url:
+                elif not is_my_local and worker_url != my_url:
                     my_score = scheduler.slave_metadata.get(my_url, {}).get("compute_score", 5.0)
                     other_score = scheduler.slave_metadata.get(worker_url, {}).get("compute_score", 5.0)
                     if my_score > other_score:

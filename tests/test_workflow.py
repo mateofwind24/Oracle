@@ -998,3 +998,43 @@ def test_compatibility_saju_follows_main_when_distributed_split_enabled(
     assert "두 사람 궁합 핵심 문장" in result.report_html
     assert "궁합 행동 제목" in result.report_html
     assert "궁합 사주정보를 생성하지 못했습니다" not in result.report_html
+
+
+def test_speculative_work_stealing_from_local() -> None:
+    class MockScheduler:
+        def __init__(self):
+            self.slave_metadata = {
+                "local": {"compute_score": 5.0},
+                "http://slave:7000": {"compute_score": 15.0}
+            }
+
+    scheduler = MockScheduler()
+    active_assignments = {
+        "local": {"is_metadata": False, "target_category": "종합 형국"}
+    }
+    completed_tasks = set()
+
+    def is_task_done(task):
+        key = (task["is_metadata"], task["target_category"])
+        return key in completed_tasks
+
+    def find_unfinished_speculative_task(my_url, is_my_local):
+        import copy
+        for worker_url, assigned_task in active_assignments.items():
+            if assigned_task is None:
+                continue
+            is_other_local = (worker_url == "local")
+            if is_my_local and not is_other_local:
+                if not is_task_done(assigned_task):
+                    return copy.deepcopy(assigned_task)
+            elif not is_my_local and worker_url != my_url:
+                my_score = scheduler.slave_metadata.get(my_url, {}).get("compute_score", 5.0)
+                other_score = scheduler.slave_metadata.get(worker_url, {}).get("compute_score", 5.0)
+                if my_score > other_score:
+                    if not is_task_done(assigned_task):
+                        return copy.deepcopy(assigned_task)
+        return None
+
+    stolen_task = find_unfinished_speculative_task("http://slave:7000", is_my_local=False)
+    assert stolen_task is not None
+    assert stolen_task["target_category"] == "종합 형국"
