@@ -176,7 +176,6 @@ def create_app() -> Flask:
                     <p><strong>당신의 운명은 특별합니다.</strong><br>오라와 함께 더 나은 미래를 만들어가요!</p>
                   </div>
                 </div>
-                <img class="more-preview" src="/static/assets/oracle-more-difference.png" alt="ORACLE 서비스 차별점 화면 미리보기">
               </article>
 
               <article class="more-card">
@@ -195,7 +194,6 @@ def create_app() -> Flask:
                     <p><strong>모든 과정이 기기 내에서 안전하게!</strong><br>당신의 프라이버시를 최우선으로 생각해요.</p>
                   </div>
                 </div>
-                <img class="more-preview" src="/static/assets/oracle-more-process.png" alt="ORACLE 분석 진행 과정 화면 미리보기">
               </article>
 
               <article class="more-card">
@@ -213,7 +211,6 @@ def create_app() -> Flask:
                     <p><strong>오라는 언제나 여러분의 운명 친구예요!</strong><br>신뢰할 수 있는 AI 분석을 약속드려요.</p>
                   </div>
                 </div>
-                <img class="more-preview" src="/static/assets/oracle-more-help.png" alt="ORACLE 도움말 화면 미리보기">
               </article>
             </div>
           </section>
@@ -1363,22 +1360,12 @@ def _render_page(
             gap: 24px;
           }}
           .more-card {{
-            display: grid;
-            grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
-            gap: 26px;
-            align-items: stretch;
-            padding: 28px;
+            padding: 32px;
             border: 1px solid var(--line);
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.82);
             box-shadow: 0 18px 46px -30px rgba(74, 47, 38, 0.34);
             overflow: hidden;
-          }}
-          .more-card:nth-child(2) {{
-            grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.1fr);
-          }}
-          .more-card:nth-child(2) .more-preview {{
-            order: -1;
           }}
           .more-copy {{
             min-width: 0;
@@ -1404,6 +1391,7 @@ def _render_page(
           }}
           .more-copy ul, .more-copy ol {{
             display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 14px;
             list-style: none;
             margin: 0;
@@ -1451,6 +1439,7 @@ def _render_page(
           }}
           .faq-list {{
             display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 14px;
           }}
           .more-note {{
@@ -1478,18 +1467,6 @@ def _render_page(
             color: var(--hwa);
             font-family: "Gowun Batang", serif;
             font-size: 22px;
-          }}
-          .more-preview {{
-            width: 100%;
-            height: 100%;
-            min-height: 540px;
-            max-height: 720px;
-            object-fit: cover;
-            object-position: top center;
-            border: 1px solid var(--line-soft);
-            border-radius: 8px;
-            background: #fffaf4;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
           }}
           .home-foot {{
             position: fixed;
