@@ -174,6 +174,7 @@ class LlamaCppChatClient:
             timings = root.get("timings", {}) if isinstance(root.get("timings"), dict) else {}
             predicted_per_sec = timings.get("predicted_per_second")
             predicted_ms = timings.get("predicted_ms")
+            prompt_ms = timings.get("prompt_ms")
 
             if isinstance(predicted_per_sec, (int, float)) and predicted_per_sec > 0:
                 speed = predicted_per_sec
@@ -185,12 +186,16 @@ class LlamaCppChatClient:
                 speed = completion_tokens / elapsed
                 speed_str = f" ({speed:.2f} tokens/sec)"
 
+            eval_info = ""
+            if isinstance(prompt_ms, (int, float)) and prompt_ms > 0:
+                eval_info = f", prompt_eval={prompt_ms / 1000.0:.2f}s"
+
             print(
                 f"[LLM] Inference complete: prompt_tokens={prompt_tokens}, "
                 f"cached_tokens={cached_tokens}, "
                 f"completion_tokens={completion_tokens}, "
                 f"finish_reason={finish_reason or 'unknown'}, "
-                f"elapsed={elapsed:.2f}s{speed_str}"
+                f"elapsed={elapsed:.2f}s{speed_str}{eval_info}"
             )
             if finish_reason in _INCOMPLETE_FINISH_REASONS:
                 raise RuntimeError(
