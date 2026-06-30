@@ -1018,7 +1018,7 @@ def _compatibility_result_page(job_id: str) -> str:
         <a class="result-action" href="/">처음으로</a>
         <a id="download-report-link" class="result-action result-action-primary download-link" href="/api/jobs/{escape(job_id)}/download" hidden>리포트 다운로드</a>
       </div>
-      {_capture_preview_panel(job_id=job_id, skip_face=False, cute=True)}
+      {_capture_preview_panel(job_id=job_id, skip_face=False)}
     </div>
     """
     return result
