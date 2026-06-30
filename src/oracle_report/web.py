@@ -1637,6 +1637,41 @@ def _render_page(
           {body}
         </main>
         <script>
+          document.querySelectorAll('input[type="date"]').forEach((input) => {{
+            input.addEventListener("input", (e) => {{
+              const val = e.target.value;
+              if (val) {{
+                const parts = val.split("-");
+                if (parts[0] && parts[0].length > 4) {{
+                  parts[0] = parts[0].substring(0, 4);
+                  e.target.value = parts.join("-");
+                }}
+              }}
+            }});
+
+            input.addEventListener("keyup", (e) => {{
+              const val = e.target.value;
+              if (val) {{
+                const parts = val.split("-");
+                if (parts[0] && parts[0].length === 4 && !e.target.dataset.focusedNext) {{
+                  e.target.dataset.focusedNext = "true";
+                  setTimeout(() => {{
+                    const tabEvent = new KeyboardEvent("keydown", {{
+                      key: "Tab",
+                      keyCode: 9,
+                      code: "Tab",
+                      bubbles: true,
+                      cancelable: true
+                    }});
+                    e.target.dispatchEvent(tabEvent);
+                  }}, 50);
+                }} else if (parts[0] && parts[0].length < 4) {{
+                  delete e.target.dataset.focusedNext;
+                }}
+              }}
+            }});
+          }});
+
           const forms = document.querySelectorAll(".workflow-form");
           forms.forEach((form) => {{
             form.addEventListener("submit", async (event) => {{
