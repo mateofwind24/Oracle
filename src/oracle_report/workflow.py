@@ -103,7 +103,6 @@ class PersonalWorkflowResult:
     report_fragment_html: str
     output_path: Path
     capture_path: Path | None
-    recommendations: tuple[FaceRecommendation, ...]
     face_analysis: str
     manse_status: str
     timing_log_path: Path | None = None
@@ -192,15 +191,12 @@ def run_personal_workflow(
     capture_config: CaptureConfig,
     report_llm_config: LlmConfig | None = None,
     manse_db_path: Path | None = None,
-    recommendation_db_path: Path | None = None,
     report_client: TextGenerator | None = None,
     capture_runner=run_capture,
 ) -> PersonalWorkflowResult:
     del manse_db_path
     if report_llm_config is None:
         raise ValueError("report_llm_config is required.")
-    if recommendation_db_path is None:
-        recommendation_db_path = Path("data/face_recommendations.sqlite")
     profile = _build_birth_profile(
         workflow_input.name,
         workflow_input.birth_date,
@@ -262,22 +258,12 @@ def run_personal_workflow(
         manse_lookup,
     )
     saju_analysis_text = saju_analysis.text
-    recommendations: tuple[FaceRecommendation, ...] = ()
-    if not workflow_input.skip_face:
-        recommendations = timing_recorder.run(
-            "recommend_faces",
-            recommend_faces,
-            recommendation_db_path,
-            workflow_input.target_gender,
-            manse_lookup.reading,
-        )
     markdown = timing_recorder.run(
         "assemble_report",
         _build_personal_report_json,
         manse_lookup,
         face_analysis_text,
         saju_analysis_text,
-        recommendations,
         workflow_input.skip_face,
     )
     report_html = timing_recorder.run(
@@ -286,7 +272,6 @@ def run_personal_workflow(
         profile,
         manse_lookup,
         face_analysis_text,
-        recommendations,
         markdown,
         True,
         workflow_input.skip_face,
@@ -297,7 +282,6 @@ def run_personal_workflow(
         profile,
         manse_lookup,
         face_analysis_text,
-        recommendations,
         markdown,
         False,
         workflow_input.skip_face,
@@ -318,7 +302,6 @@ def run_personal_workflow(
         report_fragment_html=report_fragment_html,
         output_path=output_path,
         capture_path=capture_artifact.image_path if capture_artifact is not None else None,
-        recommendations=recommendations,
         face_analysis=face_analysis_text,
         manse_status="조회 완료",
         timing_log_path=timing_log_path,
@@ -735,7 +718,6 @@ def _build_personal_report_json(
     manse_lookup: ManseLookupResult,
     face_analysis: str,
     saju_analysis: str,
-    recommendations: tuple[FaceRecommendation, ...],
     skip_face: bool = False,
 ) -> str:
     face_payload, face_error = ({}, "")
@@ -762,7 +744,6 @@ def _build_personal_report_json(
         manse_lookup,
         face_payload,
         saju_payload,
-        recommendations,
         skip_face,
     )
     payload = _normalize_payload_text(payload)
@@ -834,7 +815,6 @@ def _merge_personal_payloads(
     manse_lookup: ManseLookupResult,
     face_payload: dict[str, Any],
     saju_payload: dict[str, Any],
-    recommendations: tuple[FaceRecommendation, ...],
     skip_face: bool,
 ) -> dict[str, Any]:
     reading = manse_lookup.reading
@@ -857,8 +837,7 @@ def _merge_personal_payloads(
             value = face_payload.get(key)
             if value:
                 payload[key] = value
-        payload["recommendation_title"] = f"{weakest} 기운을 보완해 줄 얼굴"
-        payload["recommendation_lead"] = _recommendation_lead(recommendations)
+        payload["convergence"] = _combined_convergence(face_payload, saju_payload)
     payload["synthesis_title"] = _synthesis_title(skip_face)
     payload["synthesis_body"] = _synthesis_body(
         face_payload,
@@ -948,15 +927,6 @@ def _normalize_inline_text(text: str) -> str:
     result = " ".join(normalized_text.split())
     return result
 
-
-def _recommendation_lead(recommendations: tuple[FaceRecommendation, ...]) -> str:
-    result = (
-        "사주에서 보완이 필요한 리듬을 기준으로, 얼굴 추천 후보를 참고용으로 "
-        "정리했어요."
-    )
-    if recommendations:
-        result = recommendations[0].reason
-    return result
 
 
 def _synthesis_title(skip_face: bool) -> str:

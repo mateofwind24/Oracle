@@ -564,7 +564,6 @@ def _start_personal_workflow_job(workflow_input: PersonalWorkflowInput) -> str:
             capture_config=load_capture_config(),
             report_llm_config=load_report_llm_config(),
             manse_db_path=_manse_db_path(),
-            recommendation_db_path=_face_db_path(),
             capture_runner=capture_runner,
         )
         result = _WorkflowJob(
@@ -3494,7 +3493,7 @@ def _render_page(
             const preview = document.querySelector(".capture-preview");
             let done = false;
             while (!done) {{
-              await new Promise((resolve) => setTimeout(resolve, 5000));
+              await new Promise((resolve) => setTimeout(resolve, 30000));
               const response = await fetch("/api/jobs/" + encodeURIComponent(jobId));
               const payload = await response.json();
               if (payload.phase === "generating") {{

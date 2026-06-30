@@ -373,7 +373,6 @@ def test_personal_workflow_runs_without_real_camera_or_llm(
         capture_config=capture_config,
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
         report_client=FakeLlmClient(),
         capture_runner=_fake_single_capture,
     )
@@ -388,7 +387,6 @@ def test_personal_workflow_runs_without_real_camera_or_llm(
     assert "oracle-report" in result.report_fragment_html
     assert "face_blocks" in result.face_analysis
     assert "타고난 인상과 기본 상" in result.report_html
-    assert len(result.recommendations) > 0
 
 
 def test_personal_workflow_uses_rule_based_face_by_default(tmp_path: Path) -> None:
@@ -407,7 +405,6 @@ def test_personal_workflow_uses_rule_based_face_by_default(tmp_path: Path) -> No
         capture_config=capture_config,
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
         report_client=FakeLlmClient(),
         capture_runner=_fake_single_capture,
     )
@@ -436,7 +433,6 @@ def test_personal_workflow_rulebase_mode_skips_face_llm(
         capture_config=capture_config,
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
         report_client=FailsOnFacePromptClient(),
         capture_runner=run_capture,
     )
@@ -466,7 +462,6 @@ def test_personal_workflow_uses_rule_based_face_by_default(
         capture_config=capture_config,
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
         report_client=FailsOnFacePromptClient(),
         capture_runner=run_capture,
     )
@@ -769,7 +764,6 @@ def test_personal_workflow_skips_face(tmp_path: Path) -> None:
         capture_config=capture_config,
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
         report_client=FakeLlmClient(),
         capture_runner=None,
     )
@@ -777,8 +771,6 @@ def test_personal_workflow_skips_face(tmp_path: Path) -> None:
     assert result.output_path.exists()
     assert result.capture_path is None
     assert result.face_analysis == ""
-    assert result.recommendations == ()
-    assert "recommend_faces" not in result.timing_log_path.read_text(encoding="utf-8")
     assert "saju_analysis" in result.timing_log_path.read_text(encoding="utf-8")
     assert "사주 핵심 문장" in result.report_html
     assert "사주 제목 1" in result.report_html
@@ -807,7 +799,6 @@ def test_personal_workflow_normalizes_newline_markers_in_output_body(
         capture_config=capture_config,
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
         report_client=NewlineBodyReportClient(),
         capture_runner=None,
     )
@@ -871,7 +862,6 @@ def test_personal_workflow_uses_repaired_saju_json_output(tmp_path: Path) -> Non
         capture_config=capture_config,
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
         report_client=MalformedJsonReportClient(),
         capture_runner=None,
     )
@@ -900,7 +890,6 @@ def test_personal_workflow_replaces_day_master_honorific_with_name(
         capture_config=capture_config,
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
         report_client=DayMasterHonorificReportClient(),
         capture_runner=None,
     )
@@ -936,7 +925,6 @@ def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(
         capture_config=capture_config,
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
         report_client=PartialFinalReportClient(),
         capture_runner=None,
     )
@@ -967,7 +955,6 @@ def test_personal_saju_follows_main_when_distributed_split_enabled(
         capture_config=capture_config,
         report_llm_config=_llm_config(),
         manse_db_path=manse_db_path,
-        recommendation_db_path=tmp_path / "faces.sqlite",
         report_client=FakeLlmClient(),
         capture_runner=None,
     )

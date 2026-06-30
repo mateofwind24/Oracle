@@ -24,7 +24,6 @@ def test_report_html_fallback_face_blocks_explain_terms() -> None:
         profile,
         manse_lookup,
         "not-json-face-analysis",
-        (),
         "not-json",
     )
 
@@ -34,37 +33,6 @@ def test_report_html_fallback_face_blocks_explain_terms() -> None:
     assert "눈은 시선의 또렷함" in html
     assert "삼정은 얼굴을 위" in html
 
-
-def test_personal_saju_only_report_hides_face_recommendations() -> None:
-    profile = BirthProfile(
-        name="tester",
-        birth_datetime=datetime(1995, 3, 15, 12, 0),
-        gender="남성",
-    )
-    recommendation = FaceRecommendation(
-        display_name="추천 후보",
-        image_path=None,
-        target_gender="여성",
-        face_tags=("밝은 표정",),
-        saju_tags=("목",),
-        reason="보완 설명",
-        score=9,
-    )
-
-    html = render_personal_report_html(
-        profile,
-        ManseRepository().lookup(profile),
-        "",
-        (recommendation,),
-        '{"essence":"사주 핵심","saju_blocks":[]}',
-        skip_face=True,
-    )
-
-    assert "Oracle · 사주 리포트" in html
-    assert "FACE MATCH" not in html
-    assert "궁합 좋은 얼굴 추천" not in html
-    assert "추천 후보" not in html
-    assert "관상 — 얼굴이 말하는 것" not in html
 
 
 def test_compatibility_report_html_uses_structured_layout() -> None:
@@ -151,7 +119,6 @@ def test_report_profile_shows_unknown_birth_time_without_helper_basis() -> None:
         profile,
         ManseRepository().lookup(profile),
         "",
-        (),
         '{"essence":"사주 핵심"}',
         skip_face=True,
     )
@@ -185,7 +152,6 @@ def test_report_html_uses_auto_wrapping_for_block_bodies() -> None:
         profile,
         ManseRepository().lookup(profile),
         "",
-        (),
         generated_text,
         skip_face=True,
     )
@@ -219,7 +185,6 @@ def test_report_html_collapses_literal_newline_markers_for_auto_wrapping() -> No
         profile,
         ManseRepository().lookup(profile),
         "",
-        (),
         generated_text,
         skip_face=True,
     )
@@ -345,7 +310,6 @@ def test_report_block_text_uses_full_block_width() -> None:
         profile,
         ManseRepository().lookup(profile),
         "",
-        (),
         '{"essence":"사주 핵심"}',
         skip_face=True,
     )
@@ -383,7 +347,6 @@ def test_report_renderer_preserves_short_llm_block_body_without_synthetic_paddin
         profile,
         ManseRepository().lookup(profile),
         "",
-        (),
         generated_text,
         skip_face=True,
     )
@@ -404,7 +367,6 @@ def test_essence_uses_body_line_spacing_and_full_width() -> None:
         profile,
         ManseRepository().lookup(profile),
         "",
-        (),
         '{"essence":"사주 핵심"}',
         skip_face=True,
     )

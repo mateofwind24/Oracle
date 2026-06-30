@@ -159,9 +159,6 @@ class _PersonalReportView:
     convergence: tuple[_Convergence, ...]
     synth_summary: str
     tags: tuple[str, ...]
-    recommendation_title: str
-    recommendation_lead: str
-    recommendation_cards: tuple[_RecommendationCard, ...]
     disclaimer: str
     skip_face: bool = False
 
@@ -188,7 +185,6 @@ def render_personal_report_html(
     profile: BirthProfile,
     manse_lookup: ManseLookupResult,
     face_analysis: str,
-    recommendations: tuple[FaceRecommendation, ...],
     generated_text: str,
     full_document: bool = True,
     skip_face: bool = False,
@@ -197,7 +193,6 @@ def render_personal_report_html(
         profile,
         manse_lookup,
         face_analysis,
-        recommendations,
         generated_text,
         skip_face=skip_face,
     )
@@ -283,7 +278,6 @@ def _build_personal_report_view(
     profile: BirthProfile,
     manse_lookup: ManseLookupResult,
     face_analysis: str,
-    recommendations: tuple[FaceRecommendation, ...],
     generated_text: str,
     skip_face: bool = False,
 ) -> _PersonalReportView:
@@ -378,17 +372,6 @@ def _build_personal_report_view(
             synth_summary_fallback,
         ),
         tags=_payload_tags(payload, (f"{weakest} 보완", "균형", "휴식", "표현")),
-        recommendation_title=_payload_text(
-            payload,
-            "recommendation_title",
-            f"{weakest} 기운을 보완해 줄 얼굴",
-        ),
-        recommendation_lead=_payload_text(
-            payload,
-            "recommendation_lead",
-            "내 얼굴과 닮은 사람보다 사주와 인상에서 부족한 리듬을 채워 주는 후보를 먼저 보여줍니다.",
-        ),
-        recommendation_cards=_recommendation_cards(recommendations),
         disclaimer=_payload_text(
             payload,
             "disclaimer",
@@ -704,33 +687,6 @@ def _payload_tags(
     return result
 
 
-def _recommendation_cards(
-    recommendations: tuple[FaceRecommendation, ...],
-) -> tuple[_RecommendationCard, ...]:
-    cards: list[_RecommendationCard] = []
-    for item in recommendations[:3]:
-        tag = " · ".join(item.saju_tags[:2] or item.face_tags[:2])
-        cards.append(
-            _RecommendationCard(
-                name=item.display_name,
-                score=min(99, max(1, item.score * 10)),
-                reason=item.reason,
-                tag=tag or "균형 보완",
-            ),
-        )
-    while len(cards) < 3:
-        rank = len(cards) + 1
-        cards.append(
-            _RecommendationCard(
-                name=f"추천상대 {rank}",
-                score=max(70, 88 - (rank * 4)),
-                reason="추천 DB에 맞는 후보가 부족해 기본 안내 카드로 대체합니다.",
-                tag="추천 후보 대기",
-            ),
-        )
-    result = tuple(cards[:3])
-    return result
-
 
 def _pillar_views(
     manse_lookup: ManseLookupResult,
@@ -847,7 +803,6 @@ def _first_nonempty_line(text: str, fallback: str) -> str:
 def _render_report_body(view: _PersonalReportView) -> str:
     eyebrow_text = "Oracle · 사주 리포트" if view.skip_face else "Oracle · 관상 &amp; 사주 종합 리포트"
     gwansang_html = "" if view.skip_face else _render_part("gwansang", "相", "관상 — 얼굴이 말하는 것", view.face_subtitle, view.face_blocks)
-    recommendation_html = "" if view.skip_face else _render_recommendations(view)
     result = f"""
 <div class="oracle-report">
 <div class="wrap">
@@ -869,7 +824,6 @@ def _render_report_body(view: _PersonalReportView) -> str:
   {_render_part("saju", "命", "사주 — 타고난 기운의 설계도", view.saju_subtitle, view.saju_blocks)}
   {_render_synthesis(view)}
   {_render_tags(view.tags)}
-  {recommendation_html}
   <footer>
     <div class="logo">ORACLE</div>
     <p class="disc">{escape(view.disclaimer)}</p>
@@ -1072,38 +1026,6 @@ def _render_tags(tags: tuple[str, ...]) -> str:
 """
     return result
 
-
-def _render_recommendations(view: _PersonalReportView) -> str:
-    cards = "\n".join(
-        _render_recommendation_card(index, card)
-        for index, card in enumerate(view.recommendation_cards, start=1)
-    )
-    result = f"""
-  <section class="reco fade">
-    <div class="reco-head"><div class="b-cat">FACE MATCH · 궁합 좋은 얼굴 추천</div>
-      <div class="b-title serif">{escape(view.recommendation_title)}</div></div>
-    <p class="reco-lead">{escape(view.recommendation_lead)}</p>
-    <div class="cards">
-{cards}
-    </div>
-    <p class="reco-note">※ 내부 얼굴 DB에서 궁합 점수 상위 후보를 추렸어요. 얼굴 이미지는 데모용 placeholder예요.</p>
-  </section>
-"""
-    return result
-
-
-def _render_recommendation_card(index: int, card: _RecommendationCard) -> str:
-    result = f"""
-      <div class="card">
-        <div class="rank">No.{index}</div>
-        <div class="face"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5Z"/></svg></div>
-        <div class="nm">{escape(card.name)}</div>
-        <div class="score">{card.score}<span>점</span></div>
-        <div class="reason">{escape(card.reason)}</div>
-        <span class="mtag">{escape(card.tag)}</span>
-      </div>
-"""
-    return result
 
 
 def _paragraphs(text: str) -> str:
