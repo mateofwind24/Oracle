@@ -97,6 +97,48 @@ def test_compatibility_report_html_uses_structured_layout() -> None:
     assert "left 님과 right 님" in html
 
 
+def test_compatibility_report_html_hides_face_saju_comparison() -> None:
+    repository = ManseRepository()
+    left = BirthProfile(
+        name="left",
+        birth_datetime=datetime(1995, 3, 15, 12, 0),
+        gender="남성",
+    )
+    right = BirthProfile(
+        name="right",
+        birth_datetime=datetime(1997, 5, 20, 12, 0),
+        gender="여성",
+    )
+    generated_text = json.dumps(
+        {
+            "essence": "궁합 핵심",
+            "synthesis_title": "사주 총정리",
+            "synthesis_body": "사주 흐름만 정리한 본문",
+            "convergence": [
+                {"face": "궁합 관상 근거", "saju": "궁합 사주 근거"},
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    html = render_compatibility_report_html(
+        left,
+        right,
+        "연인",
+        repository.lookup(left),
+        repository.lookup(right),
+        "얼굴 관찰 fixture",
+        generated_text,
+    )
+
+    assert "사주 총정리" in html
+    assert "사주 흐름만 정리한 본문" in html
+    assert "궁합 관상 근거" not in html
+    assert "궁합 사주 근거" not in html
+    assert "↔" not in html
+    assert "사주와 얼굴 관찰 종합" not in html
+
+
 def test_report_profile_shows_unknown_birth_time_without_helper_basis() -> None:
     profile = BirthProfile(
         name="tester",

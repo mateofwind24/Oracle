@@ -821,42 +821,12 @@ def _merge_compatibility_payloads(
         value = face_payload.get(key)
         if value:
             payload[key] = value
-    for key in ("essence", "synthesis_title", "synthesis_body", "action_title", "action_body"):
+    for key in ("essence", "action_title", "action_body"):
         if key not in payload:
             value = face_payload.get(key)
             if value:
                 payload[key] = value
-    payload["convergence"] = _combined_pair_convergence(face_payload, saju_payload)
     result = payload
-    return result
-
-
-def _combined_pair_convergence(
-    face_payload: dict[str, Any],
-    saju_payload: dict[str, Any],
-) -> list[dict[str, str]]:
-    existing = face_payload.get("convergence") or saju_payload.get("convergence")
-    result = []
-    if isinstance(existing, list) and existing:
-        result = existing
-    else:
-        for index in range(3):
-            result.append(
-                {
-                    "face": _block_summary(
-                        face_payload,
-                        "pair_blocks",
-                        index,
-                        "두 사람의 얼굴 관찰에서 보이는 관계 분위기",
-                    ),
-                    "saju": _block_summary(
-                        saju_payload,
-                        "saju_blocks",
-                        index,
-                        "두 사람의 사주 흐름에서 보이는 상호 보완점",
-                    ),
-                },
-            )
     return result
 
 
