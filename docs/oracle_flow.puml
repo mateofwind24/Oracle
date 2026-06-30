@@ -1,177 +1,45 @@
 @startuml
-title Oracle Report Current Runtime Flow
+title Oracle Report Main Flow
 
 start
-:./run.sh 실행;
-:래퍼 옵션 파싱\n- build/debug/release\n- model/port/host/thread/context;
 
-if (command == build?) then (yes)
-  :build.sh 실행\n- 기본 .venv 준비\n- Python 패키지 설치\n- llama.cpp/model/DB 준비;
-  stop
-endif
-
-:Python 환경 활성화;
-:환경 변수 로드\n.env, configs/raspberry_pi.env;
-:runtime 설정 적용\n- ORACLE_* 값 export\n- llama.cpp/model/camera/DB 경로;
-
-if (debug mode?) then (yes)
-  :runs/debug/<timestamp>/ 생성;
-  :stdout/stderr와 산출물 저장;
-else (normal)
-  if (release mode?) then (yes)
-    :임시 output dir 생성;
-    :--output, --output-dir 거부;
-  else (normal)
-    :기본 output dir 사용;
-  endif
-endif
-
-if (LLM 서버가 필요한 명령?) then (yes)
-  if (llama.cpp 서버 준비됨?) then (yes)
-    :기존 llama.cpp 서버 사용;
-  else (no)
-    if (ORACLE_START_LLAMA_SERVER=1?) then (yes)
-      :llama-server 자동 시작\n-m ORACLE_LLAMA_MODEL_PATH\n-c LLAMA_CONTEXT_SIZE;
-      if (서버 준비됨?) then (yes)
-        :llama.cpp 서버 사용;
-      else (no)
-        :오류 안내 후 종료;
-        stop
-      endif
-    else (no)
-      :오류 안내 후 종료;
-      stop
-    endif
-  endif
-endif
-
-if (CLI command?) then (capture, prompt, llm)
-  if (capture?) then (yes)
-    :run_capture 실행;
-    :단일 얼굴 감지와 품질 확인;
-    :capture.jpg 저장 후 경로 출력;
-    stop
-  else (prompt, llm)
-    if (prompt?) then (yes)
-      :만세력 DB 조회가 필요한 target은 조회;
-      :configs/prompts.json 템플릿 렌더링;
-      :프롬프트만 출력;
-      stop
-    else (llm or prompt-run)
-      :프롬프트 렌더링;
-      if (target == saju-reading?) then (yes)
-        :만세력 formatted_text를\nsaju_reading 프롬프트에 주입;
-      endif
-      :로컬 LLM 호출;
-      :LLM 결과만 출력;
-      stop
-    endif
-  endif
-endif
-
-:Flask UI 시작\noracle-report serve;
-:사용자 메뉴 선택\n개인 리포트 또는 두 사람 궁합;
-
-if (API 비동기 요청?) then (yes)
-  :workflow job 생성;
-  :_CAPTURE_LOCK 획득 시도;
-  if (다른 촬영 작업 진행 중?) then (yes)
-    :job error 저장\n다른 촬영 작업 진행 중;
-    :/api/jobs/<job_id>로 상태 반환;
-    stop
-  endif
-else (동기 POST)
-endif
+:앱 실행;
+:로컬 설정 로드;
+:Flask 웹 UI 시작;
+:사용자가 리포트 유형 선택;
 
 if (개인 리포트?) then (yes)
-  :개인 입력 수집\nname, birth_date, birth_time,\ngender, target_gender, skip_face;
-  :BirthProfile 생성\nbirth_time 미상은 표시용 flag 유지;
-  :세션 dir 생성\nruns/personal_<timestamp>;
-  :ManseRepository(data/manse.sqlite) 준비;
+  :개인 정보 입력;
 
-  if (skip_face?) then (yes)
-    :만세력 DB 조회;
-    :관상 메모 비움;
+  if (관상 포함?) then (yes)
+    :한 사람 얼굴 캡처;
+    :랜드마크 품질 분석;
+    :룰 기반 관상 payload 생성;
   else (no)
-    fork
-      :만세력 DB 조회;
-    fork again
-      repeat
-        :카메라 프레임 관찰;
-        :OpenCV/MediaPipe 기반\n얼굴 감지와 품질 분석;
-      repeat while (얼굴 1명 + 품질 통과 + 안정 시간 충족?) is (no)
-      :capture.jpg 저장;
-    end fork
-
-    :캡처 품질/랜드마크에서
-룰 기반 관상 payload 사용;
+    :관상 payload 비움;
   endif
 
-  :face_recommendations.sqlite에서\n추천 정보 조회;
-  :personal_final 프롬프트 생성\n만세력 + 관상 + 추천 정보;
-  :report LLM 호출;
+  :사주 명식 계산;
+  :사주/관상 정보 결합;
+  :로컬 LLM 해설 생성;
+  :개인 리포트 HTML 렌더링;
 
-  if (LLM 응답 incomplete/empty/error?) then (yes)
-    :fallback personal markdown 생성;
-  else (complete response)
-    if (최종 JSON 검증 실패?) then (yes)
-      :fallback personal markdown 생성\n- JSON 파싱 실패\n- essence 누락\n- face/saju 블록 부족\n- placeholder 또는 중복 텍스트;
-    else (valid)
-      :LLM JSON 사용;
-    endif
-  endif
-
-  :render_personal_report_html 실행;
-  :HTML full document 생성;
-  :HTML fragment 생성;
-  :personal_report.html,\npersonal_report.md,\ntimings.log 저장;
-
-else (두 사람 궁합)
-  :궁합 입력 수집\nleft/right name, birth_date,\nbirth_time, gender, mode;
-  :mode 검증\n연인/친구/직장동료;
-  :두 BirthProfile 생성;
-  :세션 dir 생성\nruns/compatibility_<timestamp>;
-  :ManseRepository(data/manse.sqlite) 준비;
-
-  fork
-    :두 사람 만세력 DB 조회;
-  fork again
-    repeat
-      :1차 사람 단일 얼굴 캡처;
-    repeat while (품질 통과?) is (no)
-    :person_1/capture.jpg 저장;
-    :기본 3초 대기;
-    repeat
-      :2차 사람 단일 얼굴 캡처;
-    repeat while (품질 통과?) is (no)
-    :person_2/capture.jpg 저장;
-  end fork
-
-  :두 캡처의 랜드마크에서
-룰 기반 궁합 관상 payload 사용;
-
-  :compatibility_final 프롬프트 생성\n두 사람 만세력 + 관상 + 관계 모드;
-  :report LLM 호출;
-  if (LLM 오류?) then (yes)
-    :fallback compatibility markdown 생성;
-  else (success)
-    :LLM 결과 사용;
-  endif
-
-  :render_compatibility_report_html 실행;
-  :HTML full document 생성;
-  :HTML fragment 생성;
-  :compatibility_report.html,\ncompatibility_report.md,\ntimings.log 저장;
+else (궁합 리포트)
+  :두 사람 정보 입력;
+  :관계 모드 선택;
+  :첫 번째 사람 얼굴 캡처;
+  :두 번째 사람 얼굴 캡처;
+  :두 사람 랜드마크 품질 분석;
+  :룰 기반 궁합 관상 payload 생성;
+  :두 사람 사주 명식 계산;
+  :사주/관상 정보 결합;
+  :로컬 LLM 해설 생성;
+  :궁합 리포트 HTML 렌더링;
 endif
 
-if (API 비동기 요청?) then (yes)
-  :job complete/error 저장;
-  :/api/jobs/<job_id>에서\nhtml/status/error 반환;
-endif
-
-if (release mode?) then (yes)
-  :임시 output dir 삭제;
-endif
+:JSON 검증 및 fallback 보정;
+:웹 화면에 결과 표시;
+:다운로드용 HTML 제공;
 
 stop
 
