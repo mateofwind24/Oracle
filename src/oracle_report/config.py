@@ -189,7 +189,7 @@ def _load_llm_config(prefix: str, send_image_default: bool) -> LlmConfig:
         ),
         max_output_tokens=_read_int(
             f"{prefix}_MAX_OUTPUT_TOKENS",
-            _read_int("ORACLE_MAX_OUTPUT_TOKENS", 4096 if _read_bool(f"{prefix}_REASONING", _read_bool("ORACLE_REASONING", False)) else 1800),
+            _read_int("ORACLE_MAX_OUTPUT_TOKENS", 4096),
         ),
         temperature=_read_float(
             f"{prefix}_TEMPERATURE",

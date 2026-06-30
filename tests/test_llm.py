@@ -15,12 +15,15 @@ def test_default_llm_config_uses_llama_cpp(monkeypatch) -> None:
     monkeypatch.delenv("ORACLE_LLM_BASE_URL", raising=False)
     monkeypatch.delenv("ORACLE_LLM_MODEL", raising=False)
     monkeypatch.delenv("ORACLE_LLM_PROMPT_CACHE", raising=False)
+    monkeypatch.delenv("ORACLE_MAX_OUTPUT_TOKENS", raising=False)
+    monkeypatch.delenv("ORACLE_REPORT_LLM_MAX_OUTPUT_TOKENS", raising=False)
 
     config = load_llm_config()
 
     assert config.base_url == "http://127.0.0.1:8080/v1"
     assert config.model == "local-model"
     assert config.prompt_cache is False
+    assert config.max_output_tokens == 4096
 
 
 def test_llm_config_enables_prompt_cache(monkeypatch) -> None:
