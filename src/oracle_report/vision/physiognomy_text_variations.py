@@ -80,6 +80,87 @@ _PAIR_BLOCK_PARTS = {
     "caution": ("mouth", "jaw"),
 }
 
+_PAIR_MODE_GUIDANCE = {
+    "연인": {
+        "summary_prefix": "연인 관계에서는 ",
+        "subtitle": "감정의 온도를 맞추는 관계",
+        "face_summary": (
+            "{left_name}님과 {right_name}님은 감정 표현의 속도와 편안한 거리감을 "
+            "천천히 맞춰갈수록 관계의 온도가 안정적으로 살아날 수 있어요."
+        ),
+        "guidance": {
+            "first_impression": (
+                "연인 관계에서는 첫 끌림만큼 서로가 편안하게 느끼는 감정의 온도를 "
+                "확인하는 것이 도움이 될 수 있어요."
+            ),
+            "communication": (
+                "서운함이 생길 때는 바로 결론을 내기보다 감정의 속도를 맞추며 "
+                "짧게 확인하는 대화가 좋아요."
+            ),
+            "strength": (
+                "서로의 표현 방식이 다를수록 애정 표현과 안정감을 나누어 채우면 "
+                "관계의 강점이 더 부드럽게 살아날 수 있어요."
+            ),
+            "caution": (
+                "가까운 사이일수록 상대가 알아줄 것이라 넘기지 말고, 원하는 거리와 "
+                "표현 방식을 말로 확인하는 편이 좋아요."
+            ),
+        },
+    },
+    "친구": {
+        "summary_prefix": "친구 관계에서는 ",
+        "subtitle": "편안한 리듬을 나누는 관계",
+        "face_summary": (
+            "{left_name}님과 {right_name}님은 대화의 템포와 서로의 자유로운 거리를 "
+            "존중할수록 편안한 친밀감이 오래 이어질 수 있어요."
+        ),
+        "guidance": {
+            "first_impression": (
+                "친구 관계에서는 처음의 호감보다 함께 있을 때 긴장이 줄어드는지, "
+                "부담 없는 편안함이 생기는지가 중요한 기준이 될 수 있어요."
+            ),
+            "communication": (
+                "농담이나 가벼운 반응도 서로 다르게 받아들일 수 있으니, 편한 사이일수록 "
+                "말의 선을 부드럽게 맞추면 좋아요."
+            ),
+            "strength": (
+                "서로를 과하게 고치려 하기보다 각자의 취향과 리듬을 인정할 때 "
+                "친구 관계의 자연스러운 장점이 살아날 수 있어요."
+            ),
+            "caution": (
+                "편하다는 이유로 서운함을 장난처럼 넘기지 말고, 필요한 거리감은 "
+                "가볍지만 분명하게 말하는 편이 도움이 될 수 있어요."
+            ),
+        },
+    },
+    "직장동료": {
+        "summary_prefix": "직장동료 관계에서는 ",
+        "subtitle": "역할과 기준을 맞추는 관계",
+        "face_summary": (
+            "{left_name}님과 {right_name}님은 역할 분담과 공유 기준을 분명히 할수록 "
+            "협업의 안정감과 효율이 더 잘 살아날 수 있어요."
+        ),
+        "guidance": {
+            "first_impression": (
+                "직장동료 관계에서는 친밀감보다 함께 일할 때의 신뢰감과 기본 태도를 "
+                "어떻게 맞추는지가 더 중요한 기준이 될 수 있어요."
+            ),
+            "communication": (
+                "업무 소통에서는 감으로 이해했다고 넘기기보다 일정, 기준, 결정 사항을 "
+                "짧게 확인하는 습관이 도움이 될 수 있어요."
+            ),
+            "strength": (
+                "서로의 강점을 역할로 나누면 한 사람은 방향을 잡고 다른 한 사람은 "
+                "마무리를 챙기는 식의 협업 장점이 살아날 수 있어요."
+            ),
+            "caution": (
+                "책임 범위나 피드백 기준이 흐려지면 오해가 생길 수 있으니, 중요한 일은 "
+                "말투보다 기준과 역할을 먼저 정리하는 편이 좋아요."
+            ),
+        },
+    },
+}
+
 
 @dataclass(frozen=True)
 class FacePartProfile:
@@ -366,7 +447,9 @@ def build_pair_face_payload(
     left_name: str,
     right_name: str,
     seed_text: str = "",
+    mode: str = "",
 ) -> dict[str, Any]:
+    pair_mode = _pair_mode(mode)
     left_profiles = _build_part_profiles(left_matches)
     right_profiles = _build_part_profiles(right_matches)
     blocks = [
@@ -377,15 +460,21 @@ def build_pair_face_payload(
             left_name,
             right_name,
             seed_text,
+            pair_mode,
         )
         for category_key in _PAIR_CATEGORIES
     ]
     result = {
-        "pair_subtitle": _build_pair_subtitle(left_profiles, right_profiles, seed_text),
+        "pair_subtitle": _build_pair_subtitle(
+            left_profiles,
+            right_profiles,
+            seed_text,
+            pair_mode,
+        ),
         "pair_blocks": blocks,
-        "face_summary": (
-            f"{left_name}님과 {right_name}님은 서로의 표현 속도와 중심감을 "
-            "천천히 맞춰갈수록 관계의 편안함이 더 안정적으로 살아나요."
+        "face_summary": _PAIR_MODE_GUIDANCE[pair_mode]["face_summary"].format(
+            left_name=left_name,
+            right_name=right_name,
         ),
     }
     return result
@@ -800,6 +889,7 @@ def _build_pair_block(
     left_name: str,
     right_name: str,
     seed_text: str,
+    mode: str,
 ) -> dict[str, str]:
     primary_part, secondary_part = _PAIR_BLOCK_PARTS[category_key]
     left_profile = left_profiles[primary_part]
@@ -831,7 +921,7 @@ def _build_pair_block(
         "summary": template["summary"].format(**values),
         "body": template["body"].format(**values),
     }
-    result = _apply_pair_flow_guidance(category_key, result, values)
+    result = _apply_pair_flow_guidance(category_key, result, values, mode)
     return result
 
 
@@ -918,9 +1008,11 @@ def _apply_pair_flow_guidance(
     category_key: str,
     block: dict[str, str],
     values: dict[str, str],
+    mode: str,
 ) -> dict[str, str]:
     left_name = values["left_name"]
     right_name = values["right_name"]
+    mode_guidance = _PAIR_MODE_GUIDANCE[_pair_mode(mode)]
     guidance = {
         "first_impression": (
             f"이 첫인상은 관계를 단정하기보다 {left_name}님과 {right_name}님이 서로를 "
@@ -946,14 +1038,36 @@ def _apply_pair_flow_guidance(
         "caution": "주의할 점으로는 ",
     }
     result = dict(block)
-    result["summary"] = _prepend_once(
+    category_summary = _prepend_once(
         _soften_guidance_text(result["summary"]),
         summary_prefixes[category_key],
+    )
+    result["summary"] = _prepend_mode_context(
+        category_summary,
+        mode_guidance["summary_prefix"],
     )
     result["body"] = _append_guidance_sentence(
         _soften_guidance_text(result["body"]),
         guidance[category_key],
     )
+    result["body"] = _append_guidance_sentence(
+        result["body"],
+        mode_guidance["guidance"][category_key],
+    )
+    return result
+
+
+def _pair_mode(mode: str) -> str:
+    result = mode.strip()
+    if result not in _PAIR_MODE_GUIDANCE:
+        result = "연인"
+    return result
+
+
+def _prepend_mode_context(text: str, prefix: str) -> str:
+    result = text.strip()
+    if not result.startswith(prefix):
+        result = f"{prefix}{result}"
     return result
 
 
@@ -1133,8 +1247,10 @@ def _build_pair_subtitle(
     left_profiles: dict[str, FacePartProfile],
     right_profiles: dict[str, FacePartProfile],
     seed_text: str,
+    mode: str = "",
 ) -> str:
     options = (
+        _PAIR_MODE_GUIDANCE[_pair_mode(mode)]["subtitle"],
         f"{left_profiles['balance'].impression}과 {right_profiles['balance'].impression}이 만나는 관계 분위기",
         f"{left_profiles['eyes'].impression}과 {right_profiles['mouth'].impression}이 섞이는 소통 흐름",
         "서로 다른 중심감이 부드럽게 조율되는 얼굴 관찰",

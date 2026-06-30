@@ -22,6 +22,8 @@ from oracle_report.workflow import (
     run_compatibility_workflow,
     run_personal_workflow,
 )
+from oracle_report.vision.physiognomy_rule_repository import PhysiognomyRuleMatch
+from oracle_report.vision.physiognomy_text_variations import build_pair_face_payload
 from oracle_report.vision.runtime import run_capture
 
 
@@ -472,7 +474,49 @@ def test_compatibility_workflow_rulebase_mode_skips_face_llm(
 
     assert payload["pair_subtitle"]
     assert len(payload["pair_blocks"]) == 4
+    assert "연인 관계에서는" in payload["pair_blocks"][0]["summary"]
     assert "두 사람의 관계 분위기" in result.report_html
+
+
+def test_pair_rulebase_payload_reflects_compatibility_mode() -> None:
+    matches = (
+        PhysiognomyRuleMatch(
+            rule_id="balance",
+            metric="third_balance_error",
+            title="삼정 균형",
+            basis="test",
+            tag="삼정 균형형",
+            observation="삼정 비율이 안정적으로 관찰됩니다.",
+            interpretation="균형 잡힌 인상으로 읽힙니다.",
+            value=0.01,
+        ),
+        PhysiognomyRuleMatch(
+            rule_id="mouth",
+            metric="mouth_width_ratio",
+            title="입매",
+            basis="test",
+            tag="입매 균형형",
+            observation="입매가 자연스럽게 균형을 이룹니다.",
+            interpretation="편안한 표현으로 읽힙니다.",
+            value=0.35,
+        ),
+    )
+
+    lover = build_pair_face_payload(matches, matches, "갑", "을", "same-seed", mode="연인")
+    friend = build_pair_face_payload(matches, matches, "갑", "을", "same-seed", mode="친구")
+    coworker = build_pair_face_payload(
+        matches,
+        matches,
+        "갑",
+        "을",
+        "same-seed",
+        mode="직장동료",
+    )
+
+    assert "감정" in lover["face_summary"]
+    assert "친구 관계에서는" in friend["pair_blocks"][0]["summary"]
+    assert "직장동료 관계에서는" in coworker["pair_blocks"][0]["summary"]
+    assert lover["pair_blocks"][0]["body"] != coworker["pair_blocks"][0]["body"]
 
 
 def test_pair_mock_capture_can_use_different_landmark_metrics(
@@ -784,4 +828,3 @@ def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(
     assert "오행 분포는" in result.report_html
     assert "사주 데이터는 강점과 보완점을 함께 보여주는 참고 지도입니다." in result.report_html
     assert "final report JSON field saju_blocks has 1 blocks" not in result.markdown
-

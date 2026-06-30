@@ -645,6 +645,7 @@ def _build_pair_face_analysis(
             left_profile,
             right_profile,
             artifact,
+            mode,
         )
     else:
         result = _build_couple_face_analysis(
@@ -700,6 +701,7 @@ def _build_pair_rule_based_face_analysis(
     left_profile: BirthProfile,
     right_profile: BirthProfile,
     artifact: SequentialPairCaptureArtifact,
+    mode: str,
 ) -> _GeneratedText:
     from oracle_report.vision.physiognomy_text_variations import build_pair_face_payload
 
@@ -717,6 +719,7 @@ def _build_pair_rule_based_face_analysis(
             left_matches,
             right_matches,
         ),
+        mode=mode,
     )
     text = json.dumps(payload, ensure_ascii=False)
     result = _GeneratedText(text=text, error="")
