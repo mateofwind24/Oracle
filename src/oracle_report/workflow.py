@@ -770,6 +770,8 @@ def _single_face_seed(
     return result
 
 def _face_llm_image_path(artifact: CaptureArtifact) -> Path:
+    if artifact.face is None:
+        return artifact.image_path
     result = artifact.image_path
     try:
         cv2 = _import_cv2_for_face_crop()
