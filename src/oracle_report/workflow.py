@@ -1556,6 +1556,27 @@ def _generate_distributed(
         "tps": 1.0,
     }
 
+    # Pre-fetch and synchronize initial compute scores and status of all slaves
+    for slave_url in app_config.slave_addrs:
+        scheduler.slave_metadata[slave_url] = {
+            "status": "idle",
+            "compute_score": 5.0,
+            "tps": 1.0,
+        }
+        try:
+            status_url = f"{slave_url.rstrip('/')}/api/distributed/status"
+            res = requests.get(status_url, timeout=2.0)
+            if res.status_code == 200:
+                status_data = res.json()
+                score = status_data.get("compute_score")
+                if score is not None:
+                    scheduler.slave_metadata[slave_url]["compute_score"] = float(score)
+                status_val = status_data.get("status")
+                if status_val:
+                    scheduler.slave_metadata[slave_url]["status"] = status_val
+        except Exception:
+            pass
+
     results = []
     results_lock = threading.Lock()
     completed_tasks = set()  # Set of (is_metadata, target_category) that have succeeded
