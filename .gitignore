@@ -4,11 +4,13 @@ __pycache__/
 .venv/
 .deps/
 runs/
+unsloth_compiled_cache/
 reports/
 captures/
 *.egg-info/
 models/*.gguf
 models/*.gguf.tmp
+models/finetune/
 data/face_recommendations.sqlite
 data/face_recommenations.sqlite
 llama.cpp/
