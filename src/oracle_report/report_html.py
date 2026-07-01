@@ -1027,10 +1027,11 @@ def _render_saju_only_element_cards(view: _PersonalReportView) -> str:
     cards = []
     for element in ELEMENTS:
         count = view.element_counts[element]
+        icon_marks = _element_icon_marks(icons[element], count)
         cards.append(
             f"""
       <div class="saju-element-card {escape(_ELEMENT_CLASS[element])}">
-        <div class="saju-element-icon">{icons[element]}</div>
+        <div class="saju-element-icon">{escape(icon_marks)}</div>
         <div class="saju-element-hanja">{_ELEMENT_HANJA[element]}</div>
         <div class="saju-element-name">{escape(element)}</div>
         <div class="saju-element-count">{count}</div>
@@ -1053,6 +1054,11 @@ def _render_saju_only_element_cards(view: _PersonalReportView) -> str:
     </div>
   </section>
 """
+    return result
+
+
+def _element_icon_marks(icon: str, count: int) -> str:
+    result = "❌" if count <= 0 else icon * count
     return result
 
 
@@ -1304,7 +1310,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:"Gowun Dodum"
 .saju-section-head{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:26px}.saju-section-head h2{font-family:"Gowun Batang",serif;font-size:24px;color:var(--cute-ink)}.saju-section-head h2 span{margin-right:12px;color:#ff8fab}.saju-section-head p{color:#7e6259;font-size:14px}
 .saju-element-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}.saju-element-card{min-height:186px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--cute-line);border-radius:14px;background:rgba(255,255,255,.74);box-shadow:inset 0 0 0 1px rgba(255,255,255,.58)}
 .saju-element-card.c-mok{background:linear-gradient(180deg,rgba(58,125,92,.08),rgba(255,255,255,.82))}.saju-element-card.c-hwa{background:linear-gradient(180deg,rgba(255,111,130,.09),rgba(255,255,255,.82))}.saju-element-card.c-to{background:linear-gradient(180deg,rgba(245,180,95,.12),rgba(255,255,255,.82))}.saju-element-card.c-geum{background:linear-gradient(180deg,rgba(154,149,139,.09),rgba(255,255,255,.82))}.saju-element-card.c-su{background:linear-gradient(180deg,rgba(94,166,217,.1),rgba(255,255,255,.82))}
-.saju-element-icon{font-size:42px;line-height:1}.saju-element-hanja{margin-top:12px;font-family:"Song Myung",serif;font-size:58px;line-height:1}.saju-element-name{margin-top:10px;color:#6b544d;font-family:"Gowun Batang",serif;font-size:17px}.saju-element-count{margin-top:4px;color:#4b3933;font-family:"Song Myung",serif;font-size:27px}
+.saju-element-icon{min-height:48px;max-width:112px;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;font-size:34px;line-height:1.05;text-align:center}.saju-element-hanja{margin-top:12px;font-family:"Song Myung",serif;font-size:58px;line-height:1}.saju-element-name{margin-top:10px;color:#6b544d;font-family:"Gowun Batang",serif;font-size:17px}.saju-element-count{margin-top:4px;color:#4b3933;font-family:"Song Myung",serif;font-size:27px}
 .saju-element-card.c-mok .saju-element-hanja{color:var(--mok)}.saju-element-card.c-hwa .saju-element-hanja{color:var(--hwa)}.saju-element-card.c-to .saju-element-hanja{color:var(--to)}.saju-element-card.c-geum .saju-element-hanja{color:#555}.saju-element-card.c-su .saju-element-hanja{color:#4e83ad}
 .saju-element-note{position:relative;min-height:96px;display:grid;grid-template-columns:104px 1fr 36px;align-items:center;gap:16px;margin-top:30px;padding:16px 28px;border:1px solid var(--cute-line-soft);border-radius:16px;background:linear-gradient(90deg,#fff5f7,#fffafa);text-align:center}.saju-element-note img{width:92px;height:92px;object-fit:contain}.saju-element-note p{color:#5e4a43;font-family:"Gowun Batang",serif;font-size:15px;line-height:1.7}.saju-element-note span{color:#ffb1c0;font-size:28px}
 .saju-story-list{display:grid;gap:16px}.saju-story-block{display:grid;grid-template-columns:112px 1fr;gap:22px;align-items:center;min-height:146px;padding:18px 22px;border:1px solid var(--cute-line-soft);border-radius:12px;background:rgba(255,250,250,.76)}.saju-story-block img{width:104px;height:104px;object-fit:contain}.saju-block-cat{color:#d7835b;font-family:"Gowun Batang",serif;font-size:12px;font-weight:700;letter-spacing:.04em}.saju-story-block h3{margin-top:4px;color:var(--cute-ink);font-family:"Gowun Batang",serif;font-size:21px}.saju-story-block p{margin-top:8px;color:#5f504b;font-size:14.5px;line-height:1.72}.saju-story-block .saju-block-summary{color:#d36472;font-family:"Gowun Batang",serif;font-weight:700}
