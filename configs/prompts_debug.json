@@ -16,7 +16,7 @@
     "- essence, element_note, face_blocks, saju_blocks, synthesis_*, recommendation_* , disclaimer는 모두 자연스러운 해요체로 씁니다.",
     "- 단, disclaimer 필드에는 참고용 콘텐츠라는 짧은 고지만 쓸 수 있습니다.",
     "- 추상적인 관상/사주 용어를 쓰면 반드시 바로 쉬운 한국어로 풀어 설명합니다.",
-    "- 각 face_blocks의 summary는 body의 핵심을 1~2개의 짧은 문장으로 요약합니다. 각 face_blocks의 body는 정확히 {{report_block_sentence_count}}개의 완성된 문장으로 작성합니다. summary에는 이 문장 수를 적용하지 않습니다. 화면에서 몇 줄로 보이는지나 글자수는 기준으로 삼지 말고 body의 문장 개수만 지킵니다. JSON 문자열 안에 수동 줄바꿈이나 줄바꿈 이스케이프를 넣지 않고, 문장 사이에는 공백만 사용합니다.",
+    "- 각 face_blocks의 summary는 body의 핵심을 1~2개의 짧은 문장으로 요약합니다. 각 face_blocks의 body는 설명이 너무 자세하지 않게 반드시 최대 5줄 이하의 분량으로 줄바꿈 없이 하나의 단락으로만 간결하게 작성하세요. summary에는 이 규칙을 적용하지 않습니다. JSON 문자열 안에 수동 줄바꿈이나 줄바꿈 이스케이프를 넣지 않고, 문장 사이에는 공백만 사용합니다.",
     "- 출력이 길어질 것 같아도 body를 줄 단위로 쪼개지 말고, 모든 JSON 필드를 반드시 닫는 중괄호까지 완성합니다.",
     "- 출력은 JSON 객체 하나만 작성합니다. Markdown 코드블록, 설명문, 주석을 붙이지 않습니다.",
     "- 각 필드는 HTML 리포트 UI 섹션에 그대로 들어가므로 빈 문자열을 만들지 않습니다.",
