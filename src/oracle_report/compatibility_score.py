@@ -152,13 +152,13 @@ def build_compatibility_score(
     texture_bonus = _score_texture(fingerprint)
     total = _clamp_int(
         round(
-            (saju_parts.score * 0.48)
-            + (face_parts.score * 0.38)
+            (saju_parts.score * 0.58)
+            + (face_parts.score * 0.42)
             + mode_bonus
             + texture_bonus,
         ),
-        62,
-        98,
+        66,
+        99,
     )
     label = _score_label(total)
     summary = _mode_summary(mode, total, fingerprint)
@@ -191,15 +191,15 @@ def _score_saju(
     over_penalty = _overconcentration_penalty(left_counts, right_counts)
     score = _clamp_int(
         round(
-            54
+            58
             + (element_complement * 28)
-            + (relation_bonus * 1.2)
-            + (temperature_complement * 14)
-            - (clash_penalty * 1.6)
-            - (over_penalty * 2.2),
+            + (relation_bonus * 1.1)
+            + (temperature_complement * 13)
+            - (clash_penalty * 1.0)
+            - (over_penalty * 1.4),
         ),
-        55,
-        98,
+        60,
+        99,
     )
     result = _SajuScoreParts(
         score=score,
@@ -309,7 +309,7 @@ def _overconcentration_penalty(
         for element in ELEMENTS
         if left_counts.get(element, 0) >= 3 and right_counts.get(element, 0) >= 3
     )
-    result = min(overlap_count * 2, 6)
+    result = min(overlap_count, 4)
     return result
 
 
@@ -390,12 +390,12 @@ def _score_mode_bonus(
     face_parts: _FaceScoreParts,
 ) -> int:
     if mode == "연인":
-        raw = 2 + (saju_parts.temperature_complement * 5) + (face_parts.complement * 4)
+        raw = 3 + (saju_parts.temperature_complement * 5) + (face_parts.complement * 4)
     elif mode == "직장동료":
-        raw = 2 + (saju_parts.element_complement * 5) + (face_parts.stability * 3)
+        raw = 3 + (saju_parts.element_complement * 5) + (face_parts.stability * 3)
     else:
         no_clash = 1.0 - min(saju_parts.clash_penalty / 8.0, 1.0)
-        raw = 2 + (face_parts.similarity * 4) + (no_clash * 3)
+        raw = 3 + (face_parts.similarity * 4) + (no_clash * 3)
     result = _clamp_int(round(raw), 0, 10)
     return result
 
@@ -528,7 +528,7 @@ def _mode_summary(mode: str, total: int, fingerprint: int) -> str:
 
 
 def _score_texture(fingerprint: int) -> int:
-    result = (fingerprint % 13) - 6
+    result = (fingerprint % 11) - 3
     return result
 
 

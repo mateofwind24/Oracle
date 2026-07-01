@@ -1227,6 +1227,10 @@ def _normalize_json_quotes(text: str) -> str:
 def _repair_json_text(text: str) -> tuple[str, tuple[str, ...]]:
     result = text
     applied_steps: list[str] = []
+    with_fixed_block_arrays = _repair_misclosed_block_arrays(result)
+    if with_fixed_block_arrays != result:
+        applied_steps.append("fix_misclosed_block_arrays")
+        result = with_fixed_block_arrays
     without_trailing_commas = re.sub(r",\s*([}\]])", r"\1", result)
     if without_trailing_commas != result:
         applied_steps.append("remove_trailing_commas")
@@ -1244,6 +1248,35 @@ def _repair_json_text(text: str) -> tuple[str, tuple[str, ...]]:
         applied_steps.append("insert_missing_commas")
         result = with_missing_commas
     return result, tuple(applied_steps)
+
+
+def _repair_misclosed_block_arrays(text: str) -> str:
+    result = text
+    block_keys = ("saju_blocks", "face_blocks", "pair_blocks")
+    following_keys = (
+        "action_title",
+        "action_body",
+        "tags",
+        "disclaimer",
+        "face_summary",
+        "face_subtitle",
+        "pair_subtitle",
+        "essence",
+    )
+    following_key_pattern = "|".join(re.escape(key) for key in following_keys)
+    for block_key in block_keys:
+        pattern = (
+            rf'("{re.escape(block_key)}"\s*:\s*\[.*?\n)'
+            rf'(?P<indent>\s*)}}\s*,'
+            rf'(?=\s*\n\s*"({following_key_pattern})"\s*:)'
+        )
+        result = re.sub(
+            pattern,
+            lambda match: f"{match.group(1)}{match.group('indent')}],",
+            result,
+            flags=re.DOTALL,
+        )
+    return result
 
 
 def _insert_missing_comma(match: re.Match[str]) -> str:

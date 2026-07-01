@@ -366,6 +366,33 @@ class MalformedJsonReportClient:
 ```"""
 
 
+def test_llm_json_repair_handles_misclosed_saju_blocks_and_missing_comma() -> None:
+    text = """```json
+{
+  "essence": "궁합 요약",
+  "saju_blocks": [
+    {
+      "category": "관계 구조",
+      "title": "관계 제목",
+      "summary": "관계 요약",
+      "body": "관계 본문"
+    }
+  },
+  "action_title": "행동 제목",
+  "action_body": "행동 본문"
+  "tags": ["협업", "조율", "성장", "존중"],
+  "disclaimer": "참고용 엔터테인먼트 리포트입니다."
+}
+```"""
+
+    payload, error = _load_json_payload_or_error(text, label="test_repair")
+
+    assert error == ""
+    assert payload["saju_blocks"][0]["category"] == "관계 구조"
+    assert payload["action_body"] == "행동 본문"
+    assert payload["tags"] == ["협업", "조율", "성장", "존중"]
+
+
 class DayMasterHonorificReportClient:
     def generate(self, prompt: str, image_path: Path | None = None) -> str:
         del prompt
