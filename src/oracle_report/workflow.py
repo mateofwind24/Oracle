@@ -1629,7 +1629,8 @@ def _generate_distributed(
                             except Exception:
                                 pass
                     other_score = scheduler.slave_metadata.get(worker_url, {}).get("compute_score", 5.0)
-                    limit_passed = (my_score >= other_score)
+                    is_other_master = (worker_url == "local")
+                    limit_passed = (my_score >= other_score) if is_other_master else (my_score > other_score)
                     if limit_passed:
                         if not is_task_done(assigned_task):
                             return copy.deepcopy(assigned_task)
