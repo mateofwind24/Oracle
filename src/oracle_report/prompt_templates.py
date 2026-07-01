@@ -367,9 +367,7 @@ def render_distributed_prompt_template(
         else:
             raise ValueError(f"unsupported distributed prompt template: {name}")
     else:
-        body_instruction = "이 분석에 대한 구체적이고 현실적인 설명 본문"
-        if name in ("personal_face_analysis", "face_analysis_copule"):
-            body_instruction = "이 분석에 대한 구체적이고 현실적인 설명 본문 (반드시 최대 5줄 이하의 분량으로 줄바꿈 없이 하나의 단락으로만 간결하게 작성하세요)"
+        body_instruction = "이 분석에 대한 구체적이고 현실적인 설명 본문 (반드시 최대 5줄 이하의 분량으로 줄바꿈 없이 하나의 단락으로만 간결하게 작성하세요)"
 
         suffix_instructions = f"""[출력 JSON 스키마]
 당신은 오직 '{target_category}' 카테고리에 대한 분석만 수행합니다.
