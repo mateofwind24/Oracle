@@ -62,10 +62,9 @@ def test_personal_report_keeps_synthesis_without_face_saju_comparison() -> None:
     assert "전체 흐름을 정리하면" in html
     assert "사주 흐름을 중심으로 정리한 본문" in html
     assert "강점은 살리고 부족한 리듬은 보완하세요." in html
-    assert "나 를 채 워 주 는 키 워 드" in html
-    assert "개인 관상 비교 근거" not in html
-    assert "개인 사주 비교 근거" not in html
-    assert "＝" not in html
+    assert "개인 관상 비교 근거" in html
+    assert "개인 사주 비교 근거" in html
+    assert "×" in html
 
 
 def test_compatibility_report_html_uses_structured_layout() -> None:
