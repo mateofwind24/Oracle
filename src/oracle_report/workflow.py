@@ -1700,23 +1700,31 @@ def _generate_distributed(
             # If it's a remote slave, check its availability status first (Hybrid Mode Support)
             compute_score = 5.0
             if not is_local:
-                try:
-                    status_url = f"{slave_url.rstrip('/')}/api/distributed/status"
-                    res = requests.get(status_url, timeout=2.0)
-                    if res.status_code == 200:
-                        status_data = res.json()
-                        score = status_data.get("compute_score")
-                        if score is not None:
-                            scheduler.slave_metadata[slave_url]["compute_score"] = float(score)
-                            compute_score = float(score)
-                        
-                        if status_data.get("status") == "busy" and not speculative:
-                            put_task(task)
-                            task_queue.task_done()
-                            time.sleep(5.0)
-                            continue
-                except Exception:
-                    compute_score = scheduler.slave_metadata.get(slave_url, {}).get("compute_score", 5.0)
+                now = time.time()
+                last_check = _LAST_STATUS_CHECK_TIMES.get(slave_url, 0.0)
+                if now - last_check >= 3.0:
+                    _LAST_STATUS_CHECK_TIMES[slave_url] = now
+                    try:
+                        status_url = f"{slave_url.rstrip('/')}/api/distributed/status"
+                        res = requests.get(status_url, timeout=2.0)
+                        if res.status_code == 200:
+                            status_data = res.json()
+                            score = status_data.get("compute_score")
+                            if score is not None:
+                                scheduler.slave_metadata[slave_url]["compute_score"] = float(score)
+                            status_val = status_data.get("status")
+                            if status_val:
+                                scheduler.slave_metadata[slave_url]["status"] = status_val
+                    except Exception:
+                        pass
+                
+                meta_info = scheduler.slave_metadata.get(slave_url, {})
+                compute_score = meta_info.get("compute_score", 5.0)
+                if meta_info.get("status") == "busy" and not speculative:
+                    put_task(task)
+                    task_queue.task_done()
+                    time.sleep(5.0)
+                    continue
             else:
                 try:
                     compute_score = local_client.get_compute_score()
