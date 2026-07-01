@@ -1735,7 +1735,7 @@ def _generate_distributed(
                 )
                 if is_core_category:
                     has_idle_remote_slave = any(
-                        (addr != "local" and meta.get("status") == "idle" and addr != slave_url)
+                        (addr != "local" and meta.get("status") == "idle" and meta.get("compute_score", 0.0) >= 20.0 and addr != slave_url)
                         for addr, meta in scheduler.slave_metadata.items()
                     )
                     has_high_perf_slave = any(
@@ -1876,7 +1876,7 @@ def _generate_distributed(
                 )
                 if is_core_category:
                     has_idle_remote_slave = any(
-                        (addr != "local" and meta.get("status") == "idle")
+                        (addr != "local" and meta.get("status") == "idle" and meta.get("compute_score", 0.0) >= 20.0)
                         for addr, meta in scheduler.slave_metadata.items()
                     )
                     has_high_perf_slave = any(
