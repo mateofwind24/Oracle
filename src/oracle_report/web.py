@@ -1556,7 +1556,7 @@ def _render_page(
           }}
           main.home-page {{
             width: min(1180px, calc(100vw - 48px));
-            padding: 22px 0 48px;
+            padding: 14px 0 40px;
           }}
           h1 {{
             margin: 0 0 24px;
@@ -1741,11 +1741,11 @@ def _render_page(
             align-items: flex-start;
             justify-content: flex-start;
             gap: 18px;
-            margin-bottom: 6px;
+            margin-bottom: 0;
           }}
           .brand-lockup .logo {{
             font-family: "Song Myung", serif;
-            font-size: 36px;
+            font-size: 32px;
             letter-spacing: 0;
             color: var(--ink);
             position: relative;
@@ -1768,27 +1768,27 @@ def _render_page(
             opacity: 0.9;
           }}
           .brand-lockup .tag {{
-            font-size: 15px;
+            font-size: 14px;
             color: var(--ink);
-            margin-top: 6px;
+            margin-top: 4px;
           }}
           .home-hero {{
             position: relative;
             text-align: center;
-            padding-top: 14px;
+            padding-top: 2px;
           }}
           .home-hero .speech {{
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-height: 44px;
-            padding: 8px 24px;
+            min-height: 36px;
+            padding: 6px 20px;
             border: 2px solid #ffc6cf;
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.64);
             color: var(--hwa);
             font-family: "Gowun Batang", serif;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
             position: relative;
           }}
@@ -1805,10 +1805,10 @@ def _render_page(
             transform: translateX(-50%) rotate(45deg);
           }}
           .home-hero h1 {{
-            margin: 18px 0 10px;
+            margin: 10px 0 6px;
             font-family: "Gowun Batang", serif;
-            font-size: 50px;
-            line-height: 1.12;
+            font-size: 42px;
+            line-height: 1.06;
             color: var(--ink);
             letter-spacing: 0;
           }}
@@ -1816,20 +1816,20 @@ def _render_page(
             color: var(--hwa);
           }}
           .home-hero p {{
-            margin: 0 auto 14px;
+            margin: 0 auto 4px;
             color: var(--ink);
-            font-size: 18px;
-            line-height: 1.55;
+            font-size: 16px;
+            line-height: 1.45;
           }}
           .oracle-character {{
             position: relative;
             z-index: 2;
             display: block;
-            width: min(620px, 78vw);
+            width: min(460px, 58vw);
             height: auto;
             object-fit: contain;
             object-position: center center;
-            margin: 4px auto -62px;
+            margin: -2px auto -42px;
             border: 0;
             border-radius: 0;
             mix-blend-mode: normal;
@@ -1839,22 +1839,22 @@ def _render_page(
             grid-template-columns: 1fr 1fr;
             gap: 18px;
             width: 100%;
-            max-width: 960px;
-            margin: -16px auto 20px;
+            max-width: 900px;
+            margin: -8px auto 14px;
             position: relative;
             z-index: 4;
           }}
           .mode {{
             position: relative;
             display: flex;
-            min-height: 210px;
+            min-height: 172px;
             align-items: center;
             justify-content: space-between;
             gap: 14px;
             background: rgba(255, 255, 255, 0.82);
             border: 2px solid var(--line);
             border-radius: 8px;
-            padding: 28px 30px;
+            padding: 22px 26px;
             color: inherit;
             cursor: pointer;
             overflow: hidden;
@@ -1914,9 +1914,9 @@ def _render_page(
           }}
           .mode h2 {{
             font-family: "Gowun Batang", serif;
-            font-size: 31px;
+            font-size: 27px;
             font-weight: 700;
-            margin: 0 0 14px;
+            margin: 0 0 10px;
           }}
           .mode.solo h2 {{
             color: var(--mok-deep);
@@ -1925,10 +1925,10 @@ def _render_page(
             color: var(--hwa);
           }}
           .mode p {{
-            font-size: 15px;
+            font-size: 14px;
             color: var(--ink);
-            line-height: 1.7;
-            min-height: 46px;
+            line-height: 1.55;
+            min-height: 38px;
             margin: 0;
           }}
           .mode .go {{
@@ -1936,10 +1936,10 @@ def _render_page(
             align-items: center;
             gap: 6px;
             justify-content: center;
-            min-width: 160px;
-            min-height: 46px;
-            margin-top: 18px;
-            padding: 10px 20px;
+            min-width: 142px;
+            min-height: 40px;
+            margin-top: 12px;
+            padding: 8px 18px;
             border-radius: 999px;
             font-family: "Gowun Batang", serif;
             font-size: 15px;
@@ -1961,18 +1961,18 @@ def _render_page(
           .mode .mode-art {{
             position: relative;
             z-index: 2;
-            width: 170px;
-            height: 184px;
+            width: 140px;
+            height: 152px;
             object-fit: contain;
             border-radius: 0;
             mix-blend-mode: normal;
             flex: 0 0 auto;
             align-self: flex-end;
-            margin: 0 -14px -18px 0;
+            margin: 0 -12px -14px 0;
           }}
           .mode .mode-art-pair {{
-            width: 164px;
-            height: 188px;
+            width: 136px;
+            height: 156px;
             margin-right: -12px;
           }}
           .feature-row {{
