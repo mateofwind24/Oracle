@@ -3048,6 +3048,10 @@ def _render_page(
             width: min(1120px, calc(100vw - 56px));
             padding: 24px 0 112px;
           }}
+          main.compare-camera-page {{
+            width: min(1840px, calc(100vw - 16px));
+            padding: 8px 0;
+          }}
           body.saju-report-ready main.result-page {{
             width: min(1120px, calc(100vw - 56px));
             padding-top: 0;
@@ -3433,62 +3437,97 @@ def _render_page(
           .compare-camera-shell {{
             max-width: min(1760px, calc(100vw - 40px));
           }}
+          .compare-camera-shell .personal-result-brand {{
+            margin-bottom: 8px;
+          }}
+          .compare-camera-shell .personal-result-brand .logo {{
+            font-size: 34px;
+          }}
+          .compare-camera-shell .personal-result-brand .tag {{
+            margin-top: 2px;
+            font-size: 13px;
+          }}
+          .compare-camera-shell .personal-result-brand .ornament {{
+            display: none;
+          }}
+          .compare-camera-shell .result-actions {{
+            margin: 8px 0;
+          }}
+          .compare-camera-shell .result-action {{
+            min-height: 38px;
+            padding: 7px 16px;
+          }}
           .compare-camera-shell .capture-preview {{
-            margin-top: 12px;
+            margin-top: 6px;
+            padding: 12px;
           }}
           .compare-camera-shell .capture-preview h2 {{
-            margin-bottom: 14px;
-            font-size: 24px;
+            margin-bottom: 8px;
+            font-size: 19px;
           }}
           .compare-camera-shell .capture-stage-with-debug {{
-            grid-template-columns: minmax(520px, 0.95fr) minmax(560px, 1.05fr);
-            gap: 20px;
+            grid-template-columns: minmax(440px, 0.75fr) minmax(640px, 1.25fr);
+            gap: 12px;
             align-items: start;
           }}
           .compare-camera-shell .capture-stage {{
             align-self: start;
           }}
           .compare-camera-shell .capture-visual {{
-            min-height: 420px;
+            min-height: 320px;
           }}
           .compare-camera-shell #capture-preview-image {{
-            height: 420px;
+            height: 320px;
           }}
           .compare-camera-shell .capture-debug-panel {{
             max-height: none;
             overflow: visible;
-            padding: 22px;
+            display: grid;
+            gap: 8px;
+            padding: 12px;
           }}
           .compare-camera-shell .capture-debug-head {{
-            margin-bottom: 16px;
+            margin-bottom: 0;
           }}
           .compare-camera-shell .capture-debug-head strong {{
-            font-size: 24px;
+            font-size: 18px;
           }}
           .compare-camera-shell .capture-debug-status {{
-            margin-bottom: 16px;
-            padding: 14px 16px;
+            margin-bottom: 0;
+            padding: 8px 10px;
           }}
           .compare-camera-shell .capture-debug-status b {{
-            font-size: 16px;
+            font-size: 13px;
           }}
           .compare-camera-shell .capture-debug-status p {{
-            font-size: 15px;
+            font-size: 12px;
           }}
           .compare-camera-shell .capture-debug-panel section {{
-            margin-top: 16px;
+            margin-top: 0;
           }}
           .compare-camera-shell .capture-debug-panel h3 {{
-            font-size: 19px;
+            margin-bottom: 4px;
+            font-size: 15px;
           }}
           .compare-camera-shell .capture-debug-panel pre {{
             max-height: none;
             overflow: visible;
-            padding: 16px;
+            padding: 8px 10px;
+            column-count: 2;
+            column-gap: 18px;
             white-space: pre-wrap;
             word-break: keep-all;
-            font-size: 15px;
-            line-height: 1.62;
+            font-size: 12px;
+            line-height: 1.28;
+          }}
+          .compare-camera-shell .face-guide {{
+            width: 210px;
+            height: 250px;
+          }}
+          .compare-camera-shell .capture-tip {{
+            min-height: 38px;
+            margin-top: 8px;
+            font-size: 13px;
           }}
           .compare-camera-complete {{
             margin-top: 18px;
