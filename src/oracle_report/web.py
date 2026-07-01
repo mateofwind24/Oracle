@@ -39,6 +39,8 @@ from oracle_report.vision.capture import FaceCaptureHarness
 from oracle_report.vision.camera import (
     build_capture_processors,
     draw_overlay,
+    mirror_face_boxes,
+    mirror_landmark_points,
     open_camera,
 )
 from oracle_report.vision.runtime import run_capture
@@ -797,6 +799,13 @@ def _run_compare_camera_stream() -> None:
             decision = harness.observe(raw_frame)
             faces = [] if decision.face is None else [decision.face]
             preview_frame = raw_frame.copy()
+            preview_frame = cv2.flip(preview_frame, 1)
+            frame_width = preview_frame.shape[1]
+            preview_faces = mirror_face_boxes(frame_width, faces)
+            preview_landmarks = mirror_landmark_points(
+                frame_width,
+                decision.landmark_points,
+            )
             message = decision.message
             if decision.quality is not None and decision.quality.ready:
                 message = (
@@ -806,12 +815,11 @@ def _run_compare_camera_stream() -> None:
                 cv2,
                 preview_frame,
                 message,
-                faces,
+                preview_faces,
                 decision.state == "warning",
-                decision.landmark_points,
+                preview_landmarks,
                 _web_capture_show_opencv_guide(),
             )
-            preview_frame = cv2.flip(preview_frame, 1)
             _PREVIEW_STREAM.publish(cv2, preview_frame, decision, live=True)
     except Exception as exc:
         _PREVIEW_STREAM.publish_debug(

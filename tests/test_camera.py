@@ -5,8 +5,15 @@ from pathlib import Path
 import numpy as np
 
 from oracle_report.config import CaptureConfig
+from oracle_report.models import FaceBox
 from oracle_report.vision import camera
-from oracle_report.vision.camera import _camera_candidate_indices, _configure_capture, draw_overlay
+from oracle_report.vision.camera import (
+    _camera_candidate_indices,
+    _configure_capture,
+    draw_overlay,
+    mirror_face_boxes,
+    mirror_landmark_points,
+)
 from oracle_report.vision.framing import build_capture_guide
 
 
@@ -140,6 +147,14 @@ def test_draw_overlay_can_hide_head_guide_for_web_preview() -> None:
 
     assert len(cv2.rectangle_calls) == 1
     assert cv2.rectangle_calls[0][0] == (0, 0)
+
+
+def test_mirror_overlay_geometry_flips_boxes_and_landmarks() -> None:
+    faces = mirror_face_boxes(640, [FaceBox(250, 20, 80, 100)])
+    landmarks = mirror_landmark_points(640, [(250, 10), (300, 20)])
+
+    assert faces == (FaceBox(310, 20, 80, 100),)
+    assert landmarks == ((389, 10), (339, 20))
 
 
 def test_camera_candidate_indices_prefer_configured_index() -> None:

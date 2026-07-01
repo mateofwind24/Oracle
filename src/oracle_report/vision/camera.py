@@ -196,6 +196,31 @@ def draw_overlay(
         _draw_cv2_text(cv2, frame, message)
 
 
+def mirror_face_boxes(
+    frame_width: int,
+    faces: Sequence[FaceBox],
+) -> tuple[FaceBox, ...]:
+    result = tuple(
+        FaceBox(
+            x=max(0, frame_width - face.x - face.width),
+            y=face.y,
+            width=face.width,
+            height=face.height,
+            confidence=face.confidence,
+        )
+        for face in faces
+    )
+    return result
+
+
+def mirror_landmark_points(
+    frame_width: int,
+    landmarks: Sequence[tuple[int, int]],
+) -> tuple[tuple[int, int], ...]:
+    result = tuple((max(0, frame_width - 1 - x), y) for x, y in landmarks)
+    return result
+
+
 def _draw_capture_guide(cv2: Any, frame: np.ndarray, guide: CaptureGuide) -> None:
     head = guide.head_box
     cv2.rectangle(

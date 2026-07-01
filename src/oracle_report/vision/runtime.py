@@ -14,6 +14,8 @@ from oracle_report.vision.capture import FaceCaptureHarness, save_capture_artifa
 from oracle_report.vision.camera import (
     build_capture_processors,
     draw_overlay,
+    mirror_face_boxes,
+    mirror_landmark_points,
     open_camera,
 )
 from oracle_report.vision.landmarks import (
@@ -68,17 +70,25 @@ def run_capture(
             latest_decision = harness.observe(raw_frame)
             faces = [] if latest_decision.face is None else [latest_decision.face]
             preview_frame = raw_frame.copy()
+            preview_faces = tuple(faces)
+            preview_landmarks = latest_decision.landmark_points
+            if mirror_preview:
+                preview_frame = cv2.flip(preview_frame, 1)
+                frame_width = preview_frame.shape[1]
+                preview_faces = mirror_face_boxes(frame_width, preview_faces)
+                preview_landmarks = mirror_landmark_points(
+                    frame_width,
+                    preview_landmarks,
+                )
             draw_overlay(
                 cv2,
                 preview_frame,
                 latest_decision.message,
-                faces,
+                preview_faces,
                 latest_decision.state == "warning",
-                latest_decision.landmark_points,
+                preview_landmarks,
                 show_capture_guide,
             )
-            if mirror_preview:
-                preview_frame = cv2.flip(preview_frame, 1)
             if frame_callback is not None:
                 _publish_preview_frame(frame_callback, cv2, preview_frame, latest_decision)
             if config.show_preview:
