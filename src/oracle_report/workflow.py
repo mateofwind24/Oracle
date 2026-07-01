@@ -1769,6 +1769,14 @@ def _generate_distributed(
                 print(f"Prompt:\n{rendered}")
                 print("-" * 50 + "\n", flush=True)
 
+            # Get current score of target worker and master
+            my_curr_score = scheduler.slave_metadata.get(slave_url, {}).get("compute_score", 5.0)
+            local_curr_score = scheduler.slave_metadata.get("local", {}).get("compute_score", 5.0)
+            device_name = "local" if is_local else slave_url
+
+            prefix_tag = "SPECULATIVE" if speculative else "NORMAL"
+            print(f"[Distributed][Start] Task '{cat or 'metadata'}' dispatched to {device_name} (Worker Score: {my_curr_score:.2f}, Master Score: {local_curr_score:.2f})")
+
             success = False
             output = None
             error_msg = ""
@@ -1804,14 +1812,17 @@ def _generate_distributed(
                     error_msg = str(e)
 
             elapsed = time.perf_counter() - start_time
-            device_name = "local" if is_local else slave_url
 
             with assignments_lock:
                 active_assignments[slave_url] = None
 
+            # Fetch updated scores for logging
+            my_updated_score = scheduler.slave_metadata.get(slave_url, {}).get("compute_score", 5.0)
+            local_updated_score = scheduler.slave_metadata.get("local", {}).get("compute_score", 5.0)
+
             if success:
                 consecutive_failures = 0
-                print(f"[Distributed] Task '{cat or 'metadata'}' completed on {device_name} in {elapsed:.2f}s")
+                print(f"[Distributed] Task '{cat or 'metadata'}' completed on {device_name} in {elapsed:.2f}s (Worker Score: {my_updated_score:.2f}, Master Score: {local_updated_score:.2f})")
                 already_done = is_task_done(task)
                 if not already_done:
                     mark_task_done(task)
@@ -1819,7 +1830,7 @@ def _generate_distributed(
                         results.append({"task": task, "success": True, "output": output})
             else:
                 consecutive_failures += 1
-                print(f"[Distributed] Task '{cat or 'metadata'}' failed on {device_name} in {elapsed:.2f}s. Error: {error_msg}")
+                print(f"[Distributed] Task '{cat or 'metadata'}' failed on {device_name} in {elapsed:.2f}s. Error: {error_msg} (Worker Score: {my_updated_score:.2f}, Master Score: {local_updated_score:.2f})")
                 if not speculative:
                     task["retries"] += 1
                     if task["retries"] <= 3:
@@ -1904,6 +1915,10 @@ def _generate_distributed(
                 print(f"Prompt:\n{rendered}")
                 print("-" * 50 + "\n", flush=True)
 
+            local_curr_score = scheduler.slave_metadata.get("local", {}).get("compute_score", 5.0)
+            prefix_tag = "SPECULATIVE" if speculative else "NORMAL"
+            print(f"[Distributed][Start] Local Task '{cat or 'metadata'}' dispatched (Local Score: {local_curr_score:.2f})")
+
             success = False
             output = None
             error_msg = ""
@@ -1919,15 +1934,17 @@ def _generate_distributed(
             with assignments_lock:
                 active_assignments["local"] = None
 
+            local_updated_score = scheduler.slave_metadata.get("local", {}).get("compute_score", 5.0)
+
             if success:
-                print(f"[Distributed] Task '{cat or 'metadata'}' completed on local in {elapsed:.2f}s")
+                print(f"[Distributed] Task '{cat or 'metadata'}' completed on local in {elapsed:.2f}s (Local Score: {local_updated_score:.2f})")
                 already_done = is_task_done(task)
                 if not already_done:
                     mark_task_done(task)
                     with results_lock:
                         results.append({"task": task, "success": True, "output": output})
             else:
-                print(f"[Distributed] Task '{cat or 'metadata'}' failed on local in {elapsed:.2f}s. Error: {error_msg}")
+                print(f"[Distributed] Task '{cat or 'metadata'}' failed on local in {elapsed:.2f}s. Error: {error_msg} (Local Score: {local_updated_score:.2f})")
                 if not speculative:
                     task["retries"] += 1
                     if task["retries"] <= 3:
