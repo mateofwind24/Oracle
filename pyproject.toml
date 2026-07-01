@@ -36,19 +36,6 @@ test = [
 dev = [
     "pytest>=7.0",
 ]
-finetune = [
-    "accelerate>=0.34",
-    "bitsandbytes>=0.43",
-    "datasets>=2.20",
-    "peft>=0.12",
-    "protobuf>=4.25",
-    "sentencepiece>=0.2",
-    "torch>=2.4",
-    "transformers==5.5.0",
-    "trl>=0.9",
-    "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git",
-    "unsloth_zoo @ git+https://github.com/unslothai/unsloth-zoo.git",
-]
 
 [project.scripts]
 oracle-report = "oracle_report.cli:main"
