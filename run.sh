@@ -324,7 +324,7 @@ apply_kvfix_mode() {
       RUN_LLAMA_CONTEXT_SIZE="$KVFIX_LLAMA_CONTEXT_SIZE"
     fi
     if [[ -z "${RUN_LLAMA_PARALLEL:-}" ]]; then
-      RUN_LLAMA_PARALLEL=5
+      RUN_LLAMA_PARALLEL=2
     fi
     POSITIONAL_ARGS=("${POSITIONAL_ARGS[@]:1}")
   fi

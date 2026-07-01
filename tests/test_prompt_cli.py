@@ -132,7 +132,7 @@ def test_token_command_prints_prompt_prefix_sizes(capsys) -> None:
     assert "name" in header
     assert "id_slot" in header
     assert "prefix_tokens" in header
-    assert header.index("id_slot") == saju_row.index("1")
+    assert header.index("id_slot") == saju_row.index("0")
     assert "saju_reading_couple" in output
 
 

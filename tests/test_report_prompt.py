@@ -139,7 +139,7 @@ def test_saju_reading_prompt_omits_face_and_recommendation_schema() -> None:
     assert "얼굴 관찰 메모" not in prompt
     assert "추천받고 싶은 얼굴" not in prompt
     assert prompt.name == "saju_reading"
-    assert prompt.slot_id == 1
+    assert prompt.slot_id == 0
     assert prompt.prefix.strip() != ""
     assert "JSON 객체 1개만 출력하세요" in prompt.prefix
     assert "body는 절대 대충 요약해서 짧게 끝내지 마세요" in prompt.prefix
