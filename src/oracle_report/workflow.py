@@ -1772,6 +1772,7 @@ def _generate_distributed(
             # Get current score of target worker and master
             my_curr_score = scheduler.slave_metadata.get(slave_url, {}).get("compute_score", 5.0)
             local_curr_score = scheduler.slave_metadata.get("local", {}).get("compute_score", 5.0)
+            device_name = "local" if is_local else slave_url
 
             prefix_tag = "SPECULATIVE" if speculative else "NORMAL"
             print(f"[Distributed][Start] Task '{cat or 'metadata'}' dispatched to {device_name} (Worker Score: {my_curr_score:.2f}, Master Score: {local_curr_score:.2f})")
