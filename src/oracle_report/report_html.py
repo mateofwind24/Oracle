@@ -583,7 +583,23 @@ def _payload_text(payload: Mapping[str, Any], key: str, default: str) -> str:
     value = payload.get(key)
     result = default
     if isinstance(value, str) and value.strip() != "":
-        result = _normalize_inline_text(value)
+        normalized_value = _normalize_inline_text(value)
+        if not _looks_like_generation_error(normalized_value):
+            result = normalized_value
+    return result
+
+
+def _looks_like_generation_error(text: str) -> bool:
+    normalized_text = _normalize_inline_text(text)
+    failed_markers = (
+        "분석 오류",
+        "분석오류",
+        "연산 실패",
+        "연산실패",
+        "생성하지 못했습니다",
+        "생성하지 못했",
+    )
+    result = any(marker in normalized_text for marker in failed_markers)
     return result
 
 
@@ -596,6 +612,8 @@ def _payload_blocks(
     blocks: list[_ReportBlock] = []
     if isinstance(raw_blocks, list):
         for index, raw_block in enumerate(raw_blocks):
+            if index >= len(defaults):
+                break
             default = defaults[min(index, len(defaults) - 1)]
             if isinstance(raw_block, dict):
                 blocks.append(
@@ -960,7 +978,7 @@ def _render_compatibility_report_body(view: _CompatibilityReportView) -> str:
       </div>
       <h1>{escape(view.left.name)} 님과 {escape(view.right.name)} 님</h1>
       <div class="compat-mode">{escape(view.mode)} 궁합 리포트</div>
-      <p>{escape(view.essence)}</p>
+      <p>{escape(_short_report_text(view.essence, max_sentences=2, max_chars=190))}</p>
     </div>
     <img class="compat-hero-right" src="/static/assets/oracle-character.png" alt="" aria-hidden="true">
     <span class="compat-heart-float one" aria-hidden="true">♡</span>
@@ -1050,8 +1068,8 @@ def _render_cute_compat_block(block: _ReportBlock, index: int) -> str:
           <div>
             <div class="saju-block-cat">{escape(block.category)}</div>
             <h3>{escape(block.title)}</h3>
-            <p class="saju-block-summary">{escape(block.summary)}</p>
-            <p>{_paragraphs(block.body)}</p>
+            <p class="saju-block-summary">{escape(_short_report_text(block.summary, max_sentences=1, max_chars=95))}</p>
+            <p>{_paragraphs(_short_report_text(block.body, max_sentences=3, max_chars=260))}</p>
           </div>
         </article>
 """
@@ -1072,7 +1090,7 @@ def _render_cute_compat_score_heart(view: _CompatibilityReportView) -> str:
       </div>
       <div class="compat-score-one-line">
         <strong>한 줄 평가</strong>
-        <p>{escape(score.summary)}</p>
+        <p>{escape(_short_report_text(score.summary, max_sentences=1, max_chars=95))}</p>
       </div>
     </div>
 """
@@ -1364,6 +1382,41 @@ def _render_tags(tags: tuple[str, ...]) -> str:
     return result
 
 
+def _short_report_text(
+    text: str,
+    *,
+    max_sentences: int,
+    max_chars: int,
+) -> str:
+    normalized_text = _normalize_inline_text(text)
+    if len(normalized_text) <= max_chars:
+        result = normalized_text
+    else:
+        sentences = re.findall(r"[^.!?。！？]+[.!?。！？]?", normalized_text)
+        selected: list[str] = []
+        current_length = 0
+        for sentence in sentences:
+            clean_sentence = sentence.strip()
+            if clean_sentence == "":
+                continue
+            next_length = current_length + len(clean_sentence)
+            if selected and (
+                len(selected) >= max_sentences or next_length > max_chars
+            ):
+                break
+            selected.append(clean_sentence)
+            current_length = next_length
+        if selected:
+            result = " ".join(selected)
+        else:
+            result = normalized_text[:max_chars].rstrip()
+        if len(result) > max_chars:
+            result = result[:max_chars].rstrip()
+        sentence_endings = (".", "!", "?", "。", "！", "？", "요", "다")
+        if result and not result.endswith(sentence_endings):
+            result = f"{result}..."
+    return result
+
 
 def _paragraphs(text: str) -> str:
     normalized_text = _normalize_inline_text(text)
@@ -1439,6 +1492,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:"Gowun Dodum"
 .saju-disclaimer{display:grid;grid-template-columns:90px 1fr 190px;align-items:center;gap:22px;margin-top:22px;padding:22px 34px;background:linear-gradient(90deg,#fff5f7,#fffafa)}.saju-disclaimer-icon{color:#f5b45f;font-size:42px;text-align:center}.saju-disclaimer p{color:#6b544d;font-size:15px;line-height:1.75}.saju-disclaimer img{width:180px;height:130px;object-fit:contain;justify-self:center}
 .cute-personal-report .saju-brand-sub{color:#9a6647}.cute-personal-report .saju-profile-card{background:radial-gradient(circle at 88% 24%,rgba(255,239,242,.92),transparent 31%),radial-gradient(circle at 18% 58%,rgba(255,249,238,.9),transparent 34%),rgba(255,255,255,.82)}.cute-personal-report .saju-elements{margin-top:22px}.cute-face-story{background:linear-gradient(180deg,rgba(255,255,255,.84),rgba(255,250,251,.78))}.cute-face-story .saju-section-head h2 span{color:#ff8fab}.cute-face-block{background:linear-gradient(90deg,rgba(255,245,247,.86),rgba(255,255,255,.74));border-color:#ffd8df}.cute-face-block .saju-block-cat{color:#d96f83}.cute-face-block .saju-block-summary{color:#b96a7a}.cute-total-card{background:radial-gradient(circle at 92% 18%,rgba(255,238,243,.9),transparent 26%),rgba(255,255,255,.8)}
 .cute-compatibility-report{background:linear-gradient(180deg,#fffaf4 0%,#fff5ef 52%,#ffeef2 100%)}.compat-cute-wrap{max-width:1120px}.compat-cute-hero .saju-brand-sub{color:#8f5d3e}.compat-cute-hero .saju-brand-line{color:#ffb1c0}.compat-hero-card{position:relative;min-height:340px;display:grid;grid-template-columns:220px 1fr 220px;align-items:center;gap:16px;padding:34px 38px;border:1px solid var(--cute-line);border-radius:14px;background:radial-gradient(circle at 15% 24%,rgba(255,244,247,.9),transparent 28%),radial-gradient(circle at 85% 28%,rgba(255,249,239,.92),transparent 30%),rgba(255,255,255,.82);box-shadow:0 18px 42px -34px rgba(74,47,38,.42);overflow:hidden}.compat-hero-left,.compat-hero-right{width:190px;height:210px;object-fit:contain;justify-self:center}.compat-hero-main{text-align:center}.compat-day-pair{display:flex;align-items:center;justify-content:center;gap:28px}.compat-day-pair>span{color:#ff9fad;font-size:46px;font-family:"Gowun Batang",serif}.compat-day-mark{width:116px;height:116px;border-width:1.5px}.compat-day-mark .saju-day-hanja{font-size:62px}.compat-day-mark .saju-day-label{font-size:12px}.compat-hero-main h1{margin-top:22px;color:var(--cute-ink);font-family:"Gowun Batang",serif;font-size:34px;line-height:1.25}.compat-mode{margin-top:10px;color:#8f5d3e;font-family:"Gowun Batang",serif;font-size:15px}.compat-hero-main p{max-width:720px;margin:22px auto 0;color:#5f504b;font-size:16px;line-height:1.8}.compat-heart-float{position:absolute;color:#ffb1c0;font-size:28px}.compat-heart-float.one{left:132px;top:46px}.compat-heart-float.two{right:146px;bottom:78px}.compat-profile-card{position:relative;display:grid;grid-template-columns:1fr 110px 1fr;align-items:center;gap:22px;margin-top:22px;padding:24px;border:1px solid var(--cute-line);border-radius:14px;background:rgba(255,255,255,.8);box-shadow:0 18px 42px -34px rgba(74,47,38,.42)}.compat-person-cute{position:relative;min-height:318px;padding:28px 28px 22px;border:1px solid var(--cute-line);border-radius:14px;background:linear-gradient(180deg,rgba(255,250,251,.86),rgba(255,255,255,.74));text-align:center;overflow:hidden}.compat-person-cute:nth-of-type(2){background:linear-gradient(180deg,rgba(248,255,250,.86),rgba(255,255,255,.74));border-color:#dcecdf}.compat-person-label{color:#ff8fab;font-family:"Gowun Batang",serif;font-size:14px;font-weight:700}.compat-person-cute h2{margin-top:16px;color:var(--cute-ink);font-family:"Gowun Batang",serif;font-size:26px}.compat-person-meta{margin-top:10px;color:#7e6259;font-size:14px}.compat-person-cute .compat-day-mark{margin:22px auto 0}.compat-person-cute p{max-width:28ch;margin:18px auto 0;color:#5f504b;font-size:14px;line-height:1.7}.compat-person-cute>img{position:absolute;right:18px;bottom:8px;width:86px;height:86px;object-fit:contain}.compat-profile-heart{width:62px;height:62px;display:flex;align-items:center;justify-content:center;justify-self:center;border:2px solid #ffb7c4;border-radius:999px;background:#fff4f7;color:#ff7890;font-size:42px;box-shadow:0 12px 28px -22px rgba(255,111,130,.8)}.compat-score-card{display:grid;grid-template-columns:260px 1fr;gap:24px;align-items:center;margin-top:22px;padding:24px 30px;border:1px solid var(--cute-line);border-radius:14px;background:linear-gradient(135deg,rgba(255,246,248,.92),rgba(255,255,255,.82));box-shadow:0 18px 42px -34px rgba(74,47,38,.42)}.compat-score-main{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:178px;border:1px solid var(--cute-line-soft);border-radius:18px;background:#fffafd;text-align:center}.compat-score-main span{color:#d36472;font-family:"Gowun Batang",serif;font-size:14px;font-weight:700}.compat-score-main strong{margin-top:6px;color:#ff7890;font-family:"Song Myung",serif;font-size:76px;line-height:1}.compat-score-main strong em{margin-left:4px;color:#7e6259;font-family:"Gowun Batang",serif;font-size:20px;font-style:normal}.compat-score-main b{margin-top:8px;color:#5b3b34;font-family:"Gowun Batang",serif;font-size:18px}.compat-score-card p{color:#5f504b;font-family:"Gowun Batang",serif;font-size:18px;line-height:1.72;text-align:center}.compat-score-breakdown{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}.compat-score-breakdown span{display:flex;align-items:center;justify-content:center;min-height:48px;border:1px solid var(--cute-line-soft);border-radius:999px;background:rgba(255,255,255,.74);color:#7e6259;font-family:"Gowun Batang",serif;font-size:14px}.compat-cute-section{position:relative;margin-top:22px;padding:30px 34px;border:1px solid var(--cute-line);border-radius:14px;background:rgba(255,255,255,.8);box-shadow:0 18px 42px -34px rgba(74,47,38,.42);overflow:hidden}.compat-section-head{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}.compat-section-head h2{display:flex;align-items:center;gap:14px;color:var(--cute-ink);font-family:"Gowun Batang",serif;font-size:27px}.compat-section-head h2 span{color:#ff7890;font-family:"Song Myung",serif;font-size:34px}.compat-section-head h2 b{color:#ffb1c0;font-family:"Gowun Dodum",sans-serif;font-size:18px}.compat-section-head p{padding:8px 16px;border-radius:999px;background:#fff2f6;color:#d36472;font-family:"Gowun Batang",serif;font-size:13px}.compat-section-body{display:grid;grid-template-columns:130px 1fr;gap:24px;align-items:start}.compat-section-ora{width:118px;height:118px;object-fit:contain}.compat-block-list{display:grid;gap:14px}.compat-cute-block{display:grid;grid-template-columns:54px 1fr;gap:16px;padding:16px 18px;border:1px solid var(--cute-line-soft);border-radius:12px;background:rgba(255,250,250,.75)}.compat-block-icon{width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:#fff5f7;color:#ff8fab;font-size:26px}.compat-cute-block h3{margin-top:4px;color:var(--cute-ink);font-family:"Gowun Batang",serif;font-size:20px}.compat-cute-block p{margin-top:8px;color:#5f504b;font-size:14.5px;line-height:1.72}.compat-cute-block .saju-block-summary{color:#d36472;font-family:"Gowun Batang",serif;font-weight:700}.compat-action-cute{background:radial-gradient(circle at 86% 70%,rgba(255,238,243,.9),transparent 28%),rgba(255,255,255,.8)}.compat-action-body{display:grid;grid-template-columns:150px 1fr;gap:24px;align-items:center}.compat-action-body img{width:140px;height:130px;object-fit:contain}.compat-action-body p{color:#5f504b;font-size:15px;line-height:1.8}.compat-summary-cute{background:linear-gradient(180deg,rgba(255,246,248,.86),rgba(255,255,255,.8))}.compat-summary-cute .saju-summary-copy h2 span:last-child{margin-left:10px;margin-right:0}.compat-disclaimer{background:linear-gradient(90deg,#fff7f2,#fff5f8)}
+.compat-cute-block p:not(.saju-block-summary){display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
 .compat-profile-card{grid-template-columns:minmax(0,1fr) minmax(220px,260px) minmax(0,1fr);gap:18px;align-items:center;padding:20px}.compat-person-cute{min-height:268px;padding:22px 22px 18px}.compat-person-cute h2{margin-top:12px;font-size:24px}.compat-person-meta{margin-top:8px}.compat-person-cute .compat-day-mark{margin-top:16px}.compat-person-cute p{max-width:25ch;margin-top:14px;font-size:13.5px}.compat-person-cute>img{width:72px;height:72px}.compat-score-heart-card{align-self:center;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;max-width:252px;min-height:218px;padding:2px 2px 0;border:0;border-radius:0;background:transparent;text-align:center;box-shadow:none}.compat-score-title{display:flex;align-items:center;justify-content:center;gap:10px;color:#ff7890;font-family:"Gowun Batang",serif;font-size:14px;font-weight:700;letter-spacing:.02em}.compat-score-title span{color:#ff9faf;font-size:14px}.compat-score-heart-shape{position:relative;width:158px;height:116px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-top:0;color:#ff7291}.compat-score-heart-shape::before{content:"♡";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scaleX(1.08);color:#ff8fab;font-family:"Gowun Batang",serif;font-size:166px;line-height:.78;text-shadow:0 2px 0 rgba(255,143,171,.14)}.compat-score-number,.compat-score-denominator{position:relative;z-index:1}.compat-score-number{margin-top:4px;color:#e84f75;font-family:"Song Myung",serif;font-size:48px;line-height:1}.compat-score-denominator{margin-top:0;color:#e84f75;font-family:"Gowun Batang",serif;font-size:13px}.compat-score-one-line{width:100%;margin-top:6px;padding:10px 12px;border:1px solid rgba(255,196,206,.72);border-radius:14px;background:rgba(255,255,255,.48)}.compat-score-one-line strong{display:block;color:#f06682;font-family:"Gowun Batang",serif;font-size:14px}.compat-score-one-line p{margin-top:5px;color:#5f504b;font-size:12.8px;line-height:1.5}.compat-score-breakdown{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%;margin-top:10px}.compat-score-breakdown span{display:flex;align-items:center;justify-content:center;min-height:34px;border:1px solid var(--cute-line-soft);border-radius:999px;background:rgba(255,255,255,.7);color:#7e6259;font-family:"Gowun Batang",serif;font-size:12px}
 header{padding:64px 0 40px;text-align:center;border-bottom:1px solid var(--line)}
 .eyebrow{font-size:12px;letter-spacing:.42em;color:var(--gold);text-transform:uppercase;margin-bottom:26px}
