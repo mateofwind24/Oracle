@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import base64
 import json
+import mimetypes
+import re
 from dataclasses import dataclass
 from html import escape
+from pathlib import Path
 from typing import Any, Mapping
 
 from oracle_report.models import BirthProfile
@@ -205,6 +209,7 @@ def render_personal_report_html(
 </body>
 </html>
 """
+        result = _embed_static_asset_images(result)
     else:
         result = f"""{_font_links()}
 <style>
@@ -254,6 +259,7 @@ def render_compatibility_report_html(
 </body>
 </html>
 """
+        result = _embed_static_asset_images(result)
     else:
         result = f"""{_font_links()}
 <style>
@@ -261,6 +267,34 @@ def render_compatibility_report_html(
 </style>
 {body}
 """
+    return result
+
+
+def _embed_static_asset_images(html: str) -> str:
+    def replace(match: re.Match[str]) -> str:
+        quote = match.group("quote")
+        src = match.group("src")
+        data_uri = _static_asset_data_uri(src)
+        result = f'src={quote}{data_uri}{quote}'
+        return result
+
+    result = re.sub(
+        r'src=(?P<quote>["\'])(?P<src>/static/assets/[^"\']+)(?P=quote)',
+        replace,
+        html,
+    )
+    return result
+
+
+def _static_asset_data_uri(src: str) -> str:
+    assets_root = (Path(__file__).resolve().parent / "static" / "assets").resolve()
+    relative_name = src.removeprefix("/static/assets/")
+    asset_path = (assets_root / relative_name).resolve()
+    result = src
+    if assets_root in asset_path.parents and asset_path.is_file():
+        mime_type = mimetypes.guess_type(asset_path.name)[0] or "application/octet-stream"
+        encoded = base64.b64encode(asset_path.read_bytes()).decode("ascii")
+        result = f"data:{mime_type};base64,{encoded}"
     return result
 
 
