@@ -162,6 +162,8 @@ def test_compare_camera_page_uses_live_metric_dashboard() -> None:
     assert "max-height: none;" in html
     assert "column-count: 2;" in html
     assert "height: 320px;" in html
+    assert "aspect-ratio: 0.879;" in html
+    assert "transform: translateX(-50%);" in html
     assert "main.compare-camera-page" in html
     assert "oracle-solo-card.png" not in html
     assert "oracle-pair-card.png" not in html
@@ -184,6 +186,18 @@ def test_compare_camera_start_returns_live_status(monkeypatch) -> None:
     assert response.status_code == 200
     assert payload == {"status": "running", "message": "ok"}
     assert "job_id" not in payload
+
+
+def test_web_capture_opencv_guide_toggle(monkeypatch) -> None:
+    from oracle_report.web import _web_capture_show_opencv_guide
+
+    monkeypatch.delenv("ORACLE_WEB_CAPTURE_SHOW_OPENCV_GUIDE", raising=False)
+
+    assert _web_capture_show_opencv_guide() is False
+
+    monkeypatch.setenv("ORACLE_WEB_CAPTURE_SHOW_OPENCV_GUIDE", "1")
+
+    assert _web_capture_show_opencv_guide() is True
 
 
 def test_capture_debug_payload_shows_only_judgement_item_and_tag() -> None:

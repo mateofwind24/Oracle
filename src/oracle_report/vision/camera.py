@@ -167,12 +167,14 @@ def draw_overlay(
     faces: Sequence[FaceBox],
     warning: bool,
     landmarks: Sequence[tuple[int, int]] = (),
+    show_guide: bool = True,
 ) -> None:
     color = (0, 180, 0)
     if warning:
         color = (0, 0, 255)
-    guide = build_capture_guide(frame.shape[1], frame.shape[0])
-    _draw_capture_guide(cv2, frame, guide)
+    if show_guide:
+        guide = build_capture_guide(frame.shape[1], frame.shape[0])
+        _draw_capture_guide(cv2, frame, guide)
     for face in faces:
         cv2.rectangle(
             frame,

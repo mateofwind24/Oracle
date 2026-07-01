@@ -809,6 +809,7 @@ def _run_compare_camera_stream() -> None:
                 faces,
                 decision.state == "warning",
                 decision.landmark_points,
+                _web_capture_show_opencv_guide(),
             )
             _PREVIEW_STREAM.publish(cv2, preview_frame, decision, live=True)
     except Exception as exc:
@@ -845,12 +846,18 @@ def _preview_capture_runner(config, output_dir: Path | None = None):
         config,
         output_dir=output_dir,
         frame_callback=_PREVIEW_STREAM.publish,
+        show_capture_guide=_web_capture_show_opencv_guide(),
     )
     return result
 
 
 def _compare_camera_enabled() -> bool:
     result = os.getenv("ORACLE_CAPTURE_COMPARE_CAMERA", "0") == "1"
+    return result
+
+
+def _web_capture_show_opencv_guide() -> bool:
+    result = os.getenv("ORACLE_WEB_CAPTURE_SHOW_OPENCV_GUIDE", "0") == "1"
     return result
 
 
@@ -3538,10 +3545,6 @@ def _render_page(
             font-size: 12px;
             line-height: 1.28;
           }}
-          .compare-camera-shell .face-guide {{
-            width: 210px;
-            height: 250px;
-          }}
           .compare-camera-shell .capture-tip {{
             min-height: 38px;
             margin-top: 8px;
@@ -3651,13 +3654,13 @@ def _render_page(
             position: absolute;
             z-index: 4;
             left: 50%;
-            top: 50%;
-            width: 290px;
-            height: 330px;
+            top: 19.6%;
+            height: 66%;
+            aspect-ratio: 0.879;
             border: 3px dashed #ffb0c0;
             border-radius: 10px;
             box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.54);
-            transform: translate(-50%, -46%);
+            transform: translateX(-50%);
           }}
           .personal-result-shell .face-guide::before,
           .personal-result-shell .face-guide::after {{

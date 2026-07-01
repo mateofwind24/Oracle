@@ -36,6 +36,7 @@ def run_capture(
     config: CaptureConfig,
     output_dir: Path | None = None,
     frame_callback: FrameCallback | None = None,
+    show_capture_guide: bool = True,
 ) -> CaptureArtifact:
     destination = output_dir or config.output_dir
     if config.mock_capture_enabled:
@@ -73,6 +74,7 @@ def run_capture(
                 faces,
                 latest_decision.state == "warning",
                 latest_decision.landmark_points,
+                show_capture_guide,
             )
             if frame_callback is not None:
                 _publish_preview_frame(frame_callback, cv2, preview_frame, latest_decision)

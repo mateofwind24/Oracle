@@ -132,6 +132,16 @@ def test_draw_overlay_shows_only_head_guide() -> None:
     assert len(cv2.line_calls) == 0
 
 
+def test_draw_overlay_can_hide_head_guide_for_web_preview() -> None:
+    cv2 = FakeDrawCv2()
+    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+
+    draw_overlay(cv2, frame, "ready", [], False, (), False)
+
+    assert len(cv2.rectangle_calls) == 1
+    assert cv2.rectangle_calls[0][0] == (0, 0)
+
+
 def test_camera_candidate_indices_prefer_configured_index() -> None:
     config = _capture_config()
 

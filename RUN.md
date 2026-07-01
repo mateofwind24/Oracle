@@ -54,6 +54,12 @@ http://<raspberry-pi-ip>:8501
 
 `compare_camera`도 같은 모드로 동작합니다. 이 모드는 얼굴이 인식되어도 캡처 완료로 멈추지 않고, 오른쪽 패널의 측정값과 판정 결과를 계속 갱신합니다.
 
+UI의 핑크 가이드와 OpenCV 가이드가 맞는지 확인할 때는 노란 OpenCV 박스를 임시로 함께 표시할 수 있습니다.
+
+```bash
+ORACLE_WEB_CAPTURE_SHOW_OPENCV_GUIDE=1 ./run.sh camera_compare
+```
+
 ## 3. 실행 모드
 
 - `debug`: 출력 로그와 산출물을 `runs/debug/<timestamp>/` 아래에 저장하고 화면에도 출력합니다.
