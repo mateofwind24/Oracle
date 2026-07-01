@@ -2056,11 +2056,16 @@ def _parse_distributed_json(text: str) -> dict[str, object]:
     payload: dict[str, object] = {}
     if start >= 0 and end >= start:
         try:
-            loaded = json.loads(cleaned[start : end + 1])
+            loaded, _ = _load_json_with_repairs(cleaned[start : end + 1])
             if isinstance(loaded, dict):
                 payload = loaded
-        except json.JSONDecodeError:
-            payload = {}
+        except Exception:
+            try:
+                loaded = json.loads(cleaned[start : end + 1])
+                if isinstance(loaded, dict):
+                    payload = loaded
+            except Exception:
+                payload = {}
     result = payload
     return result
 
