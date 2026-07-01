@@ -491,7 +491,7 @@ def create_app() -> Flask:
                 pass
         else:
             try:
-                if getattr(client, "_measured_tps", None) is not None:
+                if getattr(LlamaCppChatClient, "_measured_tps", None) is not None:
                     tps = client.get_or_measure_tps()
                     score = client.get_compute_score()
                 elif not is_busy:

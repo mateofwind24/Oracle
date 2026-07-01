@@ -35,9 +35,9 @@ class LlamaCppChatClient:
         벤치마크 시 시스템 프롬프트 캐시(KV cache) 슬롯을 Evict/오염시키지 않기 위해
         'cache_prompt: False' 와 콤팩트한 더미 메시지 세트를 사용합니다.
         """
-        with self._tps_lock:
-            if self._measured_tps is not None:
-                return self._measured_tps
+        with LlamaCppChatClient._tps_lock:
+            if LlamaCppChatClient._measured_tps is not None:
+                return LlamaCppChatClient._measured_tps
 
         import requests
         import time
@@ -69,8 +69,8 @@ class LlamaCppChatClient:
                 elapsed = t1 - t0
                 if completion_tokens > 0 and elapsed > 0:
                     tps = completion_tokens / elapsed
-                    with self._tps_lock:
-                        self._measured_tps = tps
+                    with LlamaCppChatClient._tps_lock:
+                        LlamaCppChatClient._measured_tps = tps
                     print(f"[LLM][Benchmark] Auto-profiling complete: {tps:.2f} tokens/sec (Cache bypass enabled)")
                     return tps
         except Exception as e:
