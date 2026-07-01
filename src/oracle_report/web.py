@@ -493,8 +493,8 @@ def create_app() -> Flask:
         llm_config = load_llm_config()
         client = LlamaCppChatClient(llm_config)
         
-        tps = 1.0
-        score = 2.0
+        tps = 6.0
+        score = 60.0
         model_name = llm_config.model
         
         env_score = os.getenv("ORACLE_COMPUTE_SCORE")
@@ -506,8 +506,9 @@ def create_app() -> Flask:
                 pass
         else:
             try:
-                if getattr(LlamaCppChatClient, "_measured_tps", None) is not None:
-                    tps = client.get_or_measure_tps()
+                cached_tps = getattr(LlamaCppChatClient, "_measured_tps", None)
+                if cached_tps is not None:
+                    tps = cached_tps
                     score = client.get_compute_score()
                 elif not is_busy:
                     tps = client.get_or_measure_tps()
