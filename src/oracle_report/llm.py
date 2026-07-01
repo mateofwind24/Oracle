@@ -214,6 +214,9 @@ class LlamaCppChatClient:
                 f"{generation_str}"
                 f"{speed_str}"
             )
+            if 'speed' in locals() and speed is not None and speed > 0:
+                with LlamaCppChatClient._tps_lock:
+                    LlamaCppChatClient._measured_tps = speed
             if finish_reason in _INCOMPLETE_FINISH_REASONS:
                 raise RuntimeError(
                     "incomplete LLM response: "
