@@ -559,35 +559,42 @@ def serve() -> None:
         except Exception as e:
             print(f"[Distributed][Warning] Local LLM benchmarking failed: {e}", flush=True)
 
-        # 2. Warm up distributed network if master or hybrid
+        # 2. Warm up distributed network if master or hybrid (Run asynchronously to prevent deadlock before ports open)
         if config.distributed_role in ("master", "hybrid"):
-            print("[Distributed] Executing distributed dummy generation for warmups...", flush=True)
-            try:
-                from oracle_report.workflow import _generate_distributed
-                dummy_values = {
-                    "name": "더미",
-                    "gender": "남성",
-                    "timezone": "KST",
-                    "saju_text": "사주 테스트 텍스트",
-                }
-                dummy_categories = [
-                    "종합 형국",
-                    "타고난 성향과 심리 패턴",
-                    "재물운과 적성",
-                    "연애운과 인간관계",
-                    "올해의 운세",
-                    "총평 및 인생의 조언",
-                ]
-                _generate_distributed(
-                    prompt_name="saju_reading",
-                    values=dummy_values,
-                    categories=dummy_categories,
-                    image_path=None,
-                    app_config=config,
-                )
-                print("[Distributed] Distributed LLM warmup complete.", flush=True)
-            except Exception as e:
-                print(f"[Distributed][Error] Distributed LLM warmup failed: {e}", flush=True)
+            import threading
+            def run_distributed_warmup_bg():
+                import time
+                time.sleep(3.0)
+                print("[Distributed] Executing distributed dummy generation for warmups in background...", flush=True)
+                try:
+                    from oracle_report.workflow import _generate_distributed
+                    dummy_values = {
+                        "name": "더미",
+                        "gender": "남성",
+                        "timezone": "KST",
+                        "saju_text": "사주 테스트 텍스트",
+                    }
+                    dummy_categories = [
+                        "종합 형국",
+                        "타고난 성향과 심리 패턴",
+                        "재물운과 적성",
+                        "연애운과 인간관계",
+                        "올해의 운세",
+                        "총평 및 인생의 조언",
+                    ]
+                    _generate_distributed(
+                        prompt_name="saju_reading",
+                        values=dummy_values,
+                        categories=dummy_categories,
+                        image_path=None,
+                        app_config=config,
+                    )
+                    print("[Distributed] Distributed LLM warmup complete.", flush=True)
+                except Exception as exc:
+                    print(f"[Distributed][Error] Distributed LLM warmup failed: {exc}", flush=True)
+            
+            t = threading.Thread(target=run_distributed_warmup_bg, daemon=True)
+            t.start()
 
         print("[Distributed] Warmup and benchmarking sequence completed successfully.", flush=True)
 
