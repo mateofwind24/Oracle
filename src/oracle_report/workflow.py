@@ -1804,6 +1804,9 @@ def _generate_distributed(
                         if data.get("status") == "success":
                             success = True
                             output = data.get("output")
+                            score = data.get("compute_score")
+                            if score is not None:
+                                scheduler.slave_metadata[slave_url]["compute_score"] = float(score)
                         else:
                             error_msg = data.get("error", "Unknown slave error")
                     else:

@@ -473,7 +473,14 @@ def create_app() -> Flask:
 
         try:
             output = client.generate(rendered, image_path=temp_img_path)
-            result = jsonify({"status": "success", "output": output})
+            tps_val = getattr(LlamaCppChatClient, "_measured_tps", None)
+            score_val = client.get_compute_score() if tps_val is not None else 60.0
+            result = jsonify({
+                "status": "success",
+                "output": output,
+                "measured_tps": tps_val,
+                "compute_score": score_val
+            })
         except Exception as exc:
             result = jsonify({"status": "error", "error": str(exc)}), 500
         finally:
