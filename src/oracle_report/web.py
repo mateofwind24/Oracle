@@ -472,6 +472,14 @@ def create_app() -> Flask:
             temp_img_path = temp_dir / f"distributed_temp_{uuid.uuid4().hex}.jpg"
             temp_img_path.write_bytes(img_data)
 
+        from oracle_report.config import load_app_config
+        app_cfg = load_app_config()
+        if app_cfg.debug:
+            print(f"\n--- [DEBUG: Distributed Request Received on Slave] ---")
+            print(f"Category: {target_category or 'metadata'}")
+            print(f"Prompt:\n{rendered.prefix}\n{rendered.body}")
+            print("-" * 50 + "\n", flush=True)
+
         from oracle_report.llm import LlamaCppChatClient
         from oracle_report.config import load_report_llm_config
 
@@ -480,6 +488,11 @@ def create_app() -> Flask:
 
         try:
             output = client.generate(rendered, image_path=temp_img_path)
+            if app_cfg.debug:
+                print(f"\n--- [DEBUG: Distributed Response Generated on Slave] ---")
+                print(f"Category: {target_category or 'metadata'}")
+                print(f"Output:\n{output}")
+                print("-" * 50 + "\n", flush=True)
             tps_val = getattr(LlamaCppChatClient, "_measured_tps", None)
             score_val = client.get_compute_score() if tps_val is not None else 60.0
             result = jsonify({
