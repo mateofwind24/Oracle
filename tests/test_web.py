@@ -164,6 +164,7 @@ def test_compare_camera_page_uses_live_metric_dashboard() -> None:
     assert "height: 320px;" in html
     assert "aspect-ratio: 0.879;" in html
     assert "transform: translateX(-50%);" in html
+    assert "object-fit: cover;" not in html
     assert "main.compare-camera-page" in html
     assert "oracle-solo-card.png" not in html
     assert "oracle-pair-card.png" not in html

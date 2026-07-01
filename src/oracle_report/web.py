@@ -3742,7 +3742,7 @@ def _render_page(
           .personal-result-shell #capture-preview-image {{
             height: 500px;
             max-height: none;
-            object-fit: cover;
+            object-fit: contain;
             border-radius: 0;
           }}
           .personal-result-shell .camera-corner {{
