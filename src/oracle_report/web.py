@@ -237,7 +237,7 @@ def create_app() -> Flask:
                   <h3>오라와 함께 운명을 분석하는 과정</h3>
                   <ol>
                     <li><span>1</span><strong>얼굴 인식</strong><em>사진을 촬영하거나 업로드해요.</em></li>
-                    <li><span><img src="/static/assets/calendar.png" width="35" height="35" alt="" aria-hidden="true"></span><span>2</span><strong>정보 입력</strong><em>생년월일시 등 필요한 정보를 입력해요.</em></li>
+                    <li><span>2</span><strong>정보 입력</strong><em>생년월일시 등 필요한 정보를 입력해요.</em></li>
                     <li><span>3</span><strong>AI 분석</strong><em>AI가 사주와 관상을 종합 분석해요.</em></li>
                     <li><span>4</span><strong>결과 확인</strong><em>나만의 운세 리포트를 확인해요.</em></li>
                     <li><span>5</span><strong>안전한 저장</strong><em>결과는 기기 내에서만 안전하게 저장돼요.</em></li>

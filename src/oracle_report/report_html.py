@@ -1192,7 +1192,7 @@ def _render_saju_only_element_cards(view: _PersonalReportView) -> str:
 
 
 def _element_icon_marks(icon: str, count: int) -> str:
-    result = "❌" if count <= 0 else icon * count
+    result = " " if count <= 0 else icon * count
     return result
 
 
