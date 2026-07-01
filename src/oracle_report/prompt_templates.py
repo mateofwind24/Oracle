@@ -367,6 +367,10 @@ def render_distributed_prompt_template(
         else:
             raise ValueError(f"unsupported distributed prompt template: {name}")
     else:
+        body_instruction = "이 분석에 대한 구체적이고 현실적인 설명 본문"
+        if name in ("personal_face_analysis", "face_analysis_copule"):
+            body_instruction = "이 분석에 대한 구체적이고 현실적인 설명 본문 (반드시 최대 5줄 이하의 분량으로 줄바꿈 없이 하나의 단락으로만 간결하게 작성하세요)"
+
         suffix_instructions = f"""[출력 JSON 스키마]
 당신은 오직 '{target_category}' 카테고리에 대한 분석만 수행합니다.
 다른 메타데이터 필드나 다른 카테고리 블록은 절대 포함하지 말고, 오직 아래 포맷의 단일 JSON 객체 하나만 출력해야 합니다.
@@ -374,7 +378,7 @@ def render_distributed_prompt_template(
   "category": "{target_category}",
   "title": "이 분석을 대표하는 호기심을 자극하면서도 핵심을 찌르는 제목",
   "summary": "쉬운 한국어 해요체의 짧은 요약 문장",
-  "body": "이 분석에 대한 구체적이고 현실적인 설명 본문"
+  "body": "{body_instruction}"
 }}
 
 [분석 대상 카테고리]
