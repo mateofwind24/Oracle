@@ -2915,6 +2915,15 @@ def _render_page(
             width: min(1120px, calc(100vw - 56px));
             padding: 24px 0 112px;
           }}
+          body.saju-report-ready main.personal-result-page {{
+            padding-top: 0;
+          }}
+          body.saju-report-ready .personal-result-shell > .result-topbar,
+          body.saju-report-ready .personal-result-shell > .personal-result-brand,
+          body.saju-report-ready .personal-result-shell > .result-sky,
+          body.saju-report-ready .personal-result-shell > .result-actions {{
+            display: none;
+          }}
           .personal-result-shell {{
             min-height: 820px;
           }}
@@ -3794,6 +3803,7 @@ def _render_page(
           function prepareWorkflowUi(ui, skipFace) {{
             const loadingTitle = document.getElementById("workflow-loading-title");
             const loadingMessage = document.getElementById("workflow-loading-message");
+            document.body.classList.remove("saju-report-ready");
             ui.result.innerHTML = "";
             ui.loading.hidden = false;
             ui.loading.setAttribute("aria-busy", "true");
@@ -3815,6 +3825,7 @@ def _render_page(
             const downloadLink = document.getElementById("download-report-link");
             const preview = document.querySelector(".capture-preview");
             const keepPreview = loading.dataset.compareCamera === "1";
+            const skipFace = loading.dataset.skipFace === "1";
             let done = false;
             while (!done) {{
               await new Promise((resolve) => setTimeout(resolve, keepPreview ? 800 : 30000));
@@ -3826,6 +3837,9 @@ def _render_page(
               }}
               if (payload.status === "complete") {{
                 result.innerHTML = payload.html;
+                if (skipFace) {{
+                  document.body.classList.add("saju-report-ready");
+                }}
                 status.textContent = "완료";
                 loading.hidden = true;
                 loading.setAttribute("aria-busy", "false");
