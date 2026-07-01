@@ -91,7 +91,7 @@ def test_compatibility_report_html_uses_structured_layout() -> None:
     )
 
     assert html.startswith("<!DOCTYPE html>")
-    assert "oracle-report compatibility-report" in html
+    assert "cute-compatibility-report" in html
     assert "궁합 핵심" in html
     assert "행동 제목" in html
     assert "left 님과 right 님" in html
@@ -135,7 +135,7 @@ def test_compatibility_report_html_shows_face_saju_comparison() -> None:
     assert "사주 흐름만 정리한 본문" in html
     assert "궁합 관상 근거" in html
     assert "궁합 사주 근거" in html
-    assert "↔" in html
+    assert "×" in html
 
 
 def test_report_profile_shows_unknown_birth_time_without_helper_basis() -> None:
