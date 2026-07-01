@@ -12,6 +12,7 @@ from datetime import datetime
 import json
 import re
 import time
+import threading
 from pathlib import Path
 from typing import Any, Callable, Generic, Protocol, TypeVar
 
@@ -77,6 +78,17 @@ _EMOJI_PATTERN = re.compile(
 )
 _T = TypeVar("_T")
 _LAST_STATUS_CHECK_TIMES: dict[str, float] = {}
+_LAST_COMPLETED_TIMES: dict[str, float] = {}
+_COMPLETED_TIMES_LOCK = threading.Lock()
+
+
+def get_virtual_score(addr: str, base_score: float) -> float:
+    with _COMPLETED_TIMES_LOCK:
+        last_time = _LAST_COMPLETED_TIMES.get(addr, 0.0)
+    elapsed = time.time() - last_time
+    if elapsed < 5.0:
+        return base_score - 10.0
+    return base_score
 
 
 class TextGenerator(Protocol):
@@ -1558,8 +1570,8 @@ def _generate_distributed(
                     if not is_task_done(assigned_task):
                         return copy.deepcopy(assigned_task)
                 elif not is_my_local and not is_other_local and worker_url != my_url:
-                    my_score = scheduler.slave_metadata.get(my_url, {}).get("compute_score", 5.0)
-                    if my_score == 5.0:
+                    my_raw_score = scheduler.slave_metadata.get(my_url, {}).get("compute_score", 5.0)
+                    if my_raw_score == 5.0:
                         now = time.time()
                         last_check = _LAST_STATUS_CHECK_TIMES.get(my_url, 0.0)
                         if now - last_check >= 5.0:
@@ -1572,10 +1584,11 @@ def _generate_distributed(
                                     score = status_data.get("compute_score")
                                     if score is not None:
                                         scheduler.slave_metadata[my_url]["compute_score"] = float(score)
-                                        my_score = float(score)
+                                        my_raw_score = float(score)
                             except Exception:
                                 pass
-                    other_score = scheduler.slave_metadata.get(worker_url, {}).get("compute_score", 5.0)
+                    my_score = get_virtual_score(my_url, my_raw_score)
+                    other_score = get_virtual_score(worker_url, scheduler.slave_metadata.get(worker_url, {}).get("compute_score", 5.0))
                     if my_score > other_score:
                         if not is_task_done(assigned_task):
                             return copy.deepcopy(assigned_task)
@@ -1679,11 +1692,11 @@ def _generate_distributed(
                 )
                 if is_core_category:
                     has_idle_faster_remote_slave = any(
-                        (addr != "local" and meta.get("status") == "idle" and meta.get("compute_score", 0.0) > compute_score and addr != slave_url)
+                        (addr != "local" and meta.get("status") == "idle" and get_virtual_score(addr, meta.get("compute_score", 0.0)) > get_virtual_score(slave_url, compute_score) and addr != slave_url)
                         for addr, meta in scheduler.slave_metadata.items()
                     )
                     has_strictly_faster_slave = any(
-                        (addr != "local" and meta.get("compute_score", 0.0) > compute_score and addr != slave_url)
+                        (addr != "local" and get_virtual_score(addr, meta.get("compute_score", 0.0)) > get_virtual_score(slave_url, compute_score) and addr != slave_url)
                         for addr, meta in scheduler.slave_metadata.items()
                     )
                     yield_task = has_idle_faster_remote_slave or has_strictly_faster_slave
@@ -1769,6 +1782,8 @@ def _generate_distributed(
 
             if success:
                 consecutive_failures = 0
+                with _COMPLETED_TIMES_LOCK:
+                    _LAST_COMPLETED_TIMES[slave_url] = time.time()
                 print(f"[Distributed] Task '{cat or 'metadata'}' completed on {device_name} in {elapsed:.2f}s (Worker Score: {my_updated_score:.2f}, Master Score: {local_updated_score:.2f})")
                 already_done = is_task_done(task)
                 if not already_done:
@@ -1825,28 +1840,7 @@ def _generate_distributed(
             is_meta = task["is_metadata"]
             cat = task["target_category"]
 
-            if not speculative:
-                is_core_category = cat in (
-                    "종합 형국", "타고난 성향과 심리 패턴", "총평 및 인생의 조언",
-                    "타고난 인상과 기본 상", "강점으로 읽히는 복과 기세",
-                    "첫인상과 분위기", "관계 강점",
-                    "관계 구조", "상호 보완", "갈등 관리", "실천 제안"
-                )
-                if is_core_category:
-                    has_idle_faster_remote_slave = any(
-                        (addr != "local" and meta.get("status") == "idle" and meta.get("compute_score", 0.0) >= local_score)
-                        for addr, meta in scheduler.slave_metadata.items()
-                    )
-                    has_strictly_faster_slave = any(
-                        (addr != "local" and meta.get("compute_score", 0.0) > local_score)
-                        for addr, meta in scheduler.slave_metadata.items()
-                    )
-                    yield_task = has_idle_faster_remote_slave or has_strictly_faster_slave
-                    if yield_task:
-                        put_task(task)
-                        task_queue.task_done()
-                        time.sleep(0.5)
-                        continue
+            # Local worker directly processes its own retrieved tasks without yielding to remote slaves.
 
             rendered = render_distributed_prompt_template(
                 name=prompt_name,
@@ -1884,6 +1878,8 @@ def _generate_distributed(
             local_updated_score = scheduler.slave_metadata.get("local", {}).get("compute_score", 5.0)
 
             if success:
+                with _COMPLETED_TIMES_LOCK:
+                    _LAST_COMPLETED_TIMES["local"] = time.time()
                 print(f"[Distributed] Task '{cat or 'metadata'}' completed on local in {elapsed:.2f}s (Local Score: {local_updated_score:.2f})")
                 already_done = is_task_done(task)
                 if not already_done:
