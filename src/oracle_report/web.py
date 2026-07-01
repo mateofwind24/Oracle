@@ -990,33 +990,34 @@ def _face_db_path() -> Path:
 
 
 def _bottom_nav(active: str, *, home_tabs: bool = False) -> str:
-    home_href = "#oracle-home" if home_tabs else "/#oracle-home"
-    more_href = "#oracle-more" if home_tabs else "/#oracle-more"
-    home_tab = ' data-home-tab="home"' if home_tabs else ""
-    more_tab = ' data-home-tab="more"' if home_tabs else ""
-    home_active = " foot-item-active" if active == "home" else ""
-    personal_active = " foot-item-active" if active == "personal" else ""
-    compatibility_active = " foot-item-active" if active == "compatibility" else ""
-    more_active = " foot-item-active" if active == "more" else ""
-    result = f"""
-    <footer class="home-foot" aria-label="하단 메뉴">
-      <a class="foot-item foot-item-home{home_active}" href="{home_href}"{home_tab}>
-        <span class="foot-icon">⌂</span>
-        <span>홈</span>
-      </a>
-      <a class="foot-item{personal_active}" href="/personal">
-        <span class="foot-icon">▤</span>
-        <span>운세 리포트</span>
-      </a>
-      <a class="foot-item{compatibility_active}" href="/compatibility">
-        <span class="foot-icon">♡</span>
-        <span>궁합 리포트</span>
-      </a>
-      <a class="foot-item foot-item-more{more_active}" href="{more_href}"{more_tab}>
-        <span class="foot-icon">•••</span>
-        <span>더보기</span>
-      </a>
-    </footer>
+    del active, home_tabs
+    result = ""
+    return result
+
+
+def _side_menu() -> str:
+    result = """
+    <button class="app-menu-toggle" type="button" aria-label="메뉴 열기" aria-expanded="false" data-menu-toggle>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </button>
+    <div class="app-menu-backdrop" data-menu-close hidden></div>
+    <aside class="app-side-menu" aria-label="전체 메뉴" aria-hidden="true">
+      <div class="app-side-head">
+        <div>
+          <strong>ORACLE</strong>
+          <p>관상 &amp; 사주 리포트</p>
+        </div>
+        <button class="app-menu-close" type="button" aria-label="메뉴 닫기" data-menu-close>×</button>
+      </div>
+      <nav class="app-side-nav">
+        <a href="/#oracle-home" data-home-tab="home"><span>⌂</span>홈</a>
+        <a href="/personal"><span>☘</span>나의 운세 보기</a>
+        <a href="/compatibility"><span>♡</span>우리 궁합 보기</a>
+        <a href="/#oracle-more" data-home-tab="more"><span>※</span>소개</a>
+      </nav>
+    </aside>
     """
     return result
 
@@ -1541,6 +1542,9 @@ def _render_page(
               repeating-linear-gradient(90deg, rgba(216, 162, 75, 0.08) 0 1px, transparent 1px 120px);
             -webkit-font-smoothing: antialiased;
           }}
+          body.app-menu-open {{
+            overflow: hidden;
+          }}
           main {{
             width: min(960px, calc(100vw - 32px));
             margin: 0 auto;
@@ -1548,11 +1552,11 @@ def _render_page(
           }}
           main.input-page {{
             width: min(860px, calc(100vw - 48px));
-            padding: 24px 0 112px;
+            padding: 24px 0 48px;
           }}
           main.home-page {{
             width: min(1180px, calc(100vw - 48px));
-            padding: 22px 0 112px;
+            padding: 22px 0 48px;
           }}
           h1 {{
             margin: 0 0 24px;
@@ -1589,6 +1593,139 @@ def _render_page(
           .serif {{
             font-family: "Gowun Batang", serif;
           }}
+          .app-menu-toggle {{
+            position: fixed;
+            top: 24px;
+            right: 28px;
+            z-index: 80;
+            width: 48px;
+            height: 48px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 0;
+            border: 1px solid #ffd7cc;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.82);
+            box-shadow: 0 14px 34px -24px rgba(74, 47, 38, 0.5);
+            backdrop-filter: blur(14px);
+            cursor: pointer;
+          }}
+          .app-menu-toggle span {{
+            width: 20px;
+            height: 2px;
+            border-radius: 999px;
+            background: #5a332a;
+          }}
+          .app-menu-backdrop {{
+            position: fixed;
+            inset: 0;
+            z-index: 70;
+            background: rgba(74, 47, 38, 0.16);
+            backdrop-filter: blur(2px);
+          }}
+          .app-menu-backdrop[hidden] {{
+            display: none;
+          }}
+          .app-side-menu {{
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 90;
+            width: 340px;
+            max-width: calc(100vw - 48px);
+            min-height: 100vh;
+            padding: 28px 24px;
+            border-left: 1px solid #ffd8ce;
+            background:
+              radial-gradient(circle at 72% 12%, rgba(255, 239, 242, 0.95), transparent 30%),
+              linear-gradient(180deg, rgba(255, 250, 246, 0.98), rgba(255, 243, 238, 0.98));
+            box-shadow: -24px 0 52px -34px rgba(74, 47, 38, 0.62);
+            transform: translateX(105%);
+            transition: transform 0.24s ease;
+          }}
+          body.app-menu-open .app-side-menu {{
+            transform: translateX(0);
+          }}
+          .app-side-head {{
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            padding-bottom: 22px;
+            border-bottom: 1px solid #ffe0d8;
+          }}
+          .app-side-head strong {{
+            color: var(--ink);
+            font-family: "Song Myung", serif;
+            font-size: 30px;
+            line-height: 1;
+          }}
+          .app-side-head p {{
+            margin: 8px 0 0;
+            color: #9a6647;
+            font-family: "Gowun Batang", serif;
+            font-size: 14px;
+          }}
+          .app-menu-close {{
+            width: 38px;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border: 1px solid #ffd7cc;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.74);
+            color: #ff8fab;
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+          }}
+          .app-side-nav {{
+            display: grid;
+            gap: 12px;
+            margin-top: 22px;
+          }}
+          .app-side-nav a {{
+            min-height: 58px;
+            display: grid;
+            grid-template-columns: 42px 1fr;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border: 1px solid #ffe0d8;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.72);
+            color: #4a2f26;
+            font-family: "Gowun Batang", serif;
+            font-size: 17px;
+            font-weight: 700;
+            text-decoration: none;
+          }}
+          .app-side-nav a:hover {{
+            border-color: #ffb8c5;
+            background: #fff7f8;
+          }}
+          .app-side-nav a.app-side-nav-active {{
+            border-color: #ff9fad;
+            background: #fff2f6;
+            color: #ff6f82;
+          }}
+          .app-side-nav span {{
+            width: 42px;
+            height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: #fff2f6;
+            color: #ff7890;
+            font-family: "Gowun Dodum", sans-serif;
+            font-size: 22px;
+          }}
           .oracle-home-shell {{
             width: 100%;
             overflow: hidden;
@@ -1598,12 +1735,6 @@ def _render_page(
           }}
           .oracle-home-shell.more-active .more-section {{
             display: block;
-          }}
-          .oracle-home-shell.more-active .foot-item-active {{
-            color: var(--ink-soft);
-          }}
-          .oracle-home-shell.more-active .foot-item-more {{
-            color: var(--hwa);
           }}
           .home-nav {{
             display: flex;
@@ -2317,7 +2448,7 @@ def _render_page(
           }}
           main.personal-page {{
             width: min(940px, calc(100vw - 58px));
-            padding: 24px 0 104px;
+            padding: 24px 0 48px;
           }}
           .personal-oracle-shell {{
             position: relative;
@@ -2670,7 +2801,7 @@ def _render_page(
           }}
           main.compatibility-page {{
             width: min(1120px, calc(100vw - 58px));
-            padding: 24px 0 104px;
+            padding: 24px 0 48px;
           }}
           .compatibility-oracle-shell {{
             position: relative;
@@ -3071,7 +3202,7 @@ def _render_page(
           }}
           main.personal-result-page {{
             width: min(1120px, calc(100vw - 56px));
-            padding: 24px 0 112px;
+            padding: 24px 0 60px;
           }}
           main.compare-camera-page {{
             width: min(1840px, calc(100vw - 16px));
@@ -3938,20 +4069,65 @@ def _render_page(
         </style>
       </head>
       <body>
+        {_side_menu()}
         <main{main_class}>
           {heading}
           {body}
         </main>
         <script>
+          const menuToggle = document.querySelector("[data-menu-toggle]");
+          const menuCloseControls = document.querySelectorAll("[data-menu-close]");
+          const sideMenu = document.querySelector(".app-side-menu");
+          const menuBackdrop = document.querySelector(".app-menu-backdrop");
+
+          function setAppMenuOpen(isOpen) {{
+            document.body.classList.toggle("app-menu-open", isOpen);
+            if (menuToggle) {{
+              menuToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+            }}
+            if (sideMenu) {{
+              sideMenu.setAttribute("aria-hidden", isOpen ? "false" : "true");
+            }}
+            if (menuBackdrop) {{
+              menuBackdrop.hidden = !isOpen;
+            }}
+          }}
+
+          if (menuToggle) {{
+            menuToggle.addEventListener("click", () => {{
+              setAppMenuOpen(!document.body.classList.contains("app-menu-open"));
+            }});
+          }}
+
+          menuCloseControls.forEach((control) => {{
+            control.addEventListener("click", () => {{
+              setAppMenuOpen(false);
+            }});
+          }});
+
+          document.addEventListener("keydown", (event) => {{
+            if (event.key === "Escape") {{
+              setAppMenuOpen(false);
+            }}
+          }});
+
+          const sideMenuLinks = document.querySelectorAll(".app-side-nav a");
+          sideMenuLinks.forEach((link) => {{
+            link.addEventListener("click", () => {{
+              if (!link.dataset.homeTab) {{
+                setAppMenuOpen(false);
+              }}
+            }});
+          }});
 
           const homeShell = document.querySelector(".oracle-home-shell");
           if (homeShell) {{
-            const homeTabLinks = homeShell.querySelectorAll("[data-home-tab]");
+            const homeTabLinks = document.querySelectorAll("[data-home-tab]");
             const showHomeTab = (tabName, updateUrl = true) => {{
               const isMore = tabName === "more";
               homeShell.classList.toggle("more-active", isMore);
               homeTabLinks.forEach((link) => {{
-                link.classList.toggle("foot-item-active", link.dataset.homeTab === tabName);
+                link.classList.toggle("app-side-nav-active", link.dataset.homeTab === tabName);
               }});
               if (updateUrl) {{
                 const targetHash = isMore ? "#oracle-more" : "#oracle-home";
@@ -3964,11 +4140,21 @@ def _render_page(
                 const tabName = link.dataset.homeTab;
                 if (tabName === "home" || tabName === "more") {{
                   event.preventDefault();
+                  setAppMenuOpen(false);
                   showHomeTab(tabName);
                 }}
               }});
             }});
             showHomeTab(window.location.hash === "#oracle-more" ? "more" : "home", false);
+          }} else {{
+            sideMenuLinks.forEach((link) => {{
+              const href = link.getAttribute("href") || "";
+              const isActive =
+                (window.location.pathname === "/personal" && href === "/personal") ||
+                (window.location.pathname === "/compatibility" && href === "/compatibility") ||
+                (window.location.pathname === "/" && href === "/#oracle-home");
+              link.classList.toggle("app-side-nav-active", isActive);
+            }});
           }}
 
           const forms = document.querySelectorAll(".workflow-form");
