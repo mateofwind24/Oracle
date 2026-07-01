@@ -1996,11 +1996,17 @@ def _generate_distributed(
     if "face" in prompt_name:
         block_key = "pair_blocks" if ("couple" in prompt_name or "copule" in prompt_name) else "face_blocks"
 
+    def clean_cat(c: object) -> str:
+        if not isinstance(c, str):
+            return ""
+        return c.strip().replace('"', '').replace("'", '').replace(" ", "")
+
     ordered_blocks = []
     for cat in categories:
         matched = None
         for b in blocks_outputs:
-            if b.get("category") == cat:
+            if clean_cat(b.get("category")) == clean_cat(cat):
+                b["category"] = cat
                 matched = b
                 break
         if matched:
