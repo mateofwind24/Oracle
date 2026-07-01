@@ -811,6 +811,7 @@ def _run_compare_camera_stream() -> None:
                 decision.landmark_points,
                 _web_capture_show_opencv_guide(),
             )
+            preview_frame = cv2.flip(preview_frame, 1)
             _PREVIEW_STREAM.publish(cv2, preview_frame, decision, live=True)
     except Exception as exc:
         _PREVIEW_STREAM.publish_debug(
@@ -847,6 +848,7 @@ def _preview_capture_runner(config, output_dir: Path | None = None):
         output_dir=output_dir,
         frame_callback=_PREVIEW_STREAM.publish,
         show_capture_guide=_web_capture_show_opencv_guide(),
+        mirror_preview=True,
     )
     return result
 

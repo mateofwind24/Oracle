@@ -37,6 +37,7 @@ def run_capture(
     output_dir: Path | None = None,
     frame_callback: FrameCallback | None = None,
     show_capture_guide: bool = True,
+    mirror_preview: bool = False,
 ) -> CaptureArtifact:
     destination = output_dir or config.output_dir
     if config.mock_capture_enabled:
@@ -76,6 +77,8 @@ def run_capture(
                 latest_decision.landmark_points,
                 show_capture_guide,
             )
+            if mirror_preview:
+                preview_frame = cv2.flip(preview_frame, 1)
             if frame_callback is not None:
                 _publish_preview_frame(frame_callback, cv2, preview_frame, latest_decision)
             if config.show_preview:

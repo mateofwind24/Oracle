@@ -106,7 +106,58 @@ def test_run_capture_can_return_mock_landmark_artifact(tmp_path: Path) -> None:
 
 
 class FakeCv2:
-    pass
+    def flip(self, frame, flip_code: int):
+        assert flip_code == 1
+        result = np.flip(frame, axis=1).copy()
+        return result
+
+
+def test_run_capture_can_mirror_preview_without_changing_saved_frame(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    raw_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    raw_frame[:, 0, :] = 10
+    raw_frame[:, -1, :] = 200
+    capture = FakeCapture(raw_frame)
+    saved: dict[str, int] = {}
+    preview: dict[str, int] = {}
+
+    def fake_open_camera(config: CaptureConfig):
+        result = (FakeCv2(), capture)
+        return result
+
+    def fake_build_capture_processors(config: CaptureConfig):
+        result = (FakeDetector(), FakeAnalyzer())
+        return result
+
+    def fake_draw_overlay(cv2, frame, *args) -> None:
+        return None
+
+    def fake_save_capture_artifact(frame, decision, output_dir):
+        saved["left_pixel"] = int(frame[0, 0, 0])
+        saved["right_pixel"] = int(frame[0, -1, 0])
+        result = object()
+        return result
+
+    def frame_callback(cv2, frame) -> None:
+        preview["left_pixel"] = int(frame[0, 0, 0])
+        preview["right_pixel"] = int(frame[0, -1, 0])
+
+    monkeypatch.setattr(runtime, "open_camera", fake_open_camera)
+    monkeypatch.setattr(runtime, "build_capture_processors", fake_build_capture_processors)
+    monkeypatch.setattr(runtime, "draw_overlay", fake_draw_overlay)
+    monkeypatch.setattr(runtime, "save_capture_artifact", fake_save_capture_artifact)
+
+    result = runtime.run_capture(
+        _capture_config(tmp_path),
+        frame_callback=frame_callback,
+        mirror_preview=True,
+    )
+
+    assert result is not None
+    assert preview == {"left_pixel": 200, "right_pixel": 10}
+    assert saved == {"left_pixel": 10, "right_pixel": 200}
 
 
 def _capture_config(tmp_path: Path) -> CaptureConfig:
