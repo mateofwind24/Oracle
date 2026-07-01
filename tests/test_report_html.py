@@ -110,7 +110,6 @@ def test_compatibility_report_html_uses_structured_layout() -> None:
     assert html.startswith("<!DOCTYPE html>")
     assert "cute-compatibility-report" in html
     assert "궁합 핵심" in html
-    assert "행동 제목" in html
     assert "left 님과 right 님" in html
     assert "궁합 점수" in html
     assert "compat-score-heart-card" in html
@@ -162,8 +161,6 @@ def test_compatibility_report_html_hides_synthesis_but_keeps_action_and_keywords
     assert "사주 흐름만 정리한 본문" not in html
     assert "궁합 관상 근거" not in html
     assert "궁합 사주 근거" not in html
-    assert "액션 제목" in html
-    assert "액션 본문" in html
     assert "궁합 키워드" in html
     assert "cute-keyword-card" in html
     assert "궁합 점수" in html

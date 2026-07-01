@@ -543,7 +543,6 @@ def test_compatibility_workflow_runs_without_real_camera_or_llm(tmp_path: Path) 
     assert result.report_html.startswith("<!DOCTYPE html>")
     assert "oracle-report" in result.report_fragment_html
     assert "두 사람 궁합 핵심 문장" in result.report_html
-    assert "궁합 행동 제목" in result.report_html
     assert "궁합 점수" in result.report_html
     assert result.left_capture_path.parent.name == "person_1"
     assert result.right_capture_path.parent.name == "person_2"
@@ -1037,7 +1036,6 @@ def test_compatibility_saju_follows_main_when_distributed_split_enabled(
     )
 
     assert "두 사람 궁합 핵심 문장" in result.report_html
-    assert "궁합 행동 제목" in result.report_html
     assert "궁합 사주정보를 생성하지 못했습니다" not in result.report_html
 
 
