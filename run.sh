@@ -287,7 +287,8 @@ Wrapper Options:
   --speculative            Enable speculative work stealing in distributed inference
   --mock-capture           Enable mock capture with default landmark presets
   --master-addr ADDR       Legacy distributed option, accepted and ignored
-  --slave-addrs ADDRS      Legacy distributed option, accepted and ignored
+  --slave-addrs ADDRS      Comma-separated list of slave node URLs for distributed inference
+  --no-local-fallback      Disable local worker fallback; this node only orchestrates and aggregates
   --python-env ENV         Force Python env type (active-conda, active-venv, conda, uv, venv, auto)
   --llama-dir DIR          Path to llama.cpp repository
   --extra-llama-args ARGS  Additional raw command-line arguments for llama-server
@@ -370,6 +371,10 @@ parse_args() {
       --slave-addrs)
         RUN_ORACLE_SLAVE_ADDRS="$2"
         shift 2
+        ;;
+      --no-local-fallback)
+        RUN_ORACLE_DISTRIBUTED_LOCAL_FALLBACK=0
+        shift 1
         ;;
       --reasoning)
         RUN_ORACLE_REASONING=1
@@ -608,6 +613,7 @@ apply_run_config() {
   export ORACLE_DISTRIBUTED_SPLIT="${RUN_ORACLE_DISTRIBUTED_SPLIT:-${ORACLE_DISTRIBUTED_SPLIT:-0}}"
   export ORACLE_DISTRIBUTED_WARMUP="${RUN_ORACLE_DISTRIBUTED_WARMUP:-${ORACLE_DISTRIBUTED_WARMUP:-0}}"
   export ORACLE_DISTRIBUTED_SPECULATIVE="${RUN_ORACLE_DISTRIBUTED_SPECULATIVE:-${ORACLE_DISTRIBUTED_SPECULATIVE:-0}}"
+  export ORACLE_DISTRIBUTED_LOCAL_FALLBACK="${RUN_ORACLE_DISTRIBUTED_LOCAL_FALLBACK:-${ORACLE_DISTRIBUTED_LOCAL_FALLBACK:-1}}"
   export ORACLE_MASTER_ADDR="${RUN_ORACLE_MASTER_ADDR:-${ORACLE_MASTER_ADDR:-}}"
   export ORACLE_SLAVE_ADDRS="${RUN_ORACLE_SLAVE_ADDRS:-${ORACLE_SLAVE_ADDRS:-}}"
 
@@ -1067,11 +1073,21 @@ run_oracle() {
   if [[ "${ORACLE_APP_DEBUG:-0}" == "1" ]]; then
     debug_args=(--debug)
   fi
+  local speculative_args=()
+  if [[ "${ORACLE_DISTRIBUTED_SPECULATIVE:-0}" == "1" ]]; then
+    speculative_args=(--speculative)
+  fi
+  local local_fallback_args=()
+  if [[ "${ORACLE_DISTRIBUTED_LOCAL_FALLBACK:-1}" == "0" ]]; then
+    local_fallback_args=(--no-local-fallback)
+  fi
   log "starting Oracle Flask UI at http://${ORACLE_APP_HOST}:${ORACLE_APP_PORT}"
   PYTHONPATH="$ROOT_DIR/src" python -m oracle_report.cli serve \
     --host "$ORACLE_APP_HOST" \
     --port "$ORACLE_APP_PORT" \
-    "${debug_args[@]}"
+    "${debug_args[@]}" \
+    "${speculative_args[@]}" \
+    "${local_fallback_args[@]}"
 }
 
 timestamp() {

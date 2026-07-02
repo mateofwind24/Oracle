@@ -1990,9 +1990,10 @@ def _generate_distributed(
 
     threads = []
     worker_urls = list(app_config.slave_addrs)
-    if app_config.distributed_role == "hybrid" or not worker_urls:
-        if "local" not in worker_urls:
-            worker_urls.append("local")
+    if app_config.distributed_local_fallback:
+        if app_config.distributed_role == "hybrid" or not worker_urls:
+            if "local" not in worker_urls:
+                worker_urls.append("local")
 
     for url in worker_urls:
         if url == "local":

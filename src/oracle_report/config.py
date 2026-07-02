@@ -84,6 +84,7 @@ class AppConfig:
     distributed_split: bool = False
     distributed_warmup: bool = False
     distributed_speculative: bool = False
+    distributed_local_fallback: bool = True
     master_addr: str | None = None
     slave_addrs: tuple[str, ...] = field(default_factory=tuple)
 
@@ -162,6 +163,7 @@ def load_app_config() -> AppConfig:
         distributed_split=_read_bool("ORACLE_DISTRIBUTED_SPLIT", False),
         distributed_warmup=_read_bool("ORACLE_DISTRIBUTED_WARMUP", False),
         distributed_speculative=_read_bool("ORACLE_DISTRIBUTED_SPECULATIVE", False),
+        distributed_local_fallback=_read_bool("ORACLE_DISTRIBUTED_LOCAL_FALLBACK", True),
         master_addr=os.getenv("ORACLE_MASTER_ADDR"),
         slave_addrs=slave_addrs,
     )

@@ -94,6 +94,16 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--debug", action="store_true")
     serve.add_argument("--temperature", type=float, help="LLM generation temperature")
     serve.add_argument("--speculative", action="store_true", help="Enable speculative work stealing in distributed inference")
+    serve.add_argument(
+        "--no-local-fallback",
+        action="store_true",
+        dest="no_local_fallback",
+        help=(
+            "Disable local worker fallback. "
+            "This node will only orchestrate and aggregate results from slave nodes, "
+            "without performing any LLM inference itself."
+        ),
+    )
 
     prompt = subparsers.add_parser("prompt", help="print workflow prompt inputs")
     _add_prompt_args(prompt)
@@ -169,6 +179,9 @@ def _run_serve_command(args: argparse.Namespace) -> int:
 
     if args.speculative:
         os.environ["ORACLE_DISTRIBUTED_SPECULATIVE"] = "1"
+
+    if args.no_local_fallback:
+        os.environ["ORACLE_DISTRIBUTED_LOCAL_FALLBACK"] = "0"
 
     app = create_app()
     app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
