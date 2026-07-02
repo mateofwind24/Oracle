@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from io import BytesIO
 import json
+import smtplib
+import zipfile
 
 import pytest
 
@@ -383,6 +386,125 @@ def test_completed_job_sends_report_email(monkeypatch) -> None:
         "personal_report.html",
         "<!doctype html><html><body>full report</body></html>",
     )
+
+
+def test_completed_job_email_reports_smtp_authentication_error(monkeypatch) -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import _WorkflowJob, _set_job, create_app
+
+    def fake_send_report_email(recipient: str, filename: str, html: str) -> None:
+        del recipient, filename, html
+        raise smtplib.SMTPAuthenticationError(535, b"Authentication failed")
+
+    monkeypatch.setattr(
+        "oracle_report.web._send_report_email",
+        fake_send_report_email,
+    )
+    app = create_app()
+    _set_job(
+        "email-auth-error-job",
+        _WorkflowJob(
+            status="complete",
+            html="<section>fragment</section>",
+            download_html="<!doctype html><html><body>full report</body></html>",
+            download_filename="personal_report.html",
+        ),
+    )
+
+    response = app.test_client().post(
+        "/api/jobs/email-auth-error-job/email",
+        json={"email": "reader@example.com"},
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 500
+    assert payload["status"] == "error"
+    assert "SMTP 인증" in payload["message"]
+    assert "ORACLE_SMTP_PASSWORD" in payload["message"]
+
+
+def test_completed_job_email_reports_smtp_data_error(monkeypatch) -> None:
+    pytest.importorskip("flask")
+    from oracle_report.web import _WorkflowJob, _set_job, create_app
+
+    def fake_send_report_email(recipient: str, filename: str, html: str) -> None:
+        del recipient, filename, html
+        raise smtplib.SMTPDataError(552, b"Message size exceeds fixed limit")
+
+    monkeypatch.setattr(
+        "oracle_report.web._send_report_email",
+        fake_send_report_email,
+    )
+    app = create_app()
+    _set_job(
+        "email-data-error-job",
+        _WorkflowJob(
+            status="complete",
+            html="<section>fragment</section>",
+            download_html="<!doctype html><html><body>full report</body></html>",
+            download_filename="personal_report.html",
+        ),
+    )
+
+    response = app.test_client().post(
+        "/api/jobs/email-data-error-job/email",
+        json={"email": "reader@example.com"},
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 500
+    assert payload["status"] == "error"
+    assert "첨부 용량" in payload["message"]
+
+
+def test_large_report_email_attachment_is_zipped(monkeypatch) -> None:
+    pytest.importorskip("flask")
+    from email.message import EmailMessage
+
+    from oracle_report import web
+
+    message = EmailMessage()
+    monkeypatch.setattr(web, "MAIL_HTML_ATTACHMENT_MAX_BYTES", 16)
+
+    web._attach_report_file(message, "personal_report.html", "<html>large report</html>")
+
+    attachments = list(message.iter_attachments())
+
+    assert len(attachments) == 1
+    assert attachments[0].get_filename() == "personal_report.zip"
+    assert attachments[0].get_content_type() == "application/zip"
+    with zipfile.ZipFile(BytesIO(attachments[0].get_payload(decode=True))) as archive:
+        assert archive.namelist() == ["personal_report.html"]
+        assert archive.read("personal_report.html") == b"<html>large report</html>"
+
+
+def test_email_report_attachment_removes_images() -> None:
+    pytest.importorskip("flask")
+    from email.message import EmailMessage
+
+    from oracle_report import web
+
+    message = EmailMessage()
+    html = (
+        '<html><body><h1>Report</h1>'
+        '<img src="data:image/png;base64,AAAA" alt="">'
+        '<p>Keep this text</p>'
+        '<IMG src="/static/assets/oracle-character.png" alt="">'
+        "</body></html>"
+    )
+
+    web._attach_report_file(message, "personal_report.html", html)
+
+    attachments = list(message.iter_attachments())
+    payload = attachments[0].get_payload(decode=True).decode("utf-8")
+
+    assert len(attachments) == 1
+    assert attachments[0].get_filename() == "personal_report.html"
+    assert attachments[0].get_content_type() == "text/html"
+    assert "<img" not in payload.lower()
+    assert "data:image" not in payload
+    assert "<h1>Report</h1>" in payload
+    assert "<p>Keep this text</p>" in payload
 
 
 def test_running_job_email_returns_not_found() -> None:

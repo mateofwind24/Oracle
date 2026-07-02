@@ -5,8 +5,10 @@
 # ==============================================================================
 from __future__ import annotations
 
+from io import BytesIO
 import json
 import os
+import re
 os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
 os.environ["OPENCV_VIDEOIO_DEBUG"] = "0"
 
@@ -18,6 +20,7 @@ import smtplib
 import ssl
 import threading
 import uuid
+import zipfile
 
 from flask import Flask, Response, jsonify, redirect, request
 from markupsafe import escape
@@ -129,7 +132,11 @@ class _PreviewStream:
                     b"Content-Type: image/jpeg\r\n\r\n"
                     + frame
                     + b"\r\n"
-                )
+)
+
+MAIL_HTML_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
+MAIL_ATTACHMENT_COMPRESSION_LEVEL = 9
+EMAIL_REPORT_IMAGE_TAG_RE = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
 
 
 _PREVIEW_STREAM = _PreviewStream()
@@ -425,6 +432,10 @@ def create_app() -> Flask:
                 result = jsonify({"status": "error", "message": str(exc)}), 400
             except RuntimeError as exc:
                 result = jsonify({"status": "error", "message": str(exc)}), 500
+            except (smtplib.SMTPException, OSError) as exc:
+                result = jsonify(
+                    {"status": "error", "message": _mail_delivery_error_message(exc)}
+                ), 500
             except Exception:
                 result = jsonify({"status": "error", "message": "이메일 발송 중 오류가 발생했습니다."}), 500
         return result
@@ -1591,12 +1602,7 @@ def _send_report_email(recipient: str, filename: str, html: str) -> None:
         "Oracle 리포트를 첨부 파일로 보내드립니다.\n"
         "이 리포트는 재미와 참고를 위한 콘텐츠입니다."
     )
-    message.add_attachment(
-        html.encode("utf-8"),
-        maintype="text",
-        subtype="html",
-        filename=filename,
-    )
+    _attach_report_file(message, filename, html)
 
     use_ssl = _env_bool("ORACLE_SMTP_SSL", False)
     use_tls = _env_bool("ORACLE_SMTP_TLS", True)
@@ -1630,6 +1636,72 @@ def _validate_email_address(value: str) -> str:
 def _smtp_login_if_configured(smtp, user: str, password: str) -> None:
     if user != "" or password != "":
         smtp.login(user, password)
+
+
+def _attach_report_file(message: EmailMessage, filename: str, html: str) -> None:
+    attachment_html = _email_report_without_images(html)
+    html_bytes = attachment_html.encode("utf-8")
+    if len(html_bytes) <= MAIL_HTML_ATTACHMENT_MAX_BYTES:
+        message.add_attachment(
+            html_bytes,
+            maintype="text",
+            subtype="html",
+            filename=filename,
+        )
+    else:
+        zip_buffer = BytesIO()
+        zip_filename = f"{Path(filename).stem}.zip"
+        with zipfile.ZipFile(
+            zip_buffer,
+            "w",
+            compression=zipfile.ZIP_DEFLATED,
+            compresslevel=MAIL_ATTACHMENT_COMPRESSION_LEVEL,
+        ) as archive:
+            archive.writestr(filename, html_bytes)
+        message.add_attachment(
+            zip_buffer.getvalue(),
+            maintype="application",
+            subtype="zip",
+            filename=zip_filename,
+        )
+
+
+def _email_report_without_images(html: str) -> str:
+    result = EMAIL_REPORT_IMAGE_TAG_RE.sub("", html)
+    return result
+
+
+def _mail_delivery_error_message(exc: Exception) -> str:
+    if isinstance(exc, smtplib.SMTPAuthenticationError):
+        message = (
+            "SMTP 인증에 실패했습니다. .env의 ORACLE_SMTP_USER와 "
+            "ORACLE_SMTP_PASSWORD를 확인해 주세요."
+        )
+    elif isinstance(exc, smtplib.SMTPDataError):
+        message = (
+            "SMTP 서버가 리포트 첨부를 거부했습니다. 첨부 용량 제한 또는 "
+            "발신자 정책을 확인해 주세요."
+        )
+    elif isinstance(exc, smtplib.SMTPRecipientsRefused):
+        message = "받는 이메일 주소가 SMTP 서버에서 거부됐습니다. 받을 이메일 주소를 확인해 주세요."
+    elif isinstance(exc, ssl.SSLError):
+        message = (
+            "SMTP 보안 연결에 실패했습니다. ORACLE_SMTP_TLS, "
+            "ORACLE_SMTP_SSL, ORACLE_SMTP_PORT 설정을 확인해 주세요."
+        )
+    elif isinstance(exc, (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected)):
+        message = (
+            "SMTP 서버에 연결하지 못했습니다. ORACLE_SMTP_HOST와 "
+            "ORACLE_SMTP_PORT를 확인해 주세요."
+        )
+    elif isinstance(exc, smtplib.SMTPException):
+        message = "SMTP 서버가 메일 발송을 거부했습니다. SMTP 설정과 발신자 주소를 확인해 주세요."
+    else:
+        message = (
+            "SMTP 서버에 연결하지 못했습니다. ORACLE_SMTP_HOST와 "
+            "ORACLE_SMTP_PORT를 확인해 주세요."
+        )
+    return message
 
 
 def _env_bool(name: str, default: bool) -> bool:
