@@ -254,6 +254,44 @@ def test_report_html_uses_auto_wrapping_for_block_bodies() -> None:
     assert "첫 번째 줄<br>두 번째 줄" not in html
 
 
+def test_report_html_has_mobile_layout_for_cute_report_cards() -> None:
+    profile = BirthProfile(
+        name="tester",
+        birth_datetime=datetime(1995, 3, 15, 12, 0),
+        gender="male",
+    )
+    generated_text = json.dumps(
+        {
+            "essence": "mobile layout check",
+            "saju_blocks": [
+                {
+                    "category": "layout",
+                    "title": "mobile",
+                    "summary": "summary",
+                    "body": "body",
+                },
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    html = render_personal_report_html(
+        profile,
+        ManseRepository().lookup(profile),
+        "",
+        generated_text,
+        skip_face=True,
+    )
+
+    assert "@media (max-width:760px){.saju-wrap" in html
+    assert ".saju-profile-card{grid-template-columns:1fr" in html
+    assert ".saju-element-grid{grid-template-columns:1fr" in html
+    assert ".saju-story-block{grid-template-columns:1fr" in html
+    assert ".compat-hero-card{grid-template-columns:1fr" in html
+    assert ".compat-section-body{grid-template-columns:1fr" in html
+    assert ".saju-keyword-band>div{grid-template-columns:1fr" in html
+
+
 def test_report_html_collapses_literal_newline_markers_for_auto_wrapping() -> None:
     profile = BirthProfile(
         name="tester",
