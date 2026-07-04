@@ -194,6 +194,277 @@ def representative_time_from_time_branch(value: str) -> str | None:
     return result
 
 
+# ==========================================
+# 십신 계산을 위한 헬퍼 함수 추가
+# ==========================================
+
+def _get_ten_god_stem(dm_index: int, target_index: int) -> str:
+    """천간의 십신을 계산합니다."""
+    from oracle_report.saju.calendar import STEM_ELEMENTS, STEM_POLARITIES
+    ELEMENTS_ORDER = ("목", "화", "토", "금", "수")
+    
+    dm_el = STEM_ELEMENTS[dm_index]
+    dm_pol = STEM_POLARITIES[dm_index]
+    tgt_el = STEM_ELEMENTS[target_index]
+    tgt_pol = STEM_POLARITIES[target_index]
+    
+    dm_el_idx = ELEMENTS_ORDER.index(dm_el)
+    tgt_el_idx = ELEMENTS_ORDER.index(tgt_el)
+    
+    # 오행 간의 거리 계산 (상생상극 매핑)
+    diff = (tgt_el_idx - dm_el_idx) % 5
+    same_pol = (dm_pol == tgt_pol)
+    
+    if diff == 0:
+        return "비견" if same_pol else "겁재"
+    elif diff == 1:
+        return "식신" if same_pol else "상관"
+    elif diff == 2:
+        return "편재" if same_pol else "정재"
+    elif diff == 3:
+        return "편관" if same_pol else "정관"
+    else:
+        return "편인" if same_pol else "정인"
+
+
+def _get_ten_god_branch(dm_index: int, target_index: int) -> str:
+    """지지의 십신을 계산합니다. (명리 표준 용(用) 음양 기준 적용)"""
+    from oracle_report.saju.calendar import STEM_ELEMENTS, STEM_POLARITIES, BRANCH_ELEMENTS
+    ELEMENTS_ORDER = ("목", "화", "토", "금", "수")
+    # 자(0)부터 해(11)까지의 십신 계산용 표준 음양 배열
+    BRANCH_POLARITIES = ("음", "음", "양", "음", "양", "양", "음", "음", "양", "음", "양", "양")
+    
+    dm_el = STEM_ELEMENTS[dm_index]
+    dm_pol = STEM_POLARITIES[dm_index]
+    tgt_el = BRANCH_ELEMENTS[target_index]
+    tgt_pol = BRANCH_POLARITIES[target_index]
+    
+    dm_el_idx = ELEMENTS_ORDER.index(dm_el)
+    tgt_el_idx = ELEMENTS_ORDER.index(tgt_el)
+    
+    diff = (tgt_el_idx - dm_el_idx) % 5
+    same_pol = (dm_pol == tgt_pol)
+    
+    if diff == 0:
+        return "비견" if same_pol else "겁재"
+    elif diff == 1:
+        return "식신" if same_pol else "상관"
+    elif diff == 2:
+        return "편재" if same_pol else "정재"
+    elif diff == 3:
+        return "편관" if same_pol else "정관"
+    else:
+        return "편인" if same_pol else "정인"
+
+
+# ==============================================================================
+# 26종 신살/귀인 실시간 연산 가속 엔진
+# ==============================================================================
+
+def _calculate_all_shinsals(chart) -> dict[str, list[str]]:
+    """사주 4주를 분석하여 26가지 신살 및 귀인을 정밀 도출합니다."""
+    from oracle_report.saju.calendar import HEAVENLY_STEMS, EARTHLY_BRANCHES
+    
+    dm_idx = chart.day.stem_index
+    dm_stem = chart.day.stem
+    dm_branch = chart.day.branch
+    mb_idx = chart.month.branch_index
+    
+    pillars = {
+        "year": chart.year,
+        "month": chart.month,
+        "day": chart.day,
+        "hour": chart.hour
+    }
+    
+    result = {k: [] for k in pillars.keys()}
+    
+    # 삼기귀인 체크를 위한 전체 천간 모음
+    all_stems = [p.stem for p in pillars.values()]
+    has_samgi = False
+    if ("갑" in all_stems and "무" in all_stems and "경" in all_stems) or \
+       ("을" in all_stems and "병" in all_stems and "정" in all_stems) or \
+       ("신" in all_stems and "임" in all_stems and "계" in all_stems):
+        has_samgi = True
+
+    # 일지 기준 공망 구하기
+    day_ganji_idx = (chart.day.stem_index - chart.day.branch_index) % 12
+    gongmang_branches = []
+    if day_ganji_idx == 0: gongmang_branches = ["술", "해"]
+    elif day_ganji_idx == 10: gongmang_branches = ["신", "유"]
+    elif day_ganji_idx == 8: gongmang_branches = ["오", "미"]
+    elif day_ganji_idx == 6: gongmang_branches = ["진", "사"]
+    elif day_ganji_idx == 4: gongmang_branches = ["인", "묘"]
+    elif day_ganji_idx == 2: gongmang_branches = ["자", "축"]
+
+    for k, p in pillars.items():
+        s = p.stem
+        b = p.branch
+        label = p.label
+        sal_list = []
+        
+        # 1.1 천을귀인
+        if (dm_stem in ("갑", "경", "무") and b in ("축", "미")) or \
+           (dm_stem in ("을", "기") and b in ("자", "신")) or \
+           (dm_stem in ("병", "정") and b in ("해", "유")) or \
+           (dm_stem == "신" and b in ("인", "오")) or \
+           (dm_stem in ("임", "계") and b in ("사", "묘")):
+            sal_list.append("천을귀인")
+            
+        # 1.2 문창귀인
+        if (dm_stem == "갑" and b == "사") or (dm_stem == "을" and b == "오") or \
+           (dm_stem == "병" and b == "신") or (dm_stem == "정" and b == "유") or \
+           (dm_stem == "무" and b == "신") or (dm_stem == "기" and b == "유") or \
+           (dm_stem == "경" and b == "해") or (dm_stem == "신" and b == "자") or \
+           (dm_stem == "임" and b == "인") or (dm_stem == "계" and b == "묘"):
+            sal_list.append("문창귀인")
+            
+        # 1.3 양인살
+        if (dm_stem == "갑" and b == "卯") or (dm_stem == "丙" and b == "午") or \
+           (dm_stem == "戊" and b == "午") or (dm_stem == "庚" and b == "酉") or \
+           (dm_stem == "壬" and b == "子"):
+            sal_list.append("양인살")
+            
+        # 1.4 도화살 / 1.5 역마살 / 1.6 화개살 / 2.11 겁살 / 2.12 수옥살 / 2.13 망신살 / 2.14 반안살 (신살 삼합 기준 지지 연산)
+        ref_branch = chart.day.branch if k != "day" else chart.year.branch
+        if ref_branch in ("해", "묘", "미"):
+            if b == "자": sal_list.append("도화살")
+            elif b == "사": sal_list.append("역마살")
+            elif b == "미": sal_list.append("화개살")
+            elif b == "신": sal_list.append("겁살")
+            elif b == "유": sal_list.append("수옥살")
+            elif b == "인": sal_list.append("망신살")
+            elif b == "축": sal_list.append("반안살")
+        elif ref_branch in ("인", "오", "술"):
+            if b == "묘": sal_list.append("도화살")
+            elif b == "신": sal_list.append("역마살")
+            elif b == "술": sal_list.append("화개살")
+            elif b == "해": sal_list.append("겁살")
+            elif b == "자": sal_list.append("수옥살")
+            elif b == "사": sal_list.append("망신살")
+            elif b == "미": sal_list.append("반안살")
+        elif ref_branch in ("사", "유", "축"):
+            if b == "오": sal_list.append("도화살")
+            elif b == "해": sal_list.append("역마살")
+            elif b == "축": sal_list.append("화개살")
+            elif b == "인": sal_list.append("겁살")
+            elif b == "묘": sal_list.append("수옥살")
+            elif b == "신": sal_list.append("망신살")
+            elif b == "술": sal_list.append("반안살")
+        elif ref_branch in ("신", "자", "진"):
+            if b == "유": sal_list.append("도화살")
+            elif b == "인": sal_list.append("역마살")
+            elif b == "진": sal_list.append("화개살")
+            elif b == "사": sal_list.append("겁살")
+            elif b == "오": sal_list.append("수옥살")
+            elif b == "해": sal_list.append("망신살")
+            elif b == "미": sal_list.append("반안살")
+
+        # 1.7 공망살
+        if b in gongmang_branches:
+            sal_list.append("공망살")
+
+        # 1.8 원진살
+        if (dm_branch == "자" and b == "미") or (dm_branch == "축" and b == "오") or \
+           (dm_branch == "인" and b == "유") or (dm_branch == "묘" and b == "신") or \
+           (dm_branch == "진" and b == "해") or (dm_branch == "사" and b == "술") or \
+           (dm_branch == "미" and b == "자") or (dm_branch == "오" and b == "축") or \
+           (dm_branch == "유" and b == "인") or (dm_branch == "신" and b == "묘") or \
+           (dm_branch == "해" and b == "진") or (dm_branch == "술" and b == "사"):
+            sal_list.append("원진살")
+
+        # 1.9 귀문관살
+        if (dm_branch == "자" and b == "미") or (dm_branch == "축" and b == "인") or \
+           (dm_branch == "인" and b == "축") or (dm_branch == "묘" and b == "신") or \
+           (dm_branch == "진" and b == "해") or (dm_branch == "사" and b == "술") or \
+           (dm_branch == "미" and b == "자") or (dm_branch == "신" and b == "묘") or \
+           (dm_branch == "해" and b == "진") or (dm_branch == "술" and b == "사"):
+            if "원진살" not in sal_list: sal_list.append("귀문관살")
+
+        # 1.10 백호살
+        if label in ("갑진", "을미", "병진", "정축", "무진", "임술", "계축"):
+            sal_list.append("백호살")
+
+        # 1.11 괴강살
+        if label in ("경진", "경술", "임진", "임술", "무진", "무술"):
+            sal_list.append("괴강살")
+
+        # 2.1 복성귀인
+        if (dm_stem == "갑" and b == "인") or (dm_stem == "을" and b == "축") or \
+           (dm_stem == "병" and b == "자") or (dm_stem == "정" and b == "유") or \
+           (dm_stem == "무" and b == "오") or (dm_stem == "기" and b == "미") or \
+           (dm_stem == "경" and b == "신") or (dm_stem == "신" and b == "마") or \
+           (dm_stem == "임" and b == "진") or (dm_stem == "계" and b == "사"):
+            sal_list.append("복성귀인")
+
+        # 2.2 금여
+        if (dm_stem == "갑" and b == "진") or (dm_stem == "을" and b == "사") or \
+           (dm_stem == "병" and b == "미") or (dm_stem == "정" and b == "신") or \
+           (dm_stem == "무" and b == "미") or (dm_stem == "기" and b == "신") or \
+           (dm_stem == "경" and b == "술") or (dm_stem == "신" and b == "해") or \
+           (dm_stem == "임" and b == "축") or (dm_stem == "계" and b == "인"):
+            sal_list.append("금여")
+
+        # 2.3 건록
+        if (dm_stem == "갑" and b == "인") or (dm_stem == "을" and b == "묘") or \
+           (dm_stem == "병" and b == "사") or (dm_stem == "정" and b == "오") or \
+           (dm_stem == "무" and b == "사") or (dm_stem == "기" and b == "오") or \
+           (dm_stem == "경" and b == "신") or (dm_stem == "신" and b == "유") or \
+           (dm_stem == "임" and b == "해") or (dm_stem == "계" and b == "자"):
+            sal_list.append("건록")
+
+        # 2.4 암록
+        if (dm_stem == "갑" and b == "해") or (dm_stem == "을" and b == "술") or \
+           (dm_stem == "병" and b == "신") or (dm_stem == "정" and b == "미") or \
+           (dm_stem == "무" and b == "신") or (dm_stem == "기" and b == "미") or \
+           (dm_stem == "경" and b == "사") or (dm_stem == "신" and b == "진") or \
+           (dm_stem == "임" and b == "인") or (dm_stem == "계" and b == "축"):
+            sal_list.append("암록")
+
+        # 2.5 삼기귀인 (일주나 특정 기둥에 대표 부여)
+        if has_samgi and k == "day":
+            sal_list.append("삼기귀인")
+
+        # 2.6 육수
+        if label in ("갑자", "갑술", "병자", "병술", "무자", "무술"):
+            sal_list.append("육수")
+
+        # 2.7 천의성
+        check_map = {"자":"해", "축":"자", "인":"축", "묘":"인", "진":"묘", "사":"진", "오":"사", "미":"오", "신":"미", "유":"신", "술":"유", "해":"술"}
+        if EARTHLY_BRANCHES[mb_idx] in check_map and b == check_map[EARTHLY_BRANCHES[mb_idx]]:
+            sal_list.append("천의성")
+
+        # 2.8 현침살
+        if s in ("갑", "신") or b in ("묘", "오", "미"):
+            sal_list.append("현침살")
+
+        # 2.9 홍염살
+        if (dm_stem == "갑" and b == "오") or (dm_stem == "을" and b == "오") or \
+           (dm_stem == "병" and b == "인") or (dm_stem == "정" and b == "미") or \
+           (dm_stem == "무" and b == "진") or (dm_stem == "기" and b == "진") or \
+           (dm_stem == "경" and b == "술") or (dm_stem == "신" and b == "유") or \
+           (dm_stem == "임" and b == "신") or (dm_stem == "계" and b == "해"):
+            sal_list.append("홍염살")
+
+        # 2.10 급각살
+        if (EARTHLY_BRANCHES[mb_idx] in ("인", "묘", "진") and b in ("축", "미")) or \
+           (EARTHLY_BRANCHES[mb_idx] in ("사", "오", "미") and b in ("묘", "미")) or \
+           (EARTHLY_BRANCHES[mb_idx] in ("신", "유", "술") and b in ("인", "술")) or \
+           (EARTHLY_BRANCHES[mb_idx] in ("자", "축", "해") and b in ("축", "진")):
+            sal_list.append("급각살")
+
+        # 2.15 음양살
+        if label in ("병자", "무자", "병오", "무오", "임자", "임오", "무신", "신묘"):
+            sal_list.append("음양살")
+
+        result[k] = sal_list
+        
+    return result
+
+
+# ==============================================================================
+# 기존 _format_manse_lookup 함수 교체
+# ==============================================================================
 def _format_manse_lookup(
     profile: BirthProfile,
     reading: SajuReading,
@@ -201,19 +472,40 @@ def _format_manse_lookup(
     daeun_direction: str,
 ) -> str:
     chart = reading.chart
-    counts = ", ".join(
-        f"{element} {reading.element_counts[element]}" for element in ELEMENTS
-    )
+    dm_idx = chart.day.stem_index
+    
+    # 십신 데이터 구하기
+    year_stem_tg = _get_ten_god_stem(dm_idx, chart.year.stem_index)
+    year_branch_tg = _get_ten_god_branch(dm_idx, chart.year.branch_index)
+    month_stem_tg = _get_ten_god_stem(dm_idx, chart.month.stem_index)
+    month_branch_tg = _get_ten_god_branch(dm_idx, chart.month.branch_index)
+    day_branch_tg = _get_ten_god_branch(dm_idx, chart.day.branch_index)
+    hour_stem_tg = _get_ten_god_stem(dm_idx, chart.hour.stem_index)
+    hour_branch_tg = _get_ten_god_branch(dm_idx, chart.hour.branch_index)
+    
+    # 26종 신살 통합 매트릭스 연산 수행
+    shinsal_matrix = _calculate_all_shinsals(chart)
+    
+    # 💡 [수정] 문법 에러 방지를 위해 일주의 특수기운 텍스트를 미리 안전하게 조립합니다.
+    day_sal_list = shinsal_matrix['day']
+    day_sal_str = f" / 특수기운: {', '.join(day_sal_list)}" if day_sal_list else ""
+    
+    def _make_pillar_text(label, stem_tg, branch_tg, sal_list):
+        sal_str = f" / 특수기운: {', '.join(sal_list)}" if sal_list else ""
+        return f"{label} (천간: {stem_tg} / 지지: {branch_tg}{sal_str})"
+
+    counts = ", ".join(f"{element} {reading.element_counts[element]}" for element in ELEMENTS)
     birth_date = profile.birth_datetime.date().isoformat()
     time_branch_label = birth_time_display_from_profile(profile)
+    
     result = "\n".join(
         (
             "[만세력/사주명식]",
             f"- 기준일: {birth_date} {time_branch_label} ({gender})",
-            f"- 년주: {chart.year.label}",
-            f"- 월주: {chart.month.label}",
-            f"- 일주: {chart.day.label}",
-            f"- 시주: {chart.hour.label}",
+            f"- 년주: {_make_pillar_text(chart.year.label, year_stem_tg, year_branch_tg, shinsal_matrix['year'])}",
+            f"- 월주: {_make_pillar_text(chart.month.label, month_stem_tg, month_branch_tg, shinsal_matrix['month'])}",
+            f"- 일주: {chart.day.label} (천간: 본인_일간 / 지지: {day_branch_tg}{day_sal_str})",
+            f"- 시주: {_make_pillar_text(chart.hour.label, hour_stem_tg, hour_branch_tg, shinsal_matrix['hour'])}",
             f"- 대운 방향: {daeun_direction}",
             "",
             "[오행 분포]",
@@ -224,7 +516,6 @@ def _format_manse_lookup(
         ),
     )
     return result
-
 
 def _daeun_direction(year_stem_index: int, gender: str) -> str:
     year_polarity = "양" if year_stem_index % 2 == 0 else "음"

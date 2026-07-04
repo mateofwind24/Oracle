@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+# ./run.sh kvfix -m "models/gemma-4-E4B-it-UD-Q8_K_XL.gguf" --extra-llama-args "--spec-type draft-mtp --spec-draft-model models/mtp-gemma-4-E4B-it.gguf -fa off --cache-type-k f16 --cache-type-v f16" -c 32768 -p 7000 --distributed-role hybrid --distributed-split --temperature 1.0 --reasoning --debug
+# ./run.sh kvfix -m "models/gemma-4-26B-A4B-it-UD-Q2_K_XL.gguf" --extra-llama-args "-fa on" -c 32768 -p 7000 --distributed-role hybrid --distributed-split --temperature 1.0 --reasoning --debug
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
