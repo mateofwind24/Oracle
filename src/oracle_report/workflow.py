@@ -26,10 +26,6 @@ from oracle_report.models import (
     FaceBox,
     SequentialPairCaptureArtifact,
 )
-from oracle_report.report import (
-    build_couple_saju_reading_prompt,
-    build_saju_reading_prompt,
-)
 from oracle_report.report_html import (
     render_compatibility_report_html,
     render_personal_report_html,
@@ -217,10 +213,15 @@ def run_personal_workflow(
     manse_db_path: Path | None = None,
     report_client: TextGenerator | None = None,
     capture_runner=run_capture,
+    progress_callback=None,
 ) -> PersonalWorkflowResult:
     del manse_db_path
     if report_llm_config is None:
         raise ValueError("report_llm_config is required.")
+        
+    if progress_callback:
+        progress_callback(5, "얼굴 인식을 위해 카메라를 준비하는 중...")
+        
     profile = _build_birth_profile(
         workflow_input.name,
         workflow_input.birth_date,
@@ -251,10 +252,17 @@ def run_personal_workflow(
             capture_timed = capture_future.result()
             timing_recorder.add(capture_timed.timing)
             capture_artifact = capture_timed.value
+            
+            if progress_callback:
+                progress_callback(20, "생년월일시 만세력 정보를 조회하는 중...")
+                
             manse_timed = manse_future.result()
             timing_recorder.add(manse_timed.timing)
             manse_lookup = manse_timed.value
     else:
+        if progress_callback:
+            progress_callback(20, "생년월일시 만세력 정보를 조회하는 중...")
+            
         manse_timed = _timed_call(
             "manse_lookup",
             repository.lookup,
@@ -280,8 +288,13 @@ def run_personal_workflow(
         active_report_client,
         profile,
         manse_lookup,
+        progress_callback=progress_callback,
     )
     saju_analysis_text = saju_analysis.text
+    
+    if progress_callback:
+        progress_callback(92, "분석 리포트를 정제하고 요약 문장을 조립하는 중...")
+        
     markdown = timing_recorder.run(
         "assemble_report",
         _build_personal_report_json,
@@ -290,6 +303,10 @@ def run_personal_workflow(
         saju_analysis_text,
         workflow_input.skip_face,
     )
+    
+    if progress_callback:
+        progress_callback(95, "리포트 HTML 테마와 디자인 페이지를 구성하는 중...")
+        
     report_html = timing_recorder.run(
         "render_report_html",
         render_personal_report_html,
@@ -311,6 +328,10 @@ def run_personal_workflow(
         workflow_input.skip_face,
     )
     output_path = output_dir / "personal_report.html"
+    
+    if progress_callback:
+        progress_callback(98, "리포트 파일을 로컬 디스크에 저장하는 중...")
+        
     timing_recorder.run(
         "save_report",
         output_path.write_text,
@@ -319,6 +340,10 @@ def run_personal_workflow(
     )
     (output_dir / "personal_report.md").write_text(markdown, encoding="utf-8")
     timing_recorder.finish_total()
+    
+    if progress_callback:
+        progress_callback(100, "완료!")
+        
     timing_log_path = timing_recorder.write_log(output_dir / "timings.log")
     result = PersonalWorkflowResult(
         markdown=markdown,
@@ -341,10 +366,15 @@ def run_compatibility_workflow(
     report_client: TextGenerator | None = None,
     capture_runner=run_capture,
     inter_capture_delay_seconds: float = 3.0,
+    progress_callback=None,
 ) -> CompatibilityWorkflowResult:
     del manse_db_path
     if report_llm_config is None:
         raise ValueError("report_llm_config is required.")
+        
+    if progress_callback:
+        progress_callback(5, "카메라 연결 및 얼굴 촬영을 준비하는 중...")
+        
     mode = _validate_mode(workflow_input.mode)
     left_profile = _build_birth_profile(
         workflow_input.left_name,
@@ -384,6 +414,10 @@ def run_compatibility_workflow(
         capture_timed = capture_future.result()
         timing_recorder.add(capture_timed.timing)
         capture_artifact = capture_timed.value
+        
+        if progress_callback:
+            progress_callback(20, "두 사람의 생년월일 명조 정보를 분석하는 중...")
+            
         manse_timed = manse_future.result()
         timing_recorder.add(manse_timed.timing)
         left_manse, right_manse = manse_timed.value
@@ -405,6 +439,7 @@ def run_compatibility_workflow(
         mode,
         left_manse,
         right_manse,
+        progress_callback=progress_callback,
     )
     compatibility_score = timing_recorder.run(
         "compatibility_score",
@@ -414,6 +449,10 @@ def run_compatibility_workflow(
         right_manse,
         capture_artifact,
     )
+    
+    if progress_callback:
+        progress_callback(92, "두 사람의 관계 시너지를 최종 분석하는 중...")
+        
     markdown = timing_recorder.run(
         "final_report",
         _build_compatibility_report_json,
@@ -421,6 +460,10 @@ def run_compatibility_workflow(
         saju_analysis.text,
         compatibility_score,
     )
+    
+    if progress_callback:
+        progress_callback(95, "궁합 리포트 템플릿 페이지를 렌더링하는 중...")
+        
     report_html = timing_recorder.run(
         "render_report_html",
         render_compatibility_report_html,
@@ -445,6 +488,10 @@ def run_compatibility_workflow(
         False,
     )
     output_path = output_dir / "compatibility_report.html"
+    
+    if progress_callback:
+        progress_callback(98, "리포트 파일을 로컬 디스크에 저장하는 중...")
+        
     timing_recorder.run(
         "save_report",
         output_path.write_text,
@@ -452,6 +499,10 @@ def run_compatibility_workflow(
         encoding="utf-8",
     )
     timing_recorder.finish_total()
+    
+    if progress_callback:
+        progress_callback(100, "완료!")
+        
     timing_log_path = timing_recorder.write_log(output_dir / "timings.log")
     result = CompatibilityWorkflowResult(
         markdown=markdown,
@@ -668,47 +719,39 @@ def _build_saju_analysis(
     client: TextGenerator,
     profile: BirthProfile,
     manse_lookup: ManseLookupResult,
+    progress_callback=None,
 ) -> _GeneratedText:
     distributed_app_config = _load_active_distributed_app_config()
-    if distributed_app_config is not None:
-        categories = (
-            "종합 형국 및 원국 해설",
-            "오행 분포와 기운 개운법",
-            "신살 및 십성 심리 해부",
-            "성격 분석 및 후천적 변화",
-            "직업 적성과 사회적 무기",
-            "재물운과 자산 설계",
-            "연애운과 이상형 인연",
-            "부모 및 가족 관계",
-            "대인관계와 인맥 다이어트",
-            "공간 및 지리적 개운 처방",
-            "올해의 운세 및 총평",
-        )
-        values = {
-            "name": profile.name,
-            "gender": manse_lookup.gender,
-            "timezone": "KST",
-            "saju_text": manse_lookup.formatted_text,
-        }
-        result = _safe_generate_distributed(
-            "saju_reading",
-            values,
-            categories,
-            None,
-            distributed_app_config,
-            client,
-            "사주정보를 생성하지 못했습니다.",
-            "saju_analysis",
-        )
-    else:
-        prompt = build_saju_reading_prompt(profile, manse_lookup.formatted_text)
-        result = _safe_generate(
-            client,
-            prompt,
-            None,
-            "사주정보를 생성하지 못했습니다.",
-            debug_label="saju_analysis",
-        )
+    categories = (
+        "종합 형국 및 원국 해설",
+        "오행 분포와 기운 개운법",
+        "신살 및 십성 심리 해부",
+        "성격 분석 및 후천적 변화",
+        "직업 적성과 사회적 무기",
+        "재물운과 자산 설계",
+        "연애운과 이상형 인연",
+        "부모 및 가족 관계",
+        "대인관계와 인맥 다이어트",
+        "공간 및 지리적 개운 처방",
+        "올해의 운세 및 총평",
+    )
+    values = {
+        "name": profile.name,
+        "gender": manse_lookup.gender,
+        "timezone": "KST",
+        "saju_text": manse_lookup.formatted_text,
+    }
+    result = _safe_generate_distributed(
+        "saju_reading",
+        values,
+        categories,
+        None,
+        distributed_app_config,
+        client,
+        "사주정보를 생성하지 못했습니다.",
+        "saju_analysis",
+        progress_callback=progress_callback,
+    )
     result = _repair_saju_terms(result, profile.name, "saju_analysis")
     return result
 
@@ -720,49 +763,35 @@ def _build_compatibility_saju_analysis(
     mode: str,
     left_manse: ManseLookupResult,
     right_manse: ManseLookupResult,
+    progress_callback=None,
 ) -> _GeneratedText:
     distributed_app_config = _load_active_distributed_app_config()
-    if distributed_app_config is not None:
-        from oracle_report.saju.repository import birth_time_display_from_profile
-        categories = ("관계 구조", "상호 보완", "갈등 관리", "현재 관계 흐름", "실천 제안", "총평 및 조언")
-        values = {
-            "mode": mode,
-            "left_name": left_profile.name,
-            "left_gender": left_profile.gender,
-            "left_birth_datetime": left_profile.birth_datetime.isoformat(),
-            "left_birth_time_text": birth_time_display_from_profile(left_profile),
-            "right_name": right_profile.name,
-            "right_gender": right_profile.gender,
-            "right_birth_datetime": right_profile.birth_datetime.isoformat(),
-            "right_birth_time_text": birth_time_display_from_profile(right_profile),
-            "left_saju_text": left_manse.formatted_text,
-            "right_saju_text": right_manse.formatted_text,
-        }
-        result = _safe_generate_distributed(
-            "saju_reading_couple",
-            values,
-            categories,
-            None,
-            distributed_app_config,
-            client,
-            "궁합 사주정보를 생성하지 못했습니다.",
-            "saju_analysis_couple",
-        )
-    else:
-        prompt = build_couple_saju_reading_prompt(
-            left_profile,
-            right_profile,
-            mode,
-            left_manse.formatted_text,
-            right_manse.formatted_text,
-        )
-        result = _safe_generate(
-            client,
-            prompt,
-            None,
-            "궁합 사주정보를 생성하지 못했습니다.",
-            debug_label="saju_analysis_couple",
-        )
+    from oracle_report.saju.repository import birth_time_display_from_profile
+    categories = ("관계 구조", "상호 보완", "갈등 관리", "현재 관계 흐름", "실천 제안", "총평 및 조언")
+    values = {
+        "mode": mode,
+        "left_name": left_profile.name,
+        "left_gender": left_profile.gender,
+        "left_birth_datetime": left_profile.birth_datetime.isoformat(),
+        "left_birth_time_text": birth_time_display_from_profile(left_profile),
+        "right_name": right_profile.name,
+        "right_gender": right_profile.gender,
+        "right_birth_datetime": right_profile.birth_datetime.isoformat(),
+        "right_birth_time_text": birth_time_display_from_profile(right_profile),
+        "left_saju_text": left_manse.formatted_text,
+        "right_saju_text": right_manse.formatted_text,
+    }
+    result = _safe_generate_distributed(
+        "saju_reading_couple",
+        values,
+        categories,
+        None,
+        distributed_app_config,
+        client,
+        "궁합 사주정보를 생성하지 못했습니다.",
+        "saju_analysis_couple",
+        progress_callback=progress_callback,
+    )
     result = _repair_saju_terms(result, "", "saju_analysis_couple")
     return result
 
@@ -775,10 +804,8 @@ def _build_personal_report_json(
     skip_face: bool = False,
 ) -> str:
     face_payload, face_error = ({}, "")
-    saju_payload, saju_error = _load_json_payload_or_error(
-        saju_analysis,
-        label="saju_analysis",
-    )
+    saju_payload = parse_oracle_text_response(saju_analysis)
+    saju_error = ""
     if not skip_face:
         face_payload, face_error = _load_json_payload_or_error(
             face_analysis,
@@ -814,10 +841,8 @@ def _build_compatibility_report_json(
         face_analysis,
         label="pair_face_analysis",
     )
-    saju_payload, saju_error = _load_json_payload_or_error(
-        saju_analysis,
-        label="saju_analysis_couple",
-    )
+    saju_payload = parse_oracle_text_response(saju_analysis)
+    saju_error = ""
     if face_error:
         print(
             "[UI FALLBACK:pair_face_analysis] invalid face output; "
@@ -1016,26 +1041,6 @@ def _pair_capture_config(capture_config: CaptureConfig, side: str) -> CaptureCon
     return result
 
 
-def _safe_generate(
-    client: TextGenerator,
-    prompt: str,
-    image_path: Path | None,
-    fallback: str,
-    debug_label: str = "llm",
-) -> _GeneratedText:
-    text = fallback
-    error = ""
-    try:
-        text = client.generate(prompt, image_path=image_path)
-        text = _normalize_generated_output_text(text, debug_label)
-        print(f"\n[LLM RAW:{debug_label}:BEGIN]\n{text}\n[LLM RAW:{debug_label}:END]\n")
-    except Exception as exc:
-        error = str(exc)
-        text = f"{fallback}\n\n오류: {error}"
-        print(f"\n[LLM RAW:{debug_label}:ERROR] {error}\n")
-    result = _GeneratedText(text=text, error=error)
-    return result
-
 
 def _normalize_generated_output_text(text: str, label: str = "llm_json") -> str:
     payload, error = _load_json_payload_or_error(text, label=label)
@@ -1150,6 +1155,147 @@ def _remove_personal_name_mentions_in_text(text: str, name: str) -> str:
     result = re.sub(r"\s+([,.!?])", r"\1", result)
     result = " ".join(result.split())
     return result
+
+
+def parse_oracle_text_response(text: str) -> dict:
+    # 0. JSON format check first for fallback compatibility
+    trimmed = text.strip()
+    if (trimmed.startswith("{") and trimmed.endswith("}")) or (trimmed.startswith("```") and "{" in trimmed):
+        json_candidate = trimmed
+        if json_candidate.startswith("```"):
+            lines = json_candidate.splitlines()
+            if lines and (lines[0].startswith("```json") or lines[0] == "```"):
+                json_candidate = "\n".join(lines[1:-1]).strip()
+        try:
+            parsed, error = _load_json_payload_or_error(json_candidate, label="parse_oracle")
+            if not error and isinstance(parsed, dict):
+                normalized = {}
+                for k, v in parsed.items():
+                    normalized[k.lower()] = v
+                if "tags" in normalized and isinstance(normalized["tags"], str):
+                    raw_tags = normalized["tags"]
+                    normalized["tags"] = [t.strip() for t in re.split(r'[,，\s]+', raw_tags) if t.strip()]
+                for blocks_key in ("saju_blocks", "pair_blocks", "face_blocks"):
+                    if blocks_key in normalized and isinstance(normalized[blocks_key], list):
+                        new_blocks = []
+                        for b in normalized[blocks_key]:
+                            if isinstance(b, dict):
+                                new_b = {}
+                                for bk, bv in b.items():
+                                    new_b[bk.lower()] = bv
+                                new_blocks.append(new_b)
+                        normalized[blocks_key] = new_blocks
+                return normalized
+        except Exception:
+            pass
+
+    # 1. Plain text parser
+    meta_output = {}
+    saju_blocks = []
+    
+    # Parse METADATA block
+    metadata_match = re.search(
+        r'===\s*METADATA\s*===(.*?)(?====\s*CATEGORY|===|$)', 
+        text, 
+        re.DOTALL | re.IGNORECASE
+    )
+    meta_text = None
+    if metadata_match:
+        meta_text = metadata_match.group(1)
+    elif "### essence" in text.lower():
+        cat_start = re.search(r'===\s*CATEGORY', text, re.IGNORECASE)
+        if cat_start:
+            meta_text = text[:cat_start.start()]
+        else:
+            meta_text = text
+            
+    if meta_text:
+        essence_m = re.search(r'###\s*ESSENCE:\s*(.*?)(?=\s*###|\Z)', meta_text, re.DOTALL | re.IGNORECASE)
+        elem_m = re.search(r'###\s*ELEMENT_NOTE:\s*(.*?)(?=\s*###|\Z)', meta_text, re.DOTALL | re.IGNORECASE)
+        sub_m = re.search(r'###\s*SAJU_SUBTITLE:\s*(.*?)(?=\s*###|\Z)', meta_text, re.DOTALL | re.IGNORECASE)
+        action_t_m = re.search(r'###\s*ACTION_TITLE:\s*(.*?)(?=\s*###|\Z)', meta_text, re.DOTALL | re.IGNORECASE)
+        action_b_m = re.search(r'###\s*ACTION_BODY:\s*(.*?)(?=\s*###|\Z)', meta_text, re.DOTALL | re.IGNORECASE)
+        tags_m = re.search(r'###\s*TAGS:\s*(.*?)(?=\s*###|\Z)', meta_text, re.DOTALL | re.IGNORECASE)
+        disc_m = re.search(r'###\s*DISCLAIMER:\s*(.*?)(?=\s*###|\Z)', meta_text, re.DOTALL | re.IGNORECASE)
+        
+        if essence_m:
+            meta_output["essence"] = essence_m.group(1).strip()
+        if elem_m:
+            meta_output["element_note"] = elem_m.group(1).strip()
+        if sub_m:
+            meta_output["saju_subtitle"] = sub_m.group(1).strip()
+        if action_t_m:
+            meta_output["action_title"] = action_t_m.group(1).strip()
+        if action_b_m:
+            meta_output["action_body"] = action_b_m.group(1).strip()
+        if tags_m:
+            raw_tags = tags_m.group(1).strip()
+            tags = [t.strip() for t in re.split(r'[,，\s]+', raw_tags) if t.strip()]
+            meta_output["tags"] = tags
+        if disc_m:
+            meta_output["disclaimer"] = disc_m.group(1).strip()
+            
+    # Parse CATEGORY blocks
+    category_blocks = re.findall(
+        r'===\s*CATEGORY:\s*(.*?)\s*===(.*?)(?====\s*CATEGORY|===\s*METADATA|$)', 
+        text, 
+        re.DOTALL | re.IGNORECASE
+    )
+    for cat_name, cat_body in category_blocks:
+        cat_name = cat_name.strip()
+        title_m = re.search(r'###\s*TITLE:\s*(.*?)(?=\s*###|\Z)', cat_body, re.DOTALL | re.IGNORECASE)
+        sum_m = re.search(r'###\s*SUMMARY:\s*(.*?)(?=\s*###|\Z)', cat_body, re.DOTALL | re.IGNORECASE)
+        body_m = re.search(r'###\s*BODY:\s*(.*?)(?=\s*###|\Z)', cat_body, re.DOTALL | re.IGNORECASE)
+        
+        block = {"category": cat_name}
+        if title_m:
+            block["title"] = title_m.group(1).strip()
+        if sum_m:
+            block["summary"] = sum_m.group(1).strip()
+        if body_m:
+            block["body"] = body_m.group(1).strip()
+            
+        saju_blocks.append(block)
+        
+    result = meta_output
+    if saju_blocks:
+        result["saju_blocks"] = saju_blocks
+    return result
+
+
+def _is_parsed_output_valid(parsed: dict, is_metadata: bool) -> bool:
+    if not parsed or not isinstance(parsed, dict):
+        return False
+    if is_metadata:
+        if "essence" not in parsed or not parsed["essence"].strip():
+            return False
+        if "tags" not in parsed or not parsed["tags"]:
+            return False
+        return True
+    else:
+        # For individual category tasks, they might be nested in 'saju_blocks' or direct
+        # Check sub-blocks first
+        blocks = parsed.get("saju_blocks", [])
+        if not blocks and "category" in parsed:
+            blocks = [parsed]
+        if not blocks:
+            # Check if direct title/summary/body keys are present (fallback)
+            if "title" in parsed and "summary" in parsed and "body" in parsed:
+                blocks = [parsed]
+                
+        if not blocks:
+            return False
+            
+        for b in blocks:
+            if not isinstance(b, dict):
+                return False
+            if "title" not in b or not b["title"].strip():
+                return False
+            if "summary" not in b or not b["summary"].strip():
+                return False
+            if "body" not in b or len(b["body"].strip()) < 10:
+                return False
+        return True
 
 
 def _load_json_payload_or_error(
@@ -1358,12 +1504,7 @@ def _load_active_distributed_app_config():
     from oracle_report.config import load_app_config
 
     app_config = load_app_config()
-    result = None
-    if app_config.distributed_split and app_config.distributed_role in (
-        "master",
-        "hybrid",
-    ):
-        result = app_config
+    result = app_config
     return result
 
 
@@ -1378,6 +1519,7 @@ def _safe_generate_distributed(
     client: TextGenerator | None,
     fallback: str,
     debug_label: str,
+    progress_callback=None,
 ) -> _GeneratedText:
     text = fallback
     error = ""
@@ -1389,7 +1531,9 @@ def _safe_generate_distributed(
             image_path,
             app_config,
             client,
+            progress_callback=progress_callback,
         )
+        text = _normalize_generated_output_text(text, debug_label)
         print(
             f"\n[LLM RAW:{debug_label}:BEGIN]\n"
             f"{text}\n"
@@ -1503,6 +1647,7 @@ def _generate_distributed(
     image_path: Path | None,
     app_config,
     client: TextGenerator | None = None,
+    progress_callback=None,
 ) -> str:
     import queue
     import threading
@@ -1803,7 +1948,17 @@ def _generate_distributed(
             if is_local:
                 try:
                     output = local_client.generate(rendered, image_path=image_path)
-                    success = True
+                    if app_config.debug:
+                        print(f"\n--- [DEBUG: Distributed Response from {device_name}] ---")
+                        print(f"Category: {cat or 'metadata'}")
+                        print(f"Output:\n{output}")
+                        print("-" * 50 + "\n", flush=True)
+                    parsed = parse_oracle_text_response(output)
+                    if _is_parsed_output_valid(parsed, is_meta):
+                        success = True
+                    else:
+                        success = False
+                        error_msg = "Direct local generation parsed output is invalid"
                 except Exception as e:
                     error_msg = f"Direct local generation failed: {e}"
             else:
@@ -1820,11 +1975,22 @@ def _generate_distributed(
                     if res.status_code == 200:
                         data = res.json()
                         if data.get("status") == "success":
-                            success = True
-                            output = data.get("output")
-                            score = data.get("compute_score")
-                            if score is not None:
-                                scheduler.slave_metadata[slave_url]["compute_score"] = float(score)
+                            candidate_output = data.get("output")
+                            if app_config.debug:
+                                print(f"\n--- [DEBUG: Distributed Response from {device_name}] ---")
+                                print(f"Category: {cat or 'metadata'}")
+                                print(f"Output:\n{candidate_output}")
+                                print("-" * 50 + "\n", flush=True)
+                            parsed = parse_oracle_text_response(candidate_output)
+                            if _is_parsed_output_valid(parsed, is_meta):
+                                success = True
+                                output = candidate_output
+                                score = data.get("compute_score")
+                                if score is not None:
+                                    scheduler.slave_metadata[slave_url]["compute_score"] = float(score)
+                            else:
+                                success = False
+                                error_msg = "Remote slave returned invalid parsed output"
                         else:
                             error_msg = data.get("error", "Unknown slave error")
                     else:
@@ -1846,11 +2012,6 @@ def _generate_distributed(
                 with _COMPLETED_TIMES_LOCK:
                     _LAST_COMPLETED_TIMES[slave_url] = time.time()
                 print(f"[Distributed] Task '{cat or 'metadata'}' completed on {device_name} in {elapsed:.2f}s (Worker Score: {my_updated_score:.2f}, Master Score: {local_updated_score:.2f})")
-                if app_config.debug:
-                    print(f"\n--- [DEBUG: Distributed Response from {device_name}] ---")
-                    print(f"Category: {cat or 'metadata'}")
-                    print(f"Output:\n{output}")
-                    print("-" * 50 + "\n", flush=True)
                 # Atomic check-mark-append: mark_task_done returns True only for the first completer
                 if mark_task_done(task):
                     with results_lock:
@@ -1947,7 +2108,17 @@ def _generate_distributed(
             start_time = time.perf_counter()
             try:
                 output = local_client.generate(rendered, image_path=image_path)
-                success = True
+                if app_config.debug:
+                    print(f"\n--- [DEBUG: Distributed Local Response] ---")
+                    print(f"Category: {cat or 'metadata'}")
+                    print(f"Output:\n{output}")
+                    print("-" * 50 + "\n", flush=True)
+                parsed = parse_oracle_text_response(output)
+                if _is_parsed_output_valid(parsed, is_meta):
+                    success = True
+                else:
+                    success = False
+                    error_msg = "Local generation parsed output is invalid"
             except Exception as e:
                 error_msg = str(e)
 
@@ -1963,11 +2134,6 @@ def _generate_distributed(
                 with _COMPLETED_TIMES_LOCK:
                     _LAST_COMPLETED_TIMES["local"] = time.time()
                 print(f"[Distributed] Task '{cat or 'metadata'}' completed on local (127.0.0.1) in {elapsed:.2f}s (Local Score: {local_updated_score:.2f})")
-                if app_config.debug:
-                    print(f"\n--- [DEBUG: Distributed Local Response] ---")
-                    print(f"Category: {cat or 'metadata'}")
-                    print(f"Output:\n{output}")
-                    print("-" * 50 + "\n", flush=True)
                 # Atomic check-mark-append (#3)
                 if mark_task_done(task):
                     with results_lock:
@@ -1996,13 +2162,13 @@ def _generate_distributed(
     threads = []
     worker_urls = list(app_config.slave_addrs)
     if app_config.distributed_local_fallback:
-        if app_config.distributed_role == "hybrid" or not worker_urls:
+        if app_config.distributed_role in ("master", "hybrid") or not worker_urls:
             if "local" not in worker_urls:
                 worker_urls.append("local")
 
     for url in worker_urls:
         if url == "local":
-            for i in range(2):
+            for i in range(1):
                 t = threading.Thread(
                     target=local_worker_loop,
                     name=f"local_{i}",
@@ -2018,6 +2184,7 @@ def _generate_distributed(
     global_start_time = time.perf_counter()
     global_timeout = 1800  # 30 minutes max
 
+    last_reported_count = -1
     while task_queue.unfinished_tasks > 0:
         elapsed = time.perf_counter() - global_start_time
         if elapsed > global_timeout:
@@ -2027,6 +2194,16 @@ def _generate_distributed(
         if not active_workers:
             print("[Distributed][Fatal] All worker threads have terminated, but some tasks are still unfinished. Breaking to avoid deadlock.")
             break
+            
+        if progress_callback:
+            with results_lock:
+                completed_count = len(results)
+            total_count = len(tasks)
+            if completed_count != last_reported_count:
+                last_reported_count = completed_count
+                progress_val = int(30 + (completed_count / total_count) * 60)
+                progress_callback(progress_val, f"사주 리포트를 해석하는 중... ({completed_count}/{total_count})")
+                
         time.sleep(0.5)
 
     # Wait for worker threads to finish before processing results (#9)
@@ -2034,57 +2211,99 @@ def _generate_distributed(
         t.join(timeout=5.0)
 
     meta_output = {}
-    blocks_outputs = []
+    blocks_by_category = {}
 
+    def _safe_clean(text: str | None) -> str:
+        if not text:
+            return ""
+        return re.sub(r"[^가-힣a-zA-Z0-9]", "", str(text)).lower()
+
+    # 1. Parse async worker outputs using parse_oracle_text_response
     for r in results:
         if not r["success"]:
-            print(f"[Distributed] Task failed: {r.get('error')}")
             continue
 
         output_str = r["output"]
-        cleaned = output_str.strip()
-        if cleaned.startswith("```"):
-            lines = cleaned.splitlines()
-            if lines and (lines[0].startswith("```json") or lines[0] == "```"):
-                cleaned = "\n".join(lines[1:-1])
-        start = cleaned.find("{")
-        end = cleaned.rfind("}")
-        if start >= 0 and end >= start:
-            cleaned = cleaned[start : end + 1]
+        parsed_json = parse_oracle_text_response(output_str)
 
-        try:
-            parsed = json.loads(cleaned)
-        except Exception as e:
-            print(f"[Distributed] JSON parsing failed: {e}")
-            parsed = {}
+        if not parsed_json or not isinstance(parsed_json, dict):
+            continue
 
-        if r["task"]["is_metadata"]:
-            meta_output = parsed
+        # Handle metadata task
+        if r["task"].get("is_metadata"):
+            meta_output = parsed_json
         else:
-            blocks_outputs.append(parsed)
+            # First match: by targeted category name from system task config
+            req_cat = r["task"].get("target_category")
+            if req_cat:
+                blocks_by_category[_safe_clean(req_cat)] = parsed_json
+            
+            # Second match: backup using LLM's own category field
+            llm_cat = parsed_json.get("category")
+            if llm_cat:
+                blocks_by_category[_safe_clean(llm_cat)] = parsed_json
+
+    # 2. Metadata Fallback to prevent complete loss
+    if not meta_output or "essence" not in meta_output:
+        meta_output = {
+            "essence": "사주 분석 결과를 종합적으로 분석 중입니다. 잠시 후 상세 리포트를 확인해 주세요.",
+            "element_note": "오행 기운의 조화와 균형을 바탕으로 후천적인 개운법을 제안합니다.",
+            "saju_subtitle": "나를 찾아가는 사주 명리 분석",
+            "tags": ["사주명리", "운세분석", "개운처방", "평생사주"],
+            "disclaimer": "본 리포트는 참고용 엔터테인먼트 콘텐츠입니다."
+        }
 
     final_dict = meta_output
     block_key = "saju_blocks"
     if "face" in prompt_name:
         block_key = "pair_blocks" if "couple" in prompt_name else "face_blocks"
 
-    def clean_cat(c: object) -> str:
-        if not isinstance(c, str):
-            return ""
-        return c.strip().replace('"', '').replace("'", '').replace(" ", "")
-
+    # 3. Align blocks strictly by defined category order
     ordered_blocks = []
     for cat in categories:
-        matched = None
-        for b in blocks_outputs:
-            if clean_cat(b.get("category")) == clean_cat(cat):
-                b["category"] = cat
-                matched = b
-                break
-        if matched:
+        cleaned_target = _safe_clean(cat)
+        
+        if cleaned_target in blocks_by_category:
+            matched = blocks_by_category[cleaned_target]
+            matched["category"] = cat  # Enforce standardized category name
+            
+            # Sub-block checks in case response is full report payload
+            if "saju_blocks" in matched and isinstance(matched["saju_blocks"], list):
+                for b in matched["saju_blocks"]:
+                    if _safe_clean(b.get("category")) == cleaned_target:
+                        matched = b
+                        matched["category"] = cat
+                        break
+            elif "pair_blocks" in matched and isinstance(matched["pair_blocks"], list):
+                for b in matched["pair_blocks"]:
+                    if _safe_clean(b.get("category")) == cleaned_target:
+                        matched = b
+                        matched["category"] = cat
+                        break
+            elif "face_blocks" in matched and isinstance(matched["face_blocks"], list):
+                for b in matched["face_blocks"]:
+                    if _safe_clean(b.get("category")) == cleaned_target:
+                        matched = b
+                        matched["category"] = cat
+                        break
+
+            # Field fallback checks
+            if "title" not in matched or not matched["title"]:
+                matched["title"] = f"{cat} 분석"
+            if "summary" not in matched or not matched["summary"]:
+                matched["summary"] = "상세 요약 내용을 불러오는 중입니다."
+            if "body" not in matched or not matched["body"]:
+                matched["body"] = "상세 본문 내용을 생성하지 못했습니다."
+                
             ordered_blocks.append(matched)
         else:
-            ordered_blocks.append({"category": cat, "title": "분석 오류", "summary": "연산 실패", "body": "해당 카테고리의 분석을 생성하지 못했습니다."})
+            # Isolation block to prevent block shifting on worker failure
+            ordered_blocks.append({
+                "category": cat,
+                "title": f"{cat} 분석 안내",
+                "summary": "데이터 일시적 유실",
+                "body": "해당 카테고리의 생성 결과가 올바른 JSON 규격을 벗어났거나 유실되었습니다. 다시 생성해 주세요."
+            })
 
     final_dict[block_key] = ordered_blocks
     result = json.dumps(final_dict, ensure_ascii=False)

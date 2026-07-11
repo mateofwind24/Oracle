@@ -22,7 +22,7 @@ def test_distributed_prompt_split_metadata() -> None:
         is_metadata=True,
     )
 
-    assert "saju_subtitle" in rendered.body
+    assert "SAJU_SUBTITLE" in rendered.body
     assert '"saju_blocks":' not in rendered.prefix
     assert "saju_reading_split" in rendered.name
 
@@ -44,11 +44,11 @@ def test_distributed_prompt_split_category() -> None:
     )
 
     assert "종합 형국" in rendered.body
-    assert "category" in rendered.body
-    assert "body" in rendered.body
+    assert "CATEGORY" in rendered.body
+    assert "BODY" in rendered.body
     assert '"saju_blocks":' not in rendered.prefix
     assert '"saju_subtitle":' not in rendered.prefix
-    assert "[분석 대상 카테고리]" in rendered.body
+    assert "CATEGORY:" in rendered.body
 
 
 def test_distributed_prompt_saju_split() -> None:
@@ -66,8 +66,8 @@ def test_distributed_prompt_saju_split() -> None:
         values=values,
         is_metadata=True,
     )
-    assert "essence" in rendered.body
-    assert "saju_subtitle" in rendered.body
+    assert "ESSENCE" in rendered.body
+    assert "SAJU_SUBTITLE" in rendered.body
 
 
 def test_distributed_task_scheduler_round_robin() -> None:

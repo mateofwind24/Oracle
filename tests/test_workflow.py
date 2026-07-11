@@ -106,9 +106,11 @@ def test_normalize_payload_removes_emoji_from_llm_text() -> None:
 
 class FakeLlmClient:
     def generate(self, prompt: str, image_path: Path | None = None) -> str:
-        result = "LLM 결과"
-        if "\"face_blocks\"" in prompt and image_path is not None:
-            result = json.dumps(
+        prompt_str = str(prompt)
+        
+        # 1. Face analysis branch
+        if "face_blocks" in prompt_str or "personal_face_analysis" in prompt_str:
+            return json.dumps(
                 {
                     "face_subtitle": "테스트 관상 소제목",
                     "face_blocks": _report_blocks("관상", 5),
@@ -116,100 +118,113 @@ class FakeLlmClient:
                 },
                 ensure_ascii=False,
             )
-        elif "\"action_title\"" in prompt and "두 사람의 사주 궁합 핵심 요약" in prompt:
-            result = json.dumps(
-                {
-                    "essence": "두 사람 궁합 핵심 문장",
-                    "pair_subtitle": "관계 분위기 테스트",
-                    "pair_blocks": [
-                        {
-                            "category": "관계 카테고리",
-                            "title": "관계 제목",
-                            "summary": "관계 요약",
-                            "body": _block_body("관계", 1),
-                        },
-                    ],
-                    "saju_subtitle": "궁합 사주 테스트",
-                    "saju_blocks": [
-                        {
-                            "category": "궁합 사주 카테고리",
-                            "title": "궁합 사주 제목",
-                            "summary": "궁합 사주 요약",
-                            "body": _block_body("궁합 사주", 1),
-                        },
-                    ],
-                    "action_title": "궁합 행동 제목",
-                    "action_body": "궁합 행동 본문",
-                    "tags": ["궁합 테스트 태그"],
-                    "disclaimer": "궁합 테스트 고지",
-                },
-                ensure_ascii=False,
-            )
-        elif "\"saju_blocks\"" in prompt:
-            result = json.dumps(
-                {
-                    "essence": "사주 핵심 문장",
-                    "element_note": "사주 오행 메모",
-                    "saju_subtitle": "사주 소제목",
-                    "saju_blocks": _report_blocks("사주", 6),
-                    "tags": ["사주 태그"],
-                    "disclaimer": "사주 고지",
-                },
-                ensure_ascii=False,
-            )
-        elif "saju_reading" in prompt or "사주" in prompt:
-            if "category" in prompt:
-                cat = "사주"
-                num = 1
-                saju_cats = ["종합 형국", "타고난 성향과 심리 패턴", "재물운과 적성", "연애운과 인간관계", "올해의 운세", "총평 및 인생의 조언"]
-                compat_cats = ["관계 구조", "상호 보완", "갈등 관리", "현재 관계 흐름", "실천 제안", "총평 및 조언"]
-                for i, c in enumerate(saju_cats):
-                    if c in prompt:
-                        cat = c
-                        num = i + 1
-                        break
-                for i, c in enumerate(compat_cats):
-                    if c in prompt:
-                        cat = c
-                        num = i + 1
-                        break
-                result = json.dumps(
-                    {
-                        "category": cat,
-                        "title": f"사주 제목 {num}",
-                        "summary": f"사주 요약 {num}",
-                        "body": _block_body("사주", num),
-                    },
-                    ensure_ascii=False,
-                )
+
+        # 2. Distributed Split Category branch
+        import re
+        match = re.search(r"오직\s*'([^']+)'\s*카테고리", prompt_str)
+        if match:
+            cat = match.group(1).strip()
+            num = 1
+            saju_cats = ["종합 형국 및 원국 해설", "오행 분포와 기운 개운법", "신살 및 십성 심리 해부", 
+                         "성격 분석 및 후천적 변화", "직업 적성과 사회적 무기", "재물운과 자산 설계", 
+                         "연애운과 이상형 인연", "부모 및 가족 관계", "대인관계와 인맥 다이어트", 
+                         "공간 및 지리적 개운 처방", "올해의 운세 및 총평"]
+            compat_cats = ["관계 구조", "상호 보완", "갈등 관리", "현재 관계 흐름", "실천 제안", "총평 및 조언"]
+            
+            for i, c in enumerate(saju_cats):
+                if c.replace(" ", "") in cat.replace(" ", ""):
+                    cat = c
+                    num = i + 1
+                    break
+            for i, c in enumerate(compat_cats):
+                if c.replace(" ", "") in cat.replace(" ", ""):
+                    cat = c
+                    num = i + 1
+                    break
+            return f"""=== CATEGORY: {cat} ===
+### TITLE: 사주 제목 {num}
+### SUMMARY: 사주 요약 {num}
+### BODY: 사주 본문 {num} 10문장 이상 작성"""
+
+        # 3. Distributed Split Metadata branch
+        if "=== METADATA ===" in prompt_str and "카테고리 블록" in prompt_str:
+            if "couple" in prompt_str.lower() or "compatibility" in prompt_str.lower() or "궁합" in prompt_str or "두 사람" in prompt_str:
+                return """=== METADATA ===
+### ESSENCE: 두 사람 궁합 핵심 문장
+### SAJU_SUBTITLE: 궁합 사주 테스트
+### ACTION_TITLE: 궁합 행동 제목
+### ACTION_BODY: 궁합 행동 본문
+### TAGS: 궁합 테스트 태그
+### DISCLAIMER: 궁합 테스트 고지"""
             else:
-                result = json.dumps(
-                    {
-                        "essence": "사주 핵심 문장",
-                        "element_note": "사주 오행 메모",
-                        "saju_subtitle": "사주 소제목",
-                        "tags": ["사주 태그"],
-                        "disclaimer": "사주 고지",
-                    },
-                    ensure_ascii=False,
-                )
-        elif "face_blocks" in prompt:
-            result = json.dumps(
-                {
-                    "essence": "테스트 핵심 문장",
-                    "element_note": "테스트 오행 메모",
-                    "face_subtitle": "테스트 관상 소제목",
-                    "face_blocks": _report_blocks("관상", 5),
-                    "saju_subtitle": "테스트 사주 소제목",
-                    "saju_blocks": _report_blocks("사주", 6),
-                    "tags": ["테스트 태그"],
-                    "recommendation_title": "추천 제목",
-                    "recommendation_lead": "추천 리드",
-                    "disclaimer": "테스트 고지",
-                },
-                ensure_ascii=False,
-            )
-        return result
+                return """=== METADATA ===
+### ESSENCE: 사주 핵심 문장
+### ELEMENT_NOTE: 사주 오행 메모
+### SAJU_SUBTITLE: 사주 소제목
+### TAGS: 사주 태그
+### DISCLAIMER: 사주 고지"""
+
+        # 4. Integrated Saju (Non-distributed or full report)
+        if "saju_reading_couple" in prompt_str or "couple" in prompt_str.lower() or "compatibility" in prompt_str.lower() or "궁합" in prompt_str:
+            res = """=== METADATA ===
+### ESSENCE: 두 사람 궁합 핵심 문장
+### SAJU_SUBTITLE: 궁합 사주 테스트
+### ACTION_TITLE: 궁합 행동 제목
+### ACTION_BODY: 궁합 행동 본문
+### TAGS: 궁합 테스트 태그
+### DISCLAIMER: 궁합 테스트 고지
+
+=== CATEGORY: 관계 구조 ===
+### TITLE: 관계 제목
+### SUMMARY: 관계 요약
+### BODY: 관계 본문 10문장 이상 작성
+
+=== CATEGORY: 상호 보완 ===
+### TITLE: 상호 보완 제목
+### SUMMARY: 상호 보완 요약
+### BODY: 상호 보완 본문 10문장 이상 작성
+
+=== CATEGORY: 갈등 관리 ===
+### TITLE: 갈등 관리 제목
+### SUMMARY: 갈등 관리 요약
+### BODY: 갈등 관리 본문 10문장 이상 작성
+
+=== CATEGORY: 현재 관계 흐름 ===
+### TITLE: 현재 관계 흐름 제목
+### SUMMARY: 현재 관계 흐름 요약
+### BODY: 현재 관계 흐름 본문 10문장 이상 작성
+
+=== CATEGORY: 실천 제안 ===
+### TITLE: 실천 제안 제목
+### SUMMARY: 실천 제안 요약
+### BODY: 실천 제안 본문 10문장 이상 작성
+
+=== CATEGORY: 총평 및 조언 ===
+### TITLE: 총평 및 조언 제목
+### SUMMARY: 총평 및 조언 요약
+### BODY: 총평 및 조언 본문 10문장 이상 작성"""
+            return res
+        else:
+            categories = [
+                "종합 형국 및 원국 해설", "오행 분포와 기운 개운법", "신살 및 십성 심리 해부", 
+                "성격 분석 및 후천적 변화", "직업 적성과 사회적 무기", "재물운과 자산 설계", 
+                "연애운과 이상형 인연", "부모 및 가족 관계", "대인관계와 인맥 다이어트", 
+                "공간 및 지리적 개운 처방", "올해의 운세 및 총평"
+            ]
+            res = """=== METADATA ===
+### ESSENCE: 사주 핵심 문장
+### ELEMENT_NOTE: 사주 오행 메모
+### SAJU_SUBTITLE: 사주 소제목
+### TAGS: 사주 태그
+### DISCLAIMER: 사주 고지"""
+            for i, cat in enumerate(categories):
+                res += f"""\n\n=== CATEGORY: {cat} ===
+### TITLE: 사주 제목 {i+1}
+### SUMMARY: 사주 요약 {i+1}
+### BODY: 사주 본문 {i+1} 10문장 이상 작성"""
+            return res
+
+        return "LLM 결과"
 
 
 class RecordingFaceClient:
@@ -306,8 +321,24 @@ class FailsOnFacePromptClient(FakeLlmClient):
 
 class PartialFinalReportClient:
     def generate(self, prompt: str, image_path: Path | None = None) -> str:
-        del prompt
-        del image_path
+        prompt_str = str(prompt)
+        if "METADATA" in prompt_str or "metadata" in prompt_str.lower():
+            return """=== METADATA ===
+### ESSENCE: 부분 결과
+### SAJU_SUBTITLE: 부분 소제목
+### TAGS: 부분, 테스트, 사주
+### DISCLAIMER: 부분 고지"""
+        import re
+        match = re.search(r"오직\s*'([^']+)'\s*카테고리", prompt_str)
+        if match:
+            cat = match.group(1).strip()
+            if "종합" in cat or "원국" in cat:
+                return f"""=== CATEGORY: {cat} ===
+### TITLE: 부분 제목
+### SUMMARY: 부분 요약
+### BODY: 부분 본문이 충분히 긴 내용으로 10문장 이상 작성되어 있습니다. 아주 꽉 차 있어요."""
+            else:
+                return "FAIL"
         result = json.dumps(
             {
                 "essence": "부분 결과",
@@ -327,8 +358,21 @@ class PartialFinalReportClient:
 
 class NewlineBodyReportClient:
     def generate(self, prompt: str, image_path: Path | None = None) -> str:
-        del prompt
-        del image_path
+        prompt_str = str(prompt)
+        if "METADATA" in prompt_str or "metadata" in prompt_str.lower():
+            return """=== METADATA ===
+### ESSENCE: newline payload
+### SAJU_SUBTITLE: newline subtitle
+### TAGS: newline, test, tags
+### DISCLAIMER: newline disclaimer"""
+        import re
+        match = re.search(r"오직\s*'([^']+)'\s*카테고리", prompt_str)
+        if match:
+            cat = match.group(1).strip()
+            return f"""=== CATEGORY: {cat} ===
+### TITLE: newline title
+### SUMMARY: newline summary
+### BODY: first line\\nsecond line\nthird line가 충분한 길이로 들어가 있습니다. 이 본문은 아주 깁니다."""
         result = json.dumps(
             {
                 "essence": "newline payload",
@@ -348,8 +392,33 @@ class NewlineBodyReportClient:
 
 class MalformedJsonReportClient:
     def generate(self, prompt: str, image_path: Path | None = None) -> str:
-        del prompt
-        del image_path
+        prompt_str = str(prompt)
+        if "METADATA" in prompt_str or "metadata" in prompt_str.lower():
+            return """```json
+{
+    “essence”: “보정된 결과예요.”,
+    “tags”: [“보정”, “테스트”, “태그”],
+    “disclaimer”: “보정 고지예요.”
+}
+```"""
+        import re
+        match = re.search(r"오직\s*'([^']+)'\s*카테고리", prompt_str)
+        if match:
+            cat = match.group(1).strip()
+            if "종합" in cat or "원국" in cat:
+                return f"""```json
+{{
+    “category”: “{cat}”
+    “title”: “보정 제목”,
+    “summary”: “보정 요약은 충분한 길이를 갖고 있어요.”,
+    “body”: “보정 본문은 쉼표가 빠졌더라도 후처리로 복구되어 UI에 반영되어야 해요.”
+}}
+```"""
+            else:
+                return f"""=== CATEGORY: {cat} ===
+### TITLE: 보정 제목
+### SUMMARY: 보정 요약은 충분한 길이를 갖고 있어요.
+### BODY: 보정 본문은 쉼표가 빠졌더라도 후처리로 복구되어 UI에 반영되어야 해요."""
         return """```json
 {
     “essence”: “보정된 결과예요.”,
@@ -395,8 +464,22 @@ def test_llm_json_repair_handles_misclosed_saju_blocks_and_missing_comma() -> No
 
 class DayMasterHonorificReportClient:
     def generate(self, prompt: str, image_path: Path | None = None) -> str:
-        del prompt
-        del image_path
+        prompt_str = str(prompt)
+        if "METADATA" in prompt_str or "metadata" in prompt_str.lower():
+            return """=== METADATA ===
+### ESSENCE: 임수님은 넓은 시야가 돋보여요.
+### ELEMENT_NOTE: 임수님에게는 현실 감각을 보완하는 흐름이 필요해요.
+### SAJU_SUBTITLE: 임수님의 균형
+### TAGS: 임수, 변화
+### DISCLAIMER: 참고용 해석이에요."""
+        import re
+        match = re.search(r"오직\s*'([^']+)'\s*카테고리", prompt_str)
+        if match:
+            cat = match.group(1).strip()
+            return f"""=== CATEGORY: {cat} ===
+### TITLE: 임수님이 잡아야 할 중심
+### SUMMARY: 님은 변화에 강한 흐름을 보여요.
+### BODY: 임수님은 큰 흐름을 보는 힘이 있어요. 임수님은 변화를 잘 받아들일 수 있어요. 이 문장은 충분히 깁니다."""
         result = json.dumps(
             {
                 "essence": "임수님은 넓은 시야가 돋보여요.",
@@ -995,7 +1078,7 @@ def test_personal_workflow_keeps_partial_saju_json_without_full_ui_fallback(
     )
 
     assert "부분 제목" in result.report_html
-    assert "오행 분포는" in result.report_html
+    assert "데이터 일시적 유실" in result.report_html
     assert "전체 흐름을 정리하면" not in result.report_html
     assert "사주/만세력 데이터에 나타난 오행 분포와 생활 리듬" not in result.report_html
     assert "나를 채워주는 키워드" in result.report_html

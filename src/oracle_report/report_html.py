@@ -1200,7 +1200,7 @@ def _render_saju_only_element_cards(view: _PersonalReportView) -> str:
     icons = {
         "목": "🌳",
         "화": "🔥",
-        "토": "⛰",
+        "토": "🟫",
         "금": "🪨",
         "수": "💧",
     }

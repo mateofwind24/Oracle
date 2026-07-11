@@ -2,24 +2,24 @@ from __future__ import annotations
 
 import json
 import os
-import sys
+import re
 from dataclasses import dataclass
-from collections.abc import Mapping
 from pathlib import Path
 from string import Template
-from typing import Any
+from typing import Any, Mapping
 
+_PROMPTS_PATH_ENV_NAME = "ORACLE_PROMPTS_PATH"
 
 _DEFAULT_PROMPTS_PATH = Path("configs/prompts.json")
-_DEFAULT_DEBUG_PROMPTS_PATH = Path("configs/prompts_debug.json")
-_PROMPTS_PATH_ENV_NAME = "ORACLE_PROMPTS_PATH"
-_DEBUG_PROMPTS_PATH_ENV_NAME = "ORACLE_DEBUG_PROMPTS_PATH"
-REPORT_BLOCK_SENTENCE_COUNT = 5
-_REPORT_BLOCK_SENTENCE_COUNT_TOKEN = "{{report_block_sentence_count}}"
+
 _DEFAULT_PROMPT_SLOTS = {
-    "saju_reading": 1,
+    "personal_face_analysis": 2,
+    "face_analysis_couple": 2,
+    "saju_reading": 3,
     "saju_reading_couple": 3,
 }
+
+REPORT_BLOCK_SENTENCE_COUNT = 10
 
 
 @dataclass(frozen=True)
@@ -38,10 +38,6 @@ class RenderedPrompt:
 
     def __str__(self) -> str:
         result = self.text
-        return result
-
-    def __contains__(self, item: str) -> bool:
-        result = item in self.text
         return result
 
     def __eq__(self, other: object) -> bool:
@@ -82,14 +78,6 @@ def render_prompt_template(name: str, values: Mapping[str, object]) -> RenderedP
     return result
 
 
-def render_debug_prompt_template(name: str, values: Mapping[str, object]) -> str:
-    templates = _load_prompt_templates(_debug_prompt_templates_path())
-    template_text = _template_text(templates, name)
-    string_values = {key: str(value) for key, value in values.items()}
-    result = Template(template_text).substitute(string_values).strip()
-    return result
-
-
 def list_prompt_template_info() -> tuple[PromptTemplateInfo, ...]:
     templates = _load_prompt_templates(_prompt_templates_path())
     result = tuple(_template_parts(templates, name) for name in templates)
@@ -101,21 +89,11 @@ def _prompt_templates_path() -> Path:
     return result
 
 
-def _debug_prompt_templates_path() -> Path:
-    result = _configured_prompt_path(
-        _DEBUG_PROMPTS_PATH_ENV_NAME,
-        _DEFAULT_DEBUG_PROMPTS_PATH,
-    )
-    return result
-
-
 def _configured_prompt_path(env_name: str, default_path: Path) -> Path:
     configured_path = os.getenv(env_name, "")
     result = _DEFAULT_PROMPTS_PATH
     if configured_path.strip() != "":
         result = Path(configured_path)
-    else:
-        result = default_path
     return result
 
 
@@ -190,30 +168,21 @@ def _log_prompt_render(
     source_path: Path | None,
     rendered: RenderedPrompt,
 ) -> None:
-    source_text = "unknown"
+    del template_parts
+    source_message = ""
     if source_path is not None:
-        source_text = source_path.as_posix()
-    slot_text = "none" if template_parts.slot_id is None else str(template_parts.slot_id)
+        source_message = f" source={source_path}"
+    slot_message = ""
+    if rendered.slot_id is not None:
+        slot_message = f" id_slot={rendered.slot_id}"
     print(
-        "[PROMPT] "
-        f"name={name} "
-        f"source={source_text} "
-        f"id_slot={slot_text} "
-        f"prefix_chars={len(rendered.prefix)} "
-        f"body_chars={len(rendered.body)}",
+        f"[PROMPT] name={name}{source_message}{slot_message} "
+        f"prefix_chars={len(rendered.prefix)} body_chars={len(rendered.body)}",
         file=sys.stderr,
-        flush=True,
     )
 
 
-def _template_text(templates: Mapping[str, Any], name: str) -> str:
-    template_parts = _template_parts(templates, name)
-    result = template_parts.prefix
-    if template_parts.prefix.strip() != "":
-        result = f"{template_parts.prefix.strip()}\n\n{template_parts.body_template.strip()}"
-    elif template_parts.body_template.strip() != "":
-        result = template_parts.body_template
-    return result
+import sys
 
 
 def _template_parts(templates: Mapping[str, Any], name: str) -> PromptTemplateInfo:
@@ -265,27 +234,20 @@ def _template_fragment_text(raw_value: object) -> str:
     result = ""
     if isinstance(raw_value, str):
         result = raw_value
-    elif isinstance(raw_value, list) and all(isinstance(item, str) for item in raw_value):
+    elif isinstance(raw_value, list):
+        if not all(isinstance(item, str) for item in raw_value):
+            raise ValueError(
+                "prompt template fragments must be lists of strings",
+            )
         result = "\n".join(raw_value)
-    else:
-        raise ValueError("prompt template fragment must be a string or list of strings.")
-    result = _apply_template_constants(result)
-    return result
-
-
-def _apply_template_constants(template_text: str) -> str:
-    result = template_text.replace(
-        _REPORT_BLOCK_SENTENCE_COUNT_TOKEN,
-        str(REPORT_BLOCK_SENTENCE_COUNT),
-    )
     return result
 
 
 def _first_dynamic_line_index(lines: list[str]) -> int | None:
     result = None
-    for index, line in enumerate(lines):
+    for i, line in enumerate(lines):
         if "${" in line:
-            result = index
+            result = i
             break
     return result
 
@@ -297,13 +259,108 @@ def _template_slot_id(name: str, configured_value: object) -> int | None:
     return result
 
 
+# Category guides are now fully managed in configs/prompts_personal.json and configs/prompts_compatibility.json
+
+_rules_cache = None
+_system_instructions_cache = None
+
+
+def _load_saju_rules() -> dict:
+    global _rules_cache
+    if _rules_cache is None:
+        rules_path = Path("configs/saju_rules.json")
+        if rules_path.exists():
+            with rules_path.open(encoding="utf-8") as f:
+                _rules_cache = json.load(f)
+        else:
+            _rules_cache = {"ten_gods": {}, "shinsals": {}, "relationships": {}}
+    return _rules_cache
+
+
+def _load_system_instructions() -> dict:
+    global _system_instructions_cache
+    if _system_instructions_cache is None:
+        path = Path("configs/system_instructions.json")
+        if path.exists():
+            with path.open(encoding="utf-8") as f:
+                _system_instructions_cache = json.load(f)
+        else:
+            _system_instructions_cache = {"personal": [], "compatibility": []}
+    return _system_instructions_cache
+
+
+def _build_saju_rules_section(saju_text: str) -> str:
+    import re
+    saju_words = set(re.findall(r'[가-힣a-zA-Z0-9]+', saju_text))
+
+    spec_texts = []
+    for match in re.finditer(r'\[만세력/사주명식\](.*?)(?=\[오행 분포\]|\[사주정보\]|$)', saju_text, re.DOTALL):
+        spec_texts.append(match.group(1))
+    if spec_texts:
+        combined_spec_text = " ".join(spec_texts)
+        saju_words_spec = set(re.findall(r'[가-힣a-zA-Z0-9]+', combined_spec_text))
+    else:
+        saju_words_spec = saju_words
+
+    rules = _load_saju_rules()
+    filtered_rules = []
+
+    # 1. 십신(Ten Gods) 매칭
+    ten_gods_lines = []
+    for tg, desc in rules.get("ten_gods", {}).items():
+        if tg in saju_words_spec:
+            ten_gods_lines.append(f"  * {desc}")
+    if ten_gods_lines:
+        filtered_rules.append("- 십신(Ten Gods)의 10가지 내면 심리 본질 및 입체적 스토리텔링 가이드:")
+        filtered_rules.extend(ten_gods_lines)
+        filtered_rules.append("")
+
+    # 2. 신살(Shinsals) 매칭
+    shinsals_lines = []
+    for ss, desc in rules.get("shinsals", {}).items():
+        if ss in saju_words:
+            shinsals_lines.append(f"  * {desc}")
+    if shinsals_lines:
+        filtered_rules.append("[4: 26종 특수 기운(Shinsal)의 장단점 분석 및 입체적 사주풀이 가이드]")
+        filtered_rules.extend(shinsals_lines)
+        filtered_rules.append("")
+
+    # 3. 관계 흐름(Relationships) 매칭
+    relationships_lines = []
+    for rel, info in rules.get("relationships", {}).items():
+        cond1 = info.get("cond1", [])
+        cond2 = info.get("cond2", [])
+        has_cond1 = any(c1 in saju_words for c1 in cond1)
+        has_cond2 = any(c2 in saju_words for c2 in cond2)
+        if has_cond1 and has_cond2:
+            relationships_lines.append(f"  * {info.get('text')}")
+    if relationships_lines:
+        filtered_rules.append("- 구조적 역동성(Relationship)의 7대 흐름 및 스토리텔링 가이드:")
+        filtered_rules.extend(relationships_lines)
+
+    return "\n".join(filtered_rules)
+
+
 def render_distributed_prompt_template(
     name: str,
     values: Mapping[str, object],
     target_category: str | None = None,
     is_metadata: bool = False,
 ) -> RenderedPrompt:
-    rendered = render_prompt_template(name, values)
+    # 1. saju_rules 동적 빌드 및 values 에 주입
+    mutable_values = dict(values)
+    if "saju" in name and "saju_rules" not in mutable_values:
+        saju_text = ""
+        if "saju_text" in mutable_values:
+            saju_text = str(mutable_values["saju_text"])
+        elif "left_saju_text" in mutable_values and "right_saju_text" in mutable_values:
+            saju_text = f"{mutable_values['left_saju_text']} {mutable_values['right_saju_text']}"
+        mutable_values["saju_rules"] = _build_saju_rules_section(saju_text)
+    elif "saju_rules" not in mutable_values:
+        mutable_values["saju_rules"] = ""
+
+    # 2. 주입된 mutable_values 로 렌더링 호출
+    rendered = render_prompt_template(name, mutable_values)
     if not (target_category or is_metadata):
         return rendered
     if name not in (
@@ -314,79 +371,84 @@ def render_distributed_prompt_template(
     ):
         raise ValueError(f"unsupported distributed prompt template: {name}")
 
+    # 3. templates 원본 맵 로드하여 categories/metadata 구조 데이터 꺼내기
+    templates = _load_prompt_templates(_prompt_templates_path())
+    prompt_config = templates.get(name, {})
+    if not isinstance(prompt_config, dict):
+        prompt_config = {}
+
     prefix = rendered.prefix
-    schema_start = prefix.find("[출력 JSON 스키마]")
-    
-    # 1. Isolate the static system rules before the schema block
-    prefix_before_schema = prefix[:schema_start] if schema_start != -1 else prefix
-    
-    # 2. Extract static common body (saju birth profile / data)
     common_body = rendered.body
+
+    # 4. system_instructions.json 에서 정적 공통 가이드를 가져와 맨 앞에 접합
+    static_system_text = ""
+    sys_inst = _load_system_instructions()
+    if name in ("saju_reading", "personal_face_analysis"):
+        static_system_text = "\n".join(sys_inst.get("personal", []))
+    elif name in ("saju_reading_couple", "face_analysis_couple"):
+        static_system_text = "\n".join(sys_inst.get("compatibility", []))
+
+    if static_system_text:
+        prefix = f"{static_system_text.strip()}\n\n{prefix.strip()}"
     
-    # 3. Unify static parts as the new prefix so that they are 100% identical in token sequence
-    unified_common_prefix = f"{prefix_before_schema.strip()}\n\n{common_body.strip()}"
-    
-    # 4. Construct category-specific suffix instructions to go into the body segment
+    unified_common_prefix = f"{prefix.strip()}\n\n{common_body.strip()}"
+
+    # 5. suffix_instructions (카테고리 지시문 또는 메타데이터 스키마) 동적 빌드
     suffix_instructions = ""
     if is_metadata:
-        if name == "saju_reading":
-            suffix_instructions = """[출력 JSON 스키마]
-너는 오직 아래의 요약 정보와 메타데이터 필드들만 포함하는 단일 JSON 객체로 응답해야 한다. saju_blocks 필드는 절대 포함하지 마라.
-{
-  "essence": "이 사주의 전체적인 흐름과 삶의 방향성을 풍부한 해설 단락으로 요약한 내용",
-  "element_note": "[오행 분포]의 강한 기운과 보완이 필요한 기운이 생활 리듬에 어떻게 드러나는지 근거와 함께 자세한 설명",
-  "saju_subtitle": "사주 섹션 핵심을 20자 안팎의 짧은 문구",
-  "tags": ["태그1", "태그2", "태그3", "태그4"],
-  "disclaimer": "참고용 엔터테인먼트 리포트라는 짧은 고지"
-}"""
-        elif name == "personal_face_analysis":
-            suffix_instructions = """[출력 JSON 스키마]
-너는 오직 아래의 요약 정보와 메타데이터 필드들만 포함하는 단일 JSON 객체로 응답해야 한다. face_blocks 필드는 절대 포함하지 마라.
-{
-  "face_subtitle": "얼굴 관찰 섹션 오른쪽 짧은 키워드",
-  "face_summary": "관상 관찰을 1문장으로 요약"
-}"""
-        elif name == "saju_reading_couple":
-            suffix_instructions = """[출력 JSON 스키마]
-너는 오직 아래의 요약 정보와 메타데이터 필드들만 포함하는 단일 JSON 객체로 응답해야 한다. saju_blocks 필드는 절대 포함하지 마라.
-{
-  "essence": "두 사람의 사주 궁합 핵심 요약",
-  "saju_subtitle": "사주 섹션 짧은 부제",
-  "action_title": "관계를 좋게 만드는 행동 제안 제목",
-  "action_body": "실천 가능한 행동 제안",
-  "tags": ["태그1", "태그2", "태그3", "태그4"],
-  "disclaimer": "참고용 엔터테인먼트 리포트라는 짧은 고지"
-}"""
-        elif name == "face_analysis_couple":
-            suffix_instructions = """[출력 JSON 스키마]
-너는 오직 아래의 요약 정보와 메타데이터 필드들만 포함하는 단일 JSON 객체로 응답해야 한다. pair_blocks 필드는 절대 포함하지 마라.
-{
-  "pair_subtitle": "관상 기반 관계 분위기 부제",
-  "face_summary": "두 사람의 관상 관찰을 1문장으로 요약"
-}"""
-
+        metadata_cfg = prompt_config.get("metadata", {})
+        if name in ("saju_reading", "saju_reading_couple"):
+            lines = [
+                "[출력 형식]",
+                "너는 오직 아래의 요약 정보와 메타데이터 필드들만 포함하는 형식으로 응답해야 한다. 카테고리 블록(=== CATEGORY ===)은 절대 작성하지 마라. 중괄호나 JSON 기호는 절대 사용하지 마세요.",
+                "",
+                "=== METADATA ==="
+            ]
+            for key, val in metadata_cfg.items():
+                lines.append(f"### {key.upper()}: {val}")
+            suffix_instructions = "\n".join(lines)
+        else:
+            lines = [
+                "[출력 JSON 스키마]",
+                "너는 오직 아래의 요약 정보와 메타데이터 필드들만 포함하는 단일 JSON 객체로 응답해야 한다. face_blocks 필드는 절대 포함하지 마라.",
+                "{"
+            ]
+            fields = []
+            for key, val in metadata_cfg.items():
+                fields.append(f'  "{key}": "{val}"')
+            lines.append(",\n".join(fields))
+            lines.append("}")
+            suffix_instructions = "\n".join(lines)
     else:
-        body_instruction = """
-해당 카테고리에 대한 심층적이고 입체적인 명리-심리 융합 분석 본문입니다. 반드시 아래의 4가지 핵심 서사 구조를 톱니바퀴처럼 맞물려 짜임새 있게 엮어내고, '최소 10~12문장 이상의 압도적인 정보 분량'을 유지하되 '줄바꿈 없이 단 하나의 단락 줄글로만' 빽빽하게 작성하세요. 
-1) [전문 용어의 입체적 노출과 비유]: 리딩 문단의 서두나 핵심 키워드 뒤에 해당 데이터의 전문 용어 명칭을 '[괴강살]', '(식신 기운)', '[재생관 구조]'와 같이 대괄호나 괄호 형태로 반드시 명시적으로 노출하세요. 단, 용어 노출 직후에는 날것의 딱딱한 사주 용어를 쓰지 말고, 이 기운을 수려한 대자연의 풍경이나 시각적인 현상(예: 메마른 황토밭을 적시는 생명수)에 빗대어 한 편의 문학적인 서사로 번역해 풀어내야 합니다. 
-2) [무의식적 방어기제와 결핍 해부]: 사용자가 상처받지 않기 위해 무의식적으로 치고 있는 가면(페르소나) 뒤의 진짜 모습, 고질적인 심리적 강박, 인간관계의 취약점(단점)을 심리학적으로 날카롭게 해부하세요. 겉으로는 의연해 보이지만 속으로는 앓고 있는 외로움이나, 혼자 있을 때 타오르는 진짜 야망과 욕망을 정확히 찔러주어 '내 마음을 완벽하게 들여다보고 있다'는 전율과 눈물겨운 깊은 공감을 이끌어내야 합니다. 
-3) [족집게 미래 시나리오와 타이밍 예측]: 이러한 내면의 기질과 현재 운의 흐름(특히 2026년 병오년의 강력한 불꽃 기운)이 맞물려 향후 수개월 내에 현실 세계에서 마주하게 될 '파격적이고 구체적인 대박 성공 사건'을 점치세요. 두루뭉술한 덕담은 금지하며, 구체적인 직무적 전환, 특정 장소와 경로, 인연의 소수 정예 특징, 자산 형성의 계기 등 육하원칙에 가까운 현실적 시나리오와 타이밍을 확신형 어조로 선명하게 제시해야 합니다. 
-4) [일상 밀착형 개운법(開運法) 처방]: 이 운의 결실을 극대화하고 단점을 예방할 수 있는 일상 속 실천 비법을 강제하세요. 추상적인 조언을 배제하고, 사주의 부족한 기운을 보강하기 위해 오늘 당장 지녀야 할 액세서리 재질, 의상이나 카드의 색상, 지리적인 공간 이동(행운의 북쪽/남쪽 도시나 국가로의 여행/이동 등), 혹은 구체적인 멘탈 정화 루틴을 콕 집어 처방하며 글을 맺으세요. 
-* 어조 및 말투: 영혼을 터치하는 다정하고 따뜻한 위로의 해요체와, 날카롭고 확신에 찬 족집게 역술가의 카리스마를 완벽하게 융합하여 서술하세요.
-"""
+        categories_cfg = prompt_config.get("categories", {})
+        cat_info = categories_cfg.get(target_category, {})
+        if not isinstance(cat_info, dict):
+            cat_info = {}
 
-        suffix_instructions = f"""[출력 JSON 스키마]
+        if name in ("saju_reading", "saju_reading_couple"):
+            guide_text = cat_info.get("guide", "")
+            suffix_instructions = f"""[출력 형식]
+당신은 오직 '{target_category}' 카테고리에 대한 분석만 수행합니다.
+다른 메타데이터 필드나 다른 카테고리 블록은 절대 포함하지 말고, 오직 아래 포맷의 텍스트 형태로만 응답해야 합니다. 중괄호나 JSON 기호는 절대 사용하지 마세요.
+
+=== CATEGORY: {target_category} ===
+### TITLE: {cat_info.get('title', '제목')}
+### SUMMARY: {cat_info.get('summary', '요약')}
+### BODY: {cat_info.get('body', '본문')}
+
+* 세부 가이드 지침: {guide_text}"""
+        else:
+            suffix_instructions = f"""[출력 JSON 스키마]
 당신은 오직 '{target_category}' 카테고리에 대한 분석만 수행합니다.
 다른 메타데이터 필드나 다른 카테고리 블록은 절대 포함하지 말고, 오직 아래 포맷의 단일 JSON 객체 하나만 출력해야 합니다.
 {{
   "category": "{target_category}",
-  "title": "이 분석을 대표하는 호기심을 자극하면서도 핵심을 찌르는 제목",
-  "summary": "쉬운 한국어 해요체의 짧은 요약 문장",
-  "body": "{body_instruction}"
+  "title": "{cat_info.get('title', '제목')}",
+  "summary": "{cat_info.get('summary', '요약')}",
+  "body": "{cat_info.get('body', '본문')}"
 }}
 
-[분석 대상 카테고리]
-- 카테고리: {target_category}"""
+* 세부 가이드 지침: {cat_info.get('guide', '')}"""
 
     result = RenderedPrompt(
         name=f"{rendered.name}_split",
